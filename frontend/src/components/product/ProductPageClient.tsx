@@ -10,7 +10,10 @@
 import { useState, useCallback } from 'react';
 import type { UserRole } from '@/utils/pricing';
 import ProductImageGallery from './ProductImageGallery';
-import ProductSummary, { type ProductDetailWithVariants } from './ProductSummary';
+import ProductSummary, {
+  findDefaultVariant,
+  type ProductDetailWithVariants,
+} from './ProductSummary';
 import ProductSpecs from './ProductSpecs';
 import type { ProductVariant } from '@/types/api';
 import { absoluteUrl } from '@/utils/seo';
@@ -49,6 +52,17 @@ export default function ProductPageClient({ product, userRole }: ProductPageClie
     // TODO: Интеграция с корзиной (Story 12.2)
     console.log('Add to cart:', variantId);
   }, []);
+
+  // Акция действует для всех ролей. Сумма в разметке — та, что видит покупатель в ProductInfo:
+  // у товара без опций вариант выбран сразу и уведомления в родителя нет (`findDefaultVariant`,
+  // тот же выбор, что у сводки), у товара с опциями до выбора варианта — цена товара
+  const offerVariant = selectedVariant ?? findDefaultVariant(product.variants ?? []);
+  const productPromoPrice = product.promo_price ? parseFloat(product.promo_price) : NaN;
+  const offerPrice = offerVariant
+    ? parseFloat(offerVariant.current_price)
+    : productPromoPrice > 0
+      ? parseFloat(product.current_price || '') || productPromoPrice
+      : product.price?.retail || 0;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
@@ -105,9 +119,7 @@ export default function ProductPageClient({ product, userRole }: ProductPageClie
                   '@type': 'Offer',
                   url: absoluteUrl(`/product/${product.slug}`),
                   priceCurrency: product.price?.currency || 'RUB',
-                  price: selectedVariant
-                    ? parseFloat(selectedVariant.current_price)
-                    : product.price?.retail || 0,
+                  price: offerPrice,
                   availability: selectedVariant
                     ? selectedVariant.is_in_stock
                       ? 'https://schema.org/InStock'

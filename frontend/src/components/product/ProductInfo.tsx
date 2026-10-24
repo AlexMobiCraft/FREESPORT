@@ -7,7 +7,7 @@ import React from 'react';
 import { TextSeparator } from '@/components/common/TextSeparator';
 import { Badge } from '@/components/ui/Badge/Badge';
 import type { ProductDetail } from '@/types/api';
-import { formatPrice, getPriceForRole, type UserRole } from '@/utils/pricing';
+import { formatExactPrice, formatPrice, getPriceForRole, type UserRole } from '@/utils/pricing';
 import type { ProductVariant } from '@/types/api';
 
 interface ProductInfoProps {
@@ -161,12 +161,20 @@ export default function ProductInfo({
       {/* Цена */}
       <div className="py-4">
         <div className="flex flex-wrap items-baseline gap-x-3">
-          <div className="text-4xl font-bold text-neutral-900">
-            {formatPrice(displayedPrice, price.currency)}
+          {/* Зачёркивание и жирность — только CSS: скринридеру назначение сумм говорят подписи */}
+          <div
+            className="text-4xl font-bold text-neutral-900"
+            data-testid={hasPromo ? 'promo-price' : undefined}
+          >
+            {hasPromo && <span className="sr-only">Акционная цена: </span>}
+            {hasPromo
+              ? formatExactPrice(displayedPrice, price.currency)
+              : formatPrice(displayedPrice, price.currency)}
           </div>
           {strikedRegularPrice !== null && (
             <div className="text-xl text-neutral-500 line-through" data-testid="regular-price">
-              {formatPrice(strikedRegularPrice, price.currency)}
+              <span className="sr-only">Цена без акции: </span>
+              {formatExactPrice(strikedRegularPrice, price.currency)}
             </div>
           )}
         </div>

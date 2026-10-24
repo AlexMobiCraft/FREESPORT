@@ -116,4 +116,42 @@ describe('ProductPageClient JSON-LD', () => {
     const parsed = renderJsonLd({ description: '<br><br>' });
     expect(parsed).not.toHaveProperty('description');
   });
+
+  describe('цена в offers при акции', () => {
+    // Розница 1200, акция 800: покупатель видит 800, и поисковикам нужна та же сумма
+    const promoProduct: ProductDetailWithVariants = {
+      ...product,
+      price: { retail: 1200, currency: 'RUB' },
+      current_price: '800.00',
+      regular_price: '1200.00',
+      promo_price: '800.00',
+    };
+
+    function jsonLdOfHtml(html: string) {
+      const open = '<script type="application/ld+json">';
+      const bodyStart = html.indexOf(open) + open.length;
+      return JSON.parse(html.slice(bodyStart, html.indexOf('</script>', bodyStart)));
+    }
+
+    it('SSR до выбора варианта отдаёт акционную цену', () => {
+      const html = renderToStaticMarkup(
+        <ProductPageClient product={promoProduct} userRole="retail" />
+      );
+
+      expect(jsonLdOfHtml(html).offers.price).toBe(800);
+    });
+
+    it('товар без опций после монтирования сохраняет акционную цену', () => {
+      // Без размера и цвета родитель не получает начальный onVariantChange: вариант не выбран
+      const parsed = renderJsonLd(promoProduct);
+
+      expect(parsed.offers.price).toBe(800);
+    });
+
+    it('без акции в offers розничная цена', () => {
+      const parsed = renderJsonLd({ ...product, current_price: '1000.00', promo_price: null });
+
+      expect(parsed.offers.price).toBe(1000);
+    });
+  });
 });

@@ -8,6 +8,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { renderToStaticMarkup } from 'react-dom/server';
 import ProductPageClient from '../ProductPageClient';
 import ProductSummary, { validateOptions } from '../ProductSummary';
 import ProductImageGallery from '../ProductImageGallery';
@@ -495,6 +496,141 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
 
       // Вариант выбран — блок с артикулом и наличием отрисован
       expect(screen.getByTestId('selected-variant-info')).toBeInTheDocument();
+    });
+  });
+});
+
+/**
+ * R72, R73: видимая цена и `offers.price` в JSON-LD относятся к одному варианту.
+ *
+ * Тесты идут через настоящие `ProductPageClient`, `ProductSummary`, `ProductInfo` и `ProductOptions`:
+ * прямой `rerender(ProductInfo)` разметку не создаёт и расхождения не покажет.
+ */
+describe('Видимая цена и JSON-LD при акции (R72, R73)', () => {
+  function promoVariant(
+    id: number,
+    currentPrice: string,
+    promoPrice: string | null,
+    options: Pick<ProductVariant, 'size_value'> = {}
+  ): ProductVariant {
+    return {
+      id,
+      sku: `PROMO-JSONLD-${id}`,
+      color_name: null,
+      size_value: null,
+      current_price: currentPrice,
+      regular_price: '1200.00',
+      promo_price: promoPrice,
+      stock_quantity: 10,
+      is_in_stock: true,
+      available_quantity: 10,
+      ...options,
+    };
+  }
+
+  function promoProduct(variants: ProductVariant[]): ProductDetailWithVariants {
+    return {
+      ...mockProduct,
+      price: { retail: 1200, currency: 'RUB' },
+      // Верхнеуровневые поля API выбраны по варианту с акцией
+      current_price: '800.00',
+      regular_price: '1200.00',
+      promo_price: '800.00',
+      variants,
+    };
+  }
+
+  function offerPrice(container: HTMLElement): number {
+    const script = container.querySelector('script[type="application/ld+json"]')!;
+    return JSON.parse(script.textContent ?? '').offers.price;
+  }
+
+  function offerPriceOfHtml(html: string): number {
+    const open = '<script type="application/ld+json">';
+    const bodyStart = html.indexOf(open) + open.length;
+    return JSON.parse(html.slice(bodyStart, html.indexOf('</script>', bodyStart))).offers.price;
+  }
+
+  describe('товар без опций с двумя вариантами (R72)', () => {
+    // Первый вариант обычный (1200), второй акционный (800): сводка выбирает первый
+    const variants = [promoVariant(1, '1200.00', null), promoVariant(2, '800.00', '800.00')];
+
+    it('после монтирования в разметке цена выбранного варианта, а не верхнеуровневая акционная', () => {
+      const { container } = render(
+        <ProductPageClient product={promoProduct(variants)} userRole="retail" />
+      );
+
+      expect(screen.getByText(/1\s*200\s*₽/)).toBeInTheDocument();
+      expect(screen.queryByTestId('promo-price')).not.toBeInTheDocument();
+      expect(offerPrice(container)).toBe(1200);
+    });
+
+    it('SSR-разметка отдаёт ту же сумму, что видит покупатель', () => {
+      // Поисковики читают HTML до гидрации: начальный выбор не должен ждать эффекта
+      const html = renderToStaticMarkup(
+        <ProductPageClient product={promoProduct(variants)} userRole="retail" />
+      );
+
+      expect(html).toMatch(/1\s*200\s*₽/);
+      expect(offerPriceOfHtml(html)).toBe(1200);
+    });
+
+    it('оптовик без акции: в разметке ролевая цена варианта, а не розница', () => {
+      // Часть D11-1 для товара без опций: интерфейс показывает 700, а JSON-LD сообщал розничные 1200
+      const wholesaleProduct: ProductDetailWithVariants = {
+        ...promoProduct([promoVariant(1, '700.00', null)]),
+        price: { retail: 1200, wholesale: { level1: 700 }, currency: 'RUB' },
+        current_price: '700.00',
+        regular_price: '700.00',
+        promo_price: null,
+      };
+
+      const { container } = render(
+        <ProductPageClient product={wholesaleProduct} userRole="wholesale_level1" />
+      );
+
+      expect(screen.getByText(/700\s*₽/)).toBeInTheDocument();
+      expect(offerPrice(container)).toBe(700);
+    });
+
+    it('единственный акционный вариант без опций: и сумма, и разметка акционные', () => {
+      const { container } = render(
+        <ProductPageClient
+          product={promoProduct([promoVariant(2, '800.00', '800.00')])}
+          userRole="retail"
+        />
+      );
+
+      expect(screen.getByTestId('promo-price')).toHaveTextContent(/800/);
+      expect(offerPrice(container)).toBe(800);
+    });
+  });
+
+  describe('переключение размера между акционным и обычным вариантом (R73)', () => {
+    const variants = [
+      promoVariant(1, '800.00', '800.00', { size_value: 'S' }),
+      promoVariant(2, '1200.00', null, { size_value: 'M' }),
+    ];
+
+    it('сумма в интерфейсе и offers.price меняются вместе в обе стороны', async () => {
+      const user = userEvent.setup();
+      const { container } = render(
+        <ProductPageClient product={promoProduct(variants)} userRole="retail" />
+      );
+
+      // Автовыбор берёт первый вариант — акционный S
+      await waitFor(() => expect(offerPrice(container)).toBe(800));
+      expect(screen.getByTestId('promo-price')).toHaveTextContent(/800/);
+      expect(screen.getByTestId('regular-price')).toHaveTextContent(/1\s*200/);
+
+      await user.click(screen.getByRole('radio', { name: /Размер: M/i }));
+      await waitFor(() => expect(offerPrice(container)).toBe(1200));
+      expect(screen.queryByTestId('promo-price')).not.toBeInTheDocument();
+      expect(screen.getByText(/1\s*200\s*₽/)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('radio', { name: /Размер: S/i }));
+      await waitFor(() => expect(offerPrice(container)).toBe(800));
+      expect(screen.getByTestId('promo-price')).toHaveTextContent(/800/);
     });
   });
 });

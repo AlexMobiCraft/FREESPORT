@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import ProductInfo from '../ProductInfo';
 import type { ProductDetail, ProductVariant } from '@/types/api';
 
@@ -214,6 +214,53 @@ describe('ProductInfo', () => {
       expect(container.querySelector('.text-4xl.font-bold')).toHaveTextContent('9 000 ₽');
       expect(screen.getByTestId('regular-price')).toHaveTextContent('12 990 ₽');
       expect(screen.getByText('Акция')).toBeInTheDocument();
+    });
+
+    it('подписывает назначение обеих цен для скринридера', () => {
+      render(<ProductInfo product={mockProduct} selectedVariant={variant('1000.00')} />);
+
+      const promoLabel = within(screen.getByTestId('promo-price')).getByText(/Акционная цена/);
+      expect(promoLabel).toHaveClass('sr-only');
+      const regularLabel = within(screen.getByTestId('regular-price')).getByText(/Цена без акции/);
+      expect(regularLabel).toHaveClass('sr-only');
+    });
+
+    it('без зачёркнутой цены подписана только акционная', () => {
+      render(<ProductInfo product={mockProduct} selectedVariant={variant('800.00')} />);
+
+      expect(
+        within(screen.getByTestId('promo-price')).getByText(/Акционная цена/)
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Цена без акции/)).not.toBeInTheDocument();
+    });
+
+    it('обычная цена без акции остаётся без подписей', () => {
+      render(<ProductInfo product={mockProduct} />);
+
+      expect(screen.queryByTestId('promo-price')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Акционная цена/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Цена без акции/)).not.toBeInTheDocument();
+    });
+
+    it('сохраняет копейки: близкие цены не выглядят одинаковыми', () => {
+      const closePair: ProductVariant = {
+        ...variant('800.49'),
+        current_price: '800.40',
+        promo_price: '800.40',
+      };
+      render(<ProductInfo product={mockProduct} selectedVariant={closePair} />);
+
+      expect(screen.getByTestId('promo-price')).toHaveTextContent('800,40 ₽');
+      expect(screen.getByTestId('regular-price')).toHaveTextContent('800,49 ₽');
+    });
+
+    it('целые суммы акции остаются без копеек', () => {
+      render(<ProductInfo product={mockProduct} selectedVariant={variant('1000.00')} />);
+
+      expect(screen.getByTestId('promo-price')).toHaveTextContent(/^Акционная цена:\s*800 ₽$/);
+      expect(screen.getByTestId('regular-price')).toHaveTextContent(
+        /^Цена без акции:\s*1 000 ₽$/
+      );
     });
 
     it('показывает стикер по акционной цене выбранного варианта', () => {

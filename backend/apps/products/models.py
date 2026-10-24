@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Iterable, Sequence
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
@@ -34,6 +34,11 @@ def _skip_derived_field(instance: models.Model, args: tuple[Any, ...], kwargs: d
     админки, инлайн товара), иначе вернул бы в БД устаревшее значение при правке любого
     другого поля. Создание, явный `update_fields` и отложенные (`defer`) поля не затрагиваются.
     """
+    update_fields = kwargs.get("update_fields")
+    if update_fields is not None and not isinstance(update_fields, (list, tuple, set, frozenset)):
+        # Итератор (в том числе генератор) исчерпывается первой же проверкой `name in update_fields`,
+        # и Django получил бы пустой набор: материализуем один раз, до собственных проверок моделей
+        kwargs["update_fields"] = tuple(update_fields)
     if (
         not args
         and kwargs.get("update_fields") is None
@@ -47,6 +52,31 @@ def _skip_derived_field(instance: models.Model, args: tuple[Any, ...], kwargs: d
             for f in instance._meta.concrete_fields
             if not f.primary_key and f.name != field and f.attname not in deferred
         ]
+
+
+def _delete_pinned(
+    queryset: models.QuerySet[Any], lock_owners: Callable[[list[int]], None]
+) -> tuple[int, dict[str, int]]:
+    """
+    Пакетное удаление по закреплённому набору `pk`: `lock_owners` берёт блокировки товаров до каскада.
+
+    Набор собирается без блокировок строк. `select_for_update()` исходного запроса при сборе не
+    действует — Django снимает его и сам при удалении: иначе строки брались бы раньше товаров и в
+    порядке сканирования, а не по возрастанию `pk`, против общего порядка (`services/promo.py`).
+
+    Удаление идёт на клоне (`filter(pk__in=pks)`), поэтому кэш результата исходного запроса
+    Django не очищает: после удаления он продолжал бы отдавать уже удалённые объекты.
+    """
+    if queryset.query.is_sliced or queryset.query.distinct_fields:
+        return models.QuerySet.delete(queryset)  # Django сам откажет: такой запрос удалить нельзя
+    with transaction.atomic():
+        collecting = queryset.all()
+        collecting.query.select_for_update = False
+        pks = list(collecting.order_by().values_list("pk", flat=True))
+        lock_owners(pks)
+        result = models.QuerySet.delete(queryset.filter(pk__in=pks))
+    queryset._result_cache = None
+    return result
 
 
 class ProductVariantQuerySet(models.QuerySet["ProductVariant"]):
@@ -65,18 +95,91 @@ class ProductVariantQuerySet(models.QuerySet["ProductVariant"]):
         могли перенести в другой товар между сбором и блокировкой. Блокируются владельцы всех
         вариантов набора, а не только акционных: акционную цену варианту может записать импорт цен
         уже после сбора, и тогда его товар остался бы незаблокированным.
+
+        Набор закреплён по `pk`: исходный запрос повторно не выполняется. Иначе вариант, подошедший
+        под условие уже после блокировок, попал бы в Collector вместе с незаблокированным владельцем.
         """
         from apps.products.services import promo
 
-        if self.query.is_sliced or self.query.distinct_fields:
-            return super().delete()  # Django сам откажет: такой запрос удалить нельзя
-        with transaction.atomic():
-            promo.lock_products_stable(lambda: self.order_by().values_list("product_id", flat=True))
-            return super().delete()
+        def lock_owners(pks: list[int]) -> None:
+            promo.lock_products_stable(
+                lambda: ProductVariant.objects.filter(pk__in=pks).order_by().values_list("product_id", flat=True)
+            )
+
+        return _delete_pinned(self, lock_owners)
+
+
+class ProductQuerySet(models.QuerySet["Product"]):
+    """Менеджер товаров: пакетное удаление берёт блокировки товаров до каскада на варианты."""
+
+    def delete(self) -> tuple[int, dict[str, int]]:
+        """
+        Блокирует все удаляемые товары по возрастанию `pk` до каскадного удаления их вариантов.
+
+        Collector шлёт `pre_delete` вариантов по их `pk`, а не по `pk` товаров, и каждый такой сигнал
+        блокирует товар варианта (`promo.lock_variant`). Порядок товаров получился бы случайным и
+        встречался бы с пересчётом флагов и переносами, которые берут товары по возрастанию, —
+        взаимоблокировка. Товары, заблокированные заранее, дальше блокировать повторно можно без
+        ожидания; варианты удаляемых товаров перенести в другой товар или добавить к ним никто не
+        успеет, пока товар заблокирован.
+
+        Набор закреплён по `pk` так же, как у `ProductVariantQuerySet.delete`.
+        """
+        from apps.products.services import promo
+
+        return _delete_pinned(self, promo.lock_products)
+
+
+def _lock_brand_products(brand_pks: list[int]) -> None:
+    """Блокирует товары брендов по возрастанию `pk`: бренд каскадно удаляет товары, а те — свои варианты."""
+    from apps.products.services import promo
+
+    promo.lock_products_stable(
+        lambda: Product.objects.filter(brand_id__in=brand_pks).order_by().values_list("pk", flat=True)
+    )
+
+
+def _category_tree_ids(category_pks: Iterable[int]) -> set[int]:
+    """`pk` категорий и всех их потомков: `Category.parent` каскадно удаляет вложенные категории."""
+    tree = set(category_pks)
+    level = set(tree)
+    while level:
+        level = set(Category.objects.filter(parent_id__in=level).order_by().values_list("pk", flat=True)) - tree
+        tree |= level
+    return tree
+
+
+def _lock_category_products(category_pks: list[int]) -> None:
+    """Блокирует товары категорий и их потомков по возрастанию `pk` (см. `_lock_brand_products`)."""
+    from apps.products.services import promo
+
+    promo.lock_products_stable(
+        lambda: Product.objects.filter(category_id__in=_category_tree_ids(category_pks))
+        .order_by()
+        .values_list("pk", flat=True)
+    )
+
+
+class BrandQuerySet(models.QuerySet["Brand"]):
+    """Бренды: пакетное удаление берёт блокировки товаров бренда до каскада."""
+
+    def delete(self) -> tuple[int, dict[str, int]]:
+        """
+        Блокирует товары удаляемых брендов по возрастанию `pk` до каскада на товары и их варианты.
+
+        Collector обходит `ProductQuerySet.delete()`, а `pre_delete` вариантов приходит раньше
+        сигналов бренда и по `pk` вариантов, не товаров: товары брались бы в случайном порядке и
+        встречались бы с пересчётом флагов и переносами, которые берут их по возрастанию, —
+        взаимоблокировка. Набор закреплён по `pk`, как у `ProductVariantQuerySet.delete`.
+        """
+        return _delete_pinned(self, _lock_brand_products)
 
 
 class BrandManager(models.Manager["Brand"]):
     """Кастомный менеджер для модели Brand."""
+
+    def get_queryset(self) -> BrandQuerySet:
+        return BrandQuerySet(self.model, using=self._db)
 
     def active(self) -> models.QuerySet["Brand"]:
         """Возвращает только активные бренды."""
@@ -167,6 +270,12 @@ class Brand(models.Model):
 
         super().save(*args, **kwargs)
 
+    def delete(self, using: Any = None, keep_parents: bool = False) -> tuple[int, dict[str, int]]:
+        """Блокирует товары бренда по возрастанию `pk` до каскада (см. `BrandQuerySet.delete`)."""
+        with transaction.atomic(using=using):
+            _lock_brand_products([self.pk])
+            return super().delete(using=using, keep_parents=keep_parents)
+
     def __str__(self) -> str:
         return str(self.name)
 
@@ -214,6 +323,19 @@ class Brand1CMapping(models.Model):
 
     def __str__(self) -> str:
         return f"{self.onec_name} ({self.onec_id}) -> {self.brand}"
+
+
+class CategoryQuerySet(models.QuerySet["Category"]):
+    """Категории: пакетное удаление берёт блокировки товаров категорий и их потомков до каскада."""
+
+    def delete(self) -> tuple[int, dict[str, int]]:
+        """
+        Блокирует товары удаляемых категорий и всех вложенных по возрастанию `pk` до каскада.
+
+        Причина и закрепление набора те же, что у `BrandQuerySet.delete`; `Category.parent`
+        удаляет потомков каскадно, поэтому товары берутся по всему поддереву.
+        """
+        return _delete_pinned(self, _lock_category_products)
 
 
 class Category(models.Model):
@@ -267,6 +389,8 @@ class Category(models.Model):
     created_at = cast(datetime, models.DateTimeField("Дата создания", auto_now_add=True))
     updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
 
+    objects = CategoryQuerySet.as_manager()
+
     class Meta:
         verbose_name = "Категория"
         verbose_name_plural = "Категории"
@@ -287,6 +411,12 @@ class Category(models.Model):
             if not self.slug:
                 self.slug = f"category-{self.pk or 0}"
         super().save(*args, **kwargs)
+
+    def delete(self, using: Any = None, keep_parents: bool = False) -> tuple[int, dict[str, int]]:
+        """Блокирует товары категории и её потомков по возрастанию `pk` до каскада (см. `CategoryQuerySet.delete`)."""
+        with transaction.atomic(using=using):
+            _lock_category_products([self.pk])
+            return super().delete(using=using, keep_parents=keep_parents)
 
     def __str__(self) -> str:
         return self.full_name
@@ -541,6 +671,8 @@ class Product(models.Model):
         verbose_name="Атрибуты",
         help_text="Атрибуты товара (цвет, материал, размер и т.д.)",
     )
+
+    objects = ProductQuerySet.as_manager()
 
     class Meta:
         verbose_name = "Товар"

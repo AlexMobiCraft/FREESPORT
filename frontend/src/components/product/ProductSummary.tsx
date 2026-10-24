@@ -73,6 +73,20 @@ export function validateOptions(
 }
 
 /**
+ * Вариант товара без опций (ни у одного варианта нет размера и цвета): выбирать нечего,
+ * покупателю достаётся первый вариант.
+ *
+ * Сводка и страница товара берут его одной функцией: родитель не получает уведомления об
+ * этом выборе, а JSON-LD обязан называть ту же сумму, что видит покупатель, в том числе в
+ * SSR-разметке, которую поисковики читают до гидрации и любых эффектов.
+ * Для товара с опциями вернёт null: вариант там выбирает покупатель (или автовыбор).
+ */
+export function findDefaultVariant(variants: ProductVariant[]): ProductVariant | null {
+  if (variants.some(v => v.size_value || v.color_name)) return null;
+  return variants[0] ?? null;
+}
+
+/**
  * Props компонента ProductSummary
  */
 interface ProductSummaryProps {
@@ -210,13 +224,11 @@ export default function ProductSummary({
   const selectedVariant = useMemo((): ProductVariant | null => {
     if (variants.length === 0) return null;
 
+    // Опций нет (простой товар с вариантом): выбирать нечего, тот же вариант берёт страница товара
+    if (sizes.length === 0 && colors.length === 0) return findDefaultVariant(variants);
+
     // Если есть опции для выбора, но ничего не выбрано - возвращаем null
-    // Если опций нет (простой товар с вариантом), пропускаем эту проверку
-    if (
-      (sizes.length > 0 || colors.length > 0) &&
-      !selectedOptions.size &&
-      !selectedOptions.color
-    ) {
+    if (!selectedOptions.size && !selectedOptions.color) {
       return null;
     }
 

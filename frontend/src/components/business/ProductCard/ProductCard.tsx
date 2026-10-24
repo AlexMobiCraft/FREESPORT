@@ -144,6 +144,11 @@ function getProductPrice(product: Product, userRole: UserRole): number {
   }
 }
 
+// Зачёркивание и жирность передают назначение двух сумм только оформлением:
+// скринридеру его говорят визуально скрытые подписи
+const PROMO_PRICE_LABEL = 'Акционная цена: ';
+const REGULAR_PRICE_LABEL = 'Цена без акции: ';
+
 /**
  * Акционная цена из 1С (вид цен «АКЦИЯ …») действует для всех ролей.
  * Зачёркнутая цена клиента показывается, только если она выше акционной:
@@ -336,6 +341,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                   className="text-caption text-[var(--color-text-muted)] line-through"
                   data-testid="regular-price"
                 >
+                  <span className="sr-only">{REGULAR_PRICE_LABEL}</span>
                   {promoRegularPrice.toLocaleString('ru-RU')} ₽
                 </p>
               )}
@@ -346,6 +352,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 )}
                 data-testid={promoPricing ? 'promo-price' : undefined}
               >
+                {promoPricing && <span className="sr-only">{PROMO_PRICE_LABEL}</span>}
                 {currentPrice.toLocaleString('ru-RU')} ₽
               </p>
 
@@ -489,6 +496,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                     className="text-body-s text-[var(--color-text-muted)] line-through mr-2"
                     data-testid="regular-price"
                   >
+                    <span className="sr-only">{REGULAR_PRICE_LABEL}</span>
                     {promoRegularPrice.toLocaleString('ru-RU')} ₽
                   </p>
                 )}
@@ -504,6 +512,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                   )}
                   data-testid={promoPricing ? 'promo-price' : undefined}
                 >
+                  {promoPricing && <span className="sr-only">{PROMO_PRICE_LABEL}</span>}
                   {currentPrice.toLocaleString('ru-RU')} ₽
                 </p>
 
@@ -629,6 +638,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                   className="text-body-s text-[var(--color-text-muted)] line-through mr-2"
                   data-testid="regular-price"
                 >
+                  <span className="sr-only">{REGULAR_PRICE_LABEL}</span>
                   {promoRegularPrice.toLocaleString('ru-RU')} ₽
                 </p>
               )}
@@ -644,6 +654,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 )}
                 data-testid={promoPricing ? 'promo-price' : undefined}
               >
+                {promoPricing && <span className="sr-only">{PROMO_PRICE_LABEL}</span>}
                 {currentPrice.toLocaleString('ru-RU')} ₽
               </p>
 
