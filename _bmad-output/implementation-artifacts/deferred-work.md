@@ -1184,3 +1184,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-rich-content-editor.md`
   summary: Базовая линия циклов импорта в `.windsurf/rules/gitnexus.md` (правило 3) устарела — в ней нет цикла `backend/apps/users/models.py → staff_roles.py → models.py`.
   evidence: `npx gitnexus check --cycles` 24.10.2026 показывает два цикла; цикл `users` существовал до изменения (импорт `User` в `staff_roles.py` под `TYPE_CHECKING`/внутри функций, `models.py:14` импортирует `RESPONSIBLE_MANAGER_CHOICES`). Правка — файл правил агентов.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-catalog-sidebar-categories-height.md`
+  summary: Свёрнутые секции сайдбара `/catalog` (`#filter-categories`, `#filter-brands`) остаются в порядке Tab — фокус уходит в невидимые элементы; нужен `inert` на свёрнутой обёртке.
+  evidence: Сворачивание только визуальное (`grid-rows-[0fr] opacity-0`, раньше `max-h-0 opacity-0`); на мобилке после гидратации обе секции свёрнуты. Дефект существовал до правки и уже отмечен в `spec-catalog-sidebar-expanded-default.md`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-catalog-sidebar-categories-height.md`
+  summary: `frontend/src/components/ui/FilterGroup/FilterGroup.tsx` обрезает раскрытое содержимое потолком `max-h-[1000px]` с `overflow-hidden` — тот же дефект, что исправлен в `(blue)`-каталоге.
+  evidence: `FilterGroup.tsx:75`; компонент используют `SidebarFilters` и `ElectricSidebar`, при длинном списке нижние пункты пропадут без прокрутки.
