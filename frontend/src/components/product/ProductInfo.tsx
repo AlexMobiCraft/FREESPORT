@@ -7,7 +7,12 @@ import React from 'react';
 import { TextSeparator } from '@/components/common/TextSeparator';
 import { Badge } from '@/components/ui/Badge/Badge';
 import type { ProductDetail } from '@/types/api';
-import { formatExactPrice, formatPrice, getPriceForRole, type UserRole } from '@/utils/pricing';
+import {
+  formatExactPrice,
+  formatPrice,
+  getProductDisplayPrice,
+  type UserRole,
+} from '@/utils/pricing';
 import type { ProductVariant } from '@/types/api';
 
 interface ProductInfoProps {
@@ -34,13 +39,8 @@ export default function ProductInfo({
   // Зачёркнутая цена ниже оплачиваемой выглядела бы повышением под видом скидки
   const strikedRegularPrice = hasPromo && regularPrice > promoPrice ? regularPrice : null;
 
-  // Используем цену варианта, если он выбран, иначе базовую цену для роли
-  const displayedPrice =
-    selectedVariant && selectedVariant.current_price
-      ? parseFloat(selectedVariant.current_price)
-      : hasPromo
-        ? parseFloat(product.current_price || '') || promoPrice
-        : getPriceForRole(price, userRole);
+  // Цена варианта, если он выбран, иначе акционная или по роли; ту же сумму называет JSON-LD
+  const displayedPrice = getProductDisplayPrice(product, userRole, selectedVariant);
 
   // Определяем статус наличия
   const getStockStatus = () => {

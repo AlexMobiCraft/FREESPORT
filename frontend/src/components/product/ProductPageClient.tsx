@@ -8,7 +8,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import type { UserRole } from '@/utils/pricing';
+import { getProductDisplayPrice, type UserRole } from '@/utils/pricing';
 import ProductImageGallery from './ProductImageGallery';
 import ProductSummary, {
   findDefaultVariant,
@@ -53,16 +53,12 @@ export default function ProductPageClient({ product, userRole }: ProductPageClie
     console.log('Add to cart:', variantId);
   }, []);
 
-  // Акция действует для всех ролей. Сумма в разметке — та, что видит покупатель в ProductInfo:
+  // Сумма в разметке — та, что видит покупатель в ProductInfo, той же функцией:
   // у товара без опций вариант выбран сразу и уведомления в родителя нет (`findDefaultVariant`,
-  // тот же выбор, что у сводки), у товара с опциями до выбора варианта — цена товара
+  // тот же выбор, что у сводки), у товара с опциями до выбора варианта и у товара без
+  // вариантов — акционная цена товара или цена по роли
   const offerVariant = selectedVariant ?? findDefaultVariant(product.variants ?? []);
-  const productPromoPrice = product.promo_price ? parseFloat(product.promo_price) : NaN;
-  const offerPrice = offerVariant
-    ? parseFloat(offerVariant.current_price)
-    : productPromoPrice > 0
-      ? parseFloat(product.current_price || '') || productPromoPrice
-      : product.price?.retail || 0;
+  const offerPrice = getProductDisplayPrice(product, userRole, offerVariant);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">

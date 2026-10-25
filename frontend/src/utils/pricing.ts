@@ -2,7 +2,7 @@
  * Утилиты для работы с ценообразованием (Story 12.1)
  */
 
-import type { ProductPrice } from '@/types/api';
+import type { ProductDetail, ProductPrice, ProductVariant } from '@/types/api';
 
 export type UserRole =
   | 'retail'
@@ -62,6 +62,32 @@ export function getPriceForRole(price: ProductPrice, userRole: UserRole): number
     default:
       return price.retail;
   }
+}
+
+/**
+ * Цена товара, которую видит покупатель на странице товара.
+ *
+ * Один источник для экрана (`ProductInfo`) и разметки JSON-LD (`ProductPageClient`):
+ * поисковикам уходит та же сумма, что на экране, в том числе до выбора варианта.
+ * Акция действует для всех ролей; без варианта и без акции — цена по роли.
+ *
+ * @param product - Товар из ответа API
+ * @param userRole - Роль пользователя
+ * @param variant - Выбранный вариант (null, пока вариант не выбран)
+ */
+export function getProductDisplayPrice(
+  product: Pick<ProductDetail, 'price' | 'current_price' | 'promo_price'>,
+  userRole: UserRole,
+  variant?: Pick<ProductVariant, 'current_price' | 'promo_price'> | null
+): number {
+  if (variant && variant.current_price) return parseFloat(variant.current_price);
+
+  // Поля акции — выбранного варианта, без него — товара (они по первому варианту из ответа)
+  const pricingSource = variant ?? product;
+  const promoPrice = pricingSource.promo_price ? parseFloat(pricingSource.promo_price) : NaN;
+  if (promoPrice > 0) return parseFloat(product.current_price || '') || promoPrice;
+
+  return getPriceForRole(product.price || { retail: 0, currency: 'RUB' }, userRole);
 }
 
 /**

@@ -606,6 +606,30 @@ describe('Видимая цена и JSON-LD при акции (R72, R73)', () =
     });
   });
 
+  describe('товар с опциями до автовыбора (D14-2)', () => {
+    it('оптовик без акции: SSR показывает и называет в разметке ролевую цену, а не розницу', () => {
+      // Автовыбор — эффект, в SSR его нет: вариант не выбран, цена берётся с товара.
+      // Цены вариантов отличаются от цены товара, чтобы SSR не мог взять цену варианта
+      const wholesaleProduct: ProductDetailWithVariants = {
+        ...promoProduct([
+          promoVariant(1, '650.00', null, { size_value: 'S' }),
+          promoVariant(2, '650.00', null, { size_value: 'M' }),
+        ]),
+        price: { retail: 1200, wholesale: { level1: 700 }, currency: 'RUB' },
+        current_price: '700.00',
+        regular_price: '700.00',
+        promo_price: null,
+      };
+
+      const html = renderToStaticMarkup(
+        <ProductPageClient product={wholesaleProduct} userRole="wholesale_level1" />
+      );
+
+      expect(html).toMatch(/700\s*₽/);
+      expect(offerPriceOfHtml(html)).toBe(700);
+    });
+  });
+
   describe('переключение размера между акционным и обычным вариантом (R73)', () => {
     const variants = [
       promoVariant(1, '800.00', '800.00', { size_value: 'S' }),
