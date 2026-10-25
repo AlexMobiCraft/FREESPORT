@@ -154,4 +154,37 @@ describe('ProductPageClient JSON-LD', () => {
       expect(parsed.offers.price).toBe(1000);
     });
   });
+
+  describe('цена в offers у оптовика без акции (D14-2)', () => {
+    // Товар без вариантов: на экране оптовая 700, разметка раньше называла розничные 1200
+    const wholesaleProduct: ProductDetailWithVariants = {
+      ...product,
+      price: { retail: 1200, wholesale: { level1: 700 }, currency: 'RUB' },
+      current_price: '700.00',
+      regular_price: '700.00',
+      promo_price: null,
+      variants: [],
+    };
+
+    it('SSR отдаёт ролевую цену', () => {
+      const html = renderToStaticMarkup(
+        <ProductPageClient product={wholesaleProduct} userRole="wholesale_level1" />
+      );
+      const open = '<script type="application/ld+json">';
+      const bodyStart = html.indexOf(open) + open.length;
+      const parsed = JSON.parse(html.slice(bodyStart, html.indexOf('</script>', bodyStart)));
+
+      expect(html).toMatch(/700\s*₽/);
+      expect(parsed.offers.price).toBe(700);
+    });
+
+    it('после монтирования ролевая цена сохраняется', () => {
+      const { container } = render(
+        <ProductPageClient product={wholesaleProduct} userRole="wholesale_level1" />
+      );
+      const script = container.querySelector('script[type="application/ld+json"]')!;
+
+      expect(JSON.parse(script.textContent ?? '').offers.price).toBe(700);
+    });
+  });
 });

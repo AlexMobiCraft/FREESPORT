@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { getPriceForRole, formatPrice, isB2BRole } from '../pricing';
+import { getPriceForRole, getProductDisplayPrice, formatPrice, isB2BRole } from '../pricing';
 import type { ProductPrice } from '@/types/api';
 
 describe('getPriceForRole', () => {
@@ -128,5 +128,48 @@ describe('formatPrice', () => {
 
   it('форматирует ноль корректно', () => {
     expect(formatPrice(0, 'RUB')).toBe('0\u00A0₽');
+  });
+});
+
+describe('getProductDisplayPrice', () => {
+  // Розница 1200, оптовая первого уровня 700, акции нет
+  const product = {
+    price: { retail: 1200, wholesale: { level1: 700 }, currency: 'RUB' },
+    current_price: '700.00',
+    promo_price: null,
+  };
+
+  it('без варианта и акции отдаёт цену по роли, а не розницу (D14-2)', () => {
+    expect(getProductDisplayPrice(product, 'wholesale_level1', null)).toBe(700);
+  });
+
+  it('гостю без варианта и акции — розница', () => {
+    expect(getProductDisplayPrice(product, 'guest', null)).toBe(1200);
+  });
+
+  it('при акции без варианта — current_price товара для любой роли', () => {
+    const promo = { ...product, current_price: '800.00', promo_price: '800.00' };
+    expect(getProductDisplayPrice(promo, 'guest')).toBe(800);
+    expect(getProductDisplayPrice(promo, 'wholesale_level1')).toBe(800);
+  });
+
+  it('при акции и пустом current_price — акционная цена', () => {
+    const promo = { ...product, current_price: '', promo_price: '800.00' };
+    expect(getProductDisplayPrice(promo, 'guest')).toBe(800);
+  });
+
+  it('выбранный вариант задаёт цену', () => {
+    const variant = { current_price: '650.00', promo_price: null };
+    expect(getProductDisplayPrice(product, 'guest', variant)).toBe(650);
+  });
+
+  it('у варианта с пустым current_price — цена по роли, а не NaN', () => {
+    const variant = { current_price: '', promo_price: null };
+    expect(getProductDisplayPrice(product, 'wholesale_level1', variant)).toBe(700);
+  });
+
+  it('без price у товара — 0', () => {
+    const noPrice = { ...product, price: undefined as unknown as typeof product.price };
+    expect(getProductDisplayPrice(noPrice, 'guest', null)).toBe(0);
   });
 });
