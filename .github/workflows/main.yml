@@ -1,6 +1,6 @@
 name: Django CI
 
-# Единственный триггер — PR в develop: там стоит гейт качества (5 required-чеков).
+# Единственный триггер — PR в develop: там стоит гейт качества (7 required-чеков).
 # push-триггера нет намеренно (2026-09-20): синк develop -> main идёт fast-forward
 # пушем того же коммита, который уже зелёный на PR, и push-прогоны перепроверяли
 # ровно тот же код во второй и третий раз. Подробности — .windsurf/rules/git-sync-workflow.md.
@@ -115,13 +115,15 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
 
       - name: Install Dependencies
         if: steps.changes.outputs.run == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
-          pip install pytest-django pytest-cov
+          pip install pytest-django pytest-cov pytest-xdist
 
       - name: Wait for PostgreSQL and Redis
         if: steps.changes.outputs.run == 'true'
@@ -193,12 +195,140 @@ jobs:
           # data-репо не подключён. data_dependent-тесты и так скипнулись бы сами, но исключаем
           # их явно, чтобы прогон честно сообщал состав; порог — историческое значение без
           # данных (73), при 75 такой PR краснел бы на замере 74,92 % без всякой регрессии.
+          # Прогон параллельно через pytest-xdist, как локально (навык docker-test-run):
+          # каждому воркеру pytest-django создаёт свою test-БД (_gwN), а
+          # freesport/settings/test.py разводит воркеров по БД Redis, MEDIA_ROOT и
+          # ONEC_PRIVATE_DIR. -n auto берёт число ядер раннера. pytest-cov собирает
+          # покрытие с воркеров сам, порог --cov-fail-under не меняется.
           if [ "$ONEC_DATA_AVAILABLE" = "true" ]; then
-            pytest --tb=short -v -m "not performance and not slow" --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=75
+            pytest -n auto --tb=short -v -m "not performance and not slow" --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=75
           else
             echo "::notice::Прогон без Actions secrets (PR из fork или Dependabot): приватный data-репо недоступен, data_dependent-тесты исключены, порог покрытия 73"
-            pytest --tb=short -v -m "not performance and not slow and not data_dependent" --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=73
+            pytest -n auto --tb=short -v -m "not performance and not slow and not data_dependent" --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=73
           fi
+
+      # Проверка маршрутов /manager/, /marketing/ и /supervisor/ через настоящие
+      # конфиги nginx вынесена в отдельный job «Маршруты через nginx» (2026-10-25):
+      # от pytest она не зависит, и параллельный запуск на своём раннере убирает
+      # несколько серийных минут из прогона build (3.12).
+
+      - name: Upload coverage reports to Codecov
+        if: steps.changes.outputs.run == 'true'
+        uses: codecov/codecov-action@v7
+        with:
+          files: backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # Отдельный job (добавлен 2026-10-25): раньше этот шаг шёл внутри `build (3.12)`
+  # серийно после ~3000 тестов pytest и добавлял прогону несколько минут. От тестов
+  # он не зависит, поэтому идёт параллельно на своём раннере. Чек «Маршруты через
+  # nginx» входит в REQUIRED_CONTEXTS .github/scripts/setup-branch-protection.sh —
+  # переименование job'а = переименование контекста, менять их нужно вместе.
+  # Тяжёлые шаги пропускаются на docs-only PR через тот же docs-only-check —
+  # job-level `if` использовать нельзя: скипнутый job не сообщил бы required-контекст,
+  # и мерж вис бы на «Expected — waiting for status» бессрочно.
+  nginx-routes:
+    name: Маршруты через nginx
+    runs-on: ubuntu-latest
+
+    # Состав как у build (3.12) до выноса: migrate + два runserver + nginx в docker.
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      pull-requests: read
+
+    env:
+      SECRET_KEY: a_test_secret_key_for_ci
+      DEBUG: "False"
+      DB_NAME: test_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: localhost
+      DB_PORT: 5432
+      REDIS_URL: redis://localhost:6379/0
+      DJANGO_SETTINGS_MODULE: freesport.settings.test
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Нужен ли прогон
+        id: changes
+        uses: ./.github/actions/docs-only-check
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python 3.12
+        if: steps.changes.outputs.run == 'true'
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install Dependencies
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Wait for PostgreSQL and Redis
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          sudo apt-get update && sudo apt-get install -y netcat-traditional
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            nc -z localhost 5432 && echo "Postgres is up." && break
+            echo "Waiting for Postgres... ($i/30)"
+            sleep 2
+          done
+
+          echo "Waiting for Redis..."
+          for i in {1..30}; do
+            nc -z localhost 6379 && echo "Redis is up." && break
+            echo "Waiting for Redis... ($i/30)"
+            sleep 2
+          done
+
+          nc -z localhost 5432 || (echo "PostgreSQL failed to start" && exit 1)
+          nc -z localhost 6379 || (echo "Redis failed to start" && exit 1)
+          echo "All services are ready!"
+
+      - name: Create .env file for testing
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          cd backend
+          cat > .env << EOF
+          SECRET_KEY=test-secret-key-for-ci-cd-only
+          DB_NAME=test_db
+          DB_USER=postgres
+          DB_PASSWORD=postgres
+          DB_HOST=localhost
+          DB_PORT=5432
+          REDIS_URL=redis://localhost:6379/0
+          DJANGO_SETTINGS_MODULE=freesport.settings.test
+          EOF
 
       # Разделы /manager/ (стори 42.4), /marketing/ (42.6) и /supervisor/ (42.7) через настоящие конфиги
       # nginx: local.conf и production default.conf. Django-тесты ходят мимо nginx, а
@@ -208,8 +338,8 @@ jobs:
       # с входом проверяется на этом изолированном стенде.
       # Django — на раннере, на порту 8000 из upstream backend в nginx.conf; nginx — в
       # Docker, имена backend и frontend указывают на раннер. Next не нужен: /manager/ в
-      # него не уходит. База — test_db сервиса postgres: pytest работает в своей
-      # test_test_db, поэтому test_db здесь пустая и мигрируется с нуля.
+      # него не уходит. База — test_db сервиса postgres: в этом job'е pytest нет,
+      # test_db пустая и мигрируется с нуля.
       # Django запускается по очереди с настройками каждого конфига: за local.conf —
       # development (в test пустой ALLOWED_HOSTS, Django ответил бы 400), за default.conf —
       # production. Только у production есть SECURE_PROXY_SSL_HEADER и Secure-cookie: HTTPS
@@ -333,13 +463,3 @@ jobs:
             echo "--- nginx-prod (default.conf)"; docker logs nginx-prod
             exit 1
           fi
-
-      - name: Upload coverage reports to Codecov
-        if: steps.changes.outputs.run == 'true'
-        uses: codecov/codecov-action@v7
-        with:
-          files: backend/coverage.xml
-          flags: backend
-          name: backend-coverage
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
