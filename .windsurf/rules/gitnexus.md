@@ -76,8 +76,12 @@ description: GitNexus CLI — анализ кода перед правками 
    `CRITICAL` — предупреди до правок.
 3. **Перед коммитом** — `npx gitnexus detect-changes --scope all`: затронуты только ожидаемые
    символы и потоки. Затем `npx gitnexus check --cycles`: новых циклов импорта нет. Базовая линия
-   на 16.10.2026 — один цикл `frontend/src/components/home/HomePage.tsx → index.ts → HomePage.tsx`,
-   из-за него команда завершается с кодом 1; сравнивай список, а не код выхода.
+   на 25.10.2026 (`a3526e9`) — два цикла, из-за них команда завершается с кодом 1; сравнивай список,
+   а не код выхода. Вывод команды:
+   - `frontend/src/components/home/HomePage.tsx -> frontend/src/components/home/index.ts -> frontend/src/components/home/HomePage.tsx`
+   - `backend/apps/users/models.py -> backend/apps/users/staff_roles.py -> backend/apps/users/models.py` —
+     `staff_roles.py` импортирует `User` под `TYPE_CHECKING` и внутри функций, при загрузке модулей
+     цикла нет (R42.7-D1).
 4. **Исследование кода** — `query` и `context` вместо grep по всей базе.
 5. **Переименование** — команды `rename` в CLI нет: собери все места через `impact` и `context`,
    правь точечно, без find-and-replace.

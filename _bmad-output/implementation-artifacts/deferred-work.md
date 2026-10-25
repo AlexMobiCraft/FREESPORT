@@ -1132,7 +1132,7 @@
 
 ## Deferred from: code review of 42-7-supervisor-section-staff-regions-reassignment.md (2026-10-17, на 0efcfca)
 
-- **R42.7-D1, low: новый цикл импорта в графе GitNexus.** graph-impact: `npx gitnexus check --cycles` показывает `backend/apps/users/models.py -> backend/apps/users/staff_roles.py -> backend/apps/users/models.py` вдобавок к базовому `HomePage.tsx → index.ts → HomePage.tsx`. Причина — `if TYPE_CHECKING: from apps.users.models import User` в `staff_roles.py`; в рантайме цикла нет. Правка — обновить базовую линию в `.windsurf/rules/gitnexus.md` (раздел «Обязательно», правило 3) или отказаться от импорта под `TYPE_CHECKING`. Иначе каждый следующий pre-commit/ревью примет цикл за новый. [`backend/apps/users/staff_roles.py:24`]
+- **R42.7-D1, low: новый цикл импорта в графе GitNexus.** graph-impact: `npx gitnexus check --cycles` показывает `backend/apps/users/models.py -> backend/apps/users/staff_roles.py -> backend/apps/users/models.py` вдобавок к базовому `HomePage.tsx → index.ts → HomePage.tsx`. Причина — `if TYPE_CHECKING: from apps.users.models import User` в `staff_roles.py`; в рантайме цикла нет. Правка — обновить базовую линию в `.windsurf/rules/gitnexus.md` (раздел «Обязательно», правило 3) или отказаться от импорта под `TYPE_CHECKING`. Иначе каждый следующий pre-commit/ревью примет цикл за новый. [`backend/apps/users/staff_roles.py:24`] **Закрыто 2026-10-25** спекой [`spec-rich-content-deferred.md`](spec-rich-content-deferred.md): цикл внесён в базовую линию правила 3, импорты `User` (под `TYPE_CHECKING` и внутри функций) оставлены.
 
 ## Deferred from: code review of 42-7-supervisor-section-staff-regions-reassignment.md (2026-10-17, круг 2 на 7403a9f)
 
@@ -1180,10 +1180,10 @@
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-rich-content-editor.md`
   summary: Класс `.rich-content` у страницы `/[slug]` (`CmsPage`) не закреплён render-тестом, у новостей, статей и политики ПДн — закреплён.
-  evidence: В `frontend/src/app/(blue)/[slug]/__tests__/page.test.tsx` только тесты `generateMetadata`; откат класса оставит реквизиты и оферту без типографики и обтекания картинок незамеченным (слои graph-impact и verification-gap). Добавить вместе с первым содержательным тестом `CmsPage`.
+  evidence: В `frontend/src/app/(blue)/[slug]/__tests__/page.test.tsx` только тесты `generateMetadata`; откат класса оставит реквизиты и оферту без типографики и обтекания картинок незамеченным (слои graph-impact и verification-gap). Добавить вместе с первым содержательным тестом `CmsPage`. **Закрыто 2026-10-25** спекой [`spec-rich-content-deferred.md`](spec-rich-content-deferred.md): render-тесты `CmsPage` проверяют `.rich-content`, извлечение `<body>` и 404-разметку; откат класса роняет два теста.
 - source_spec: `_bmad-output/implementation-artifacts/spec-rich-content-editor.md`
   summary: Базовая линия циклов импорта в `.windsurf/rules/gitnexus.md` (правило 3) устарела — в ней нет цикла `backend/apps/users/models.py → staff_roles.py → models.py`.
-  evidence: `npx gitnexus check --cycles` 24.10.2026 показывает два цикла; цикл `users` существовал до изменения (импорт `User` в `staff_roles.py` под `TYPE_CHECKING`/внутри функций, `models.py:14` импортирует `RESPONSIBLE_MANAGER_CHOICES`). Правка — файл правил агентов.
+  evidence: `npx gitnexus check --cycles` 24.10.2026 показывает два цикла; цикл `users` существовал до изменения (импорт `User` в `staff_roles.py` под `TYPE_CHECKING`/внутри функций, `models.py:14` импортирует `RESPONSIBLE_MANAGER_CHOICES`). Правка — файл правил агентов. **Закрыто 2026-10-25** спекой [`spec-rich-content-deferred.md`](spec-rich-content-deferred.md): базовая линия в правиле 3 — два цикла.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-catalog-sidebar-categories-height.md`
   summary: Свёрнутые секции сайдбара `/catalog` (`#filter-categories`, `#filter-brands`) остаются в порядке Tab — фокус уходит в невидимые элементы; нужен `inert` на свёрнутой обёртке.
