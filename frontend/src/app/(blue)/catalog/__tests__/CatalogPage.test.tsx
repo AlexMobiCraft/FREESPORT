@@ -718,10 +718,32 @@ describe('CatalogPage — раскрытость секций сайдбара �
 
     expect(categoryButton).toHaveAttribute('aria-expanded', 'true');
     expect(brandButton).toHaveAttribute('aria-expanded', 'true');
-    expect(document.getElementById('filter-categories')).toHaveClass('max-h-[1000px]');
-    expect(document.getElementById('filter-brands')).toHaveClass('max-h-[500px]');
+    expect(document.getElementById('filter-categories')).toHaveClass('grid-rows-[1fr]');
+    expect(document.getElementById('filter-brands')).toHaveClass('grid-rows-[1fr]');
     expect(chevron(document, 'filter-categories')).toHaveClass('rotate-180');
     expect(chevron(document, 'filter-brands')).toHaveClass('rotate-180');
+  });
+
+  it('раскрытые секции не ограничены по высоте: длинное дерево не обрезается', async () => {
+    render(<CatalogPage />);
+
+    const categoryButton = await screen.findByRole('button', { name: /Категории/i });
+    const brandButton = screen.getByRole('button', { name: /Торговая марка/i });
+    expect(categoryButton).toHaveAttribute('aria-expanded', 'true');
+    expect(brandButton).toHaveAttribute('aria-expanded', 'true');
+
+    // Регрессия: max-h-[1000px] с overflow-hidden обрезал дерево, когда раскрыто
+    // несколько веток («Бассейны, пляж, аксессуары» пропадали из списка).
+    for (const id of ['filter-categories', 'filter-brands']) {
+      const section = document.getElementById(id)!;
+      expect(section).toHaveClass('grid', 'grid-rows-[1fr]');
+      expect(section.className).not.toMatch(/overflow-hidden/);
+      // Потолка высоты нет ни на секции, ни внутри неё
+      expect(section.className).not.toMatch(/max-h-/);
+      expect(section.querySelector('[class*="max-h-"]')).toBeNull();
+      // Обёртка — элемент сетки: отступы, padding или рамка не дали бы треку 0fr схлопнуться
+      expect(section.firstElementChild!.className).toBe('min-h-0 overflow-hidden');
+    }
   });
 
   it('на мобилке после гидратации обе секции свёрнуты без lg:-классов', async () => {
@@ -744,10 +766,10 @@ describe('CatalogPage — раскрытость секций сайдбара �
     const categories = document.getElementById('filter-categories');
     const brands = document.getElementById('filter-brands');
 
-    expect(categories).toHaveClass('max-h-0');
-    expect(categories).not.toHaveClass('lg:max-h-[1000px]');
-    expect(brands).toHaveClass('max-h-0');
-    expect(brands).not.toHaveClass('lg:max-h-[500px]');
+    expect(categories).toHaveClass('grid-rows-[0fr]');
+    expect(categories).not.toHaveClass('lg:grid-rows-[1fr]');
+    expect(brands).toHaveClass('grid-rows-[0fr]');
+    expect(brands).not.toHaveClass('lg:grid-rows-[1fr]');
     for (const controls of ['filter-categories', 'filter-brands']) {
       expect(chevron(document, controls)).not.toHaveClass('rotate-180');
       expect(chevron(document, controls)).not.toHaveClass('lg:rotate-180');
@@ -762,7 +784,7 @@ describe('CatalogPage — раскрытость секций сайдбара �
     await user.click(categoryButton);
 
     expect(categoryButton).toHaveAttribute('aria-expanded', 'false');
-    expect(document.getElementById('filter-categories')).toHaveClass('max-h-0');
+    expect(document.getElementById('filter-categories')).toHaveClass('grid-rows-[0fr]');
     expect(chevron(document, 'filter-categories')).not.toHaveClass('rotate-180');
   });
 
@@ -775,8 +797,8 @@ describe('CatalogPage — раскрытость секций сайдбара �
 
     const brands = document.getElementById('filter-brands');
     expect(brandButton).toHaveAttribute('aria-expanded', 'false');
-    expect(brands).toHaveClass('max-h-0');
-    expect(brands).not.toHaveClass('max-h-[500px]');
+    expect(brands).toHaveClass('grid-rows-[0fr]');
+    expect(brands).not.toHaveClass('grid-rows-[1fr]');
     expect(chevron(document, 'filter-brands')).not.toHaveClass('rotate-180');
   });
 
@@ -803,11 +825,21 @@ describe('CatalogPage — раскрытость секций сайдбара �
     const categories = container.querySelector('#filter-categories');
     const brands = container.querySelector('#filter-brands');
 
-    expect(categories).toHaveClass('max-h-0', 'opacity-0', 'lg:max-h-[1000px]', 'lg:opacity-100');
-    expect(categories).not.toHaveClass('max-h-[1000px]');
+    expect(categories).toHaveClass(
+      'grid-rows-[0fr]',
+      'opacity-0',
+      'lg:grid-rows-[1fr]',
+      'lg:opacity-100'
+    );
+    expect(categories).not.toHaveClass('grid-rows-[1fr]');
     expect(categories).not.toHaveClass('opacity-100');
-    expect(brands).toHaveClass('max-h-0', 'opacity-0', 'lg:max-h-[500px]', 'lg:opacity-100');
-    expect(brands).not.toHaveClass('max-h-[500px]');
+    expect(brands).toHaveClass(
+      'grid-rows-[0fr]',
+      'opacity-0',
+      'lg:grid-rows-[1fr]',
+      'lg:opacity-100'
+    );
+    expect(brands).not.toHaveClass('grid-rows-[1fr]');
     expect(brands).not.toHaveClass('opacity-100');
     for (const controls of ['filter-categories', 'filter-brands']) {
       expect(chevron(container, controls)).toHaveClass('lg:rotate-180');

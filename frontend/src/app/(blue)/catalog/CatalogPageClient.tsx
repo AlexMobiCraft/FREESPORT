@@ -69,10 +69,9 @@ const MAX_VISIBLE_PAGES = 5;
 
 // Константы анимации фильтров (F2, F5, F6)
 const FILTER_ANIMATION_DURATION = 'duration-[180ms]';
-// Менять вместе с lg:-литералами (lg:max-h-[1000px] / lg:max-h-[500px]) в разметке сайдбара:
-// они задают ту же высоту до гидратации, иначе высота до и после неё разойдётся
-const CATEGORY_MAX_HEIGHT = 'max-h-[1000px]'; // ~40 категорий × 24px + padding
-const BRANDS_MAX_HEIGHT = 'max-h-[500px]'; // ~20 брендов × 24px + padding
+// Секции сайдбара сворачиваются через grid-template-rows 0fr ↔ 1fr, а не max-height:
+// у раскрытой секции нет потолка высоты, и длинное дерево категорий не обрезается.
+// Содержимое секции — во внутренней обёртке с min-h-0 и overflow-hidden, без внешних отступов.
 const DESKTOP_BREAKPOINT = '(min-width: 1024px)'; // Синхронизировано с Tailwind lg:
 
 // useLayoutEffect безопасен только на клиенте; на сервере fallback на useEffect (F1)
@@ -1680,32 +1679,34 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
               <div
                 id="filter-categories"
                 className={cn(
-                  `overflow-hidden transition-all ${FILTER_ANIMATION_DURATION}`,
+                  `grid transition-all ${FILTER_ANIMATION_DURATION}`,
                   !isBreakpointResolved
-                    ? 'max-h-0 opacity-0 mt-0 lg:max-h-[1000px] lg:opacity-100 lg:mt-4'
+                    ? 'grid-rows-[0fr] opacity-0 mt-0 lg:grid-rows-[1fr] lg:opacity-100 lg:mt-4'
                     : isCategoriesOpen
-                      ? `${CATEGORY_MAX_HEIGHT} opacity-100 mt-4`
-                      : 'max-h-0 opacity-0 mt-0'
+                      ? 'grid-rows-[1fr] opacity-100 mt-4'
+                      : 'grid-rows-[0fr] opacity-0 mt-0'
                 )}
               >
-                {isCategoriesLoading ? (
-                  <div className="space-y-2">
-                    {Array.from({ length: 6 }).map((_, index) => (
-                      <div key={index} className="h-4 bg-gray-100 rounded animate-pulse" />
-                    ))}
-                  </div>
-                ) : categoriesError ? (
-                  <p className="text-sm text-red-600">{categoriesError}</p>
-                ) : (
-                  <CategoryTree
-                    nodes={categoryTree}
-                    activeId={activeCategoryId}
-                    expandedKeys={expandedKeys}
-                    onToggle={handleToggle}
-                    onSelect={handleSelectCategory}
-                    visibleIds={sidebarVisibleIds}
-                  />
-                )}
+                <div className="min-h-0 overflow-hidden">
+                  {isCategoriesLoading ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 6 }).map((_, index) => (
+                        <div key={index} className="h-4 bg-gray-100 rounded animate-pulse" />
+                      ))}
+                    </div>
+                  ) : categoriesError ? (
+                    <p className="text-sm text-red-600">{categoriesError}</p>
+                  ) : (
+                    <CategoryTree
+                      nodes={categoryTree}
+                      activeId={activeCategoryId}
+                      expandedKeys={expandedKeys}
+                      onToggle={handleToggle}
+                      onSelect={handleSelectCategory}
+                      visibleIds={sidebarVisibleIds}
+                    />
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1742,41 +1743,45 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
                 <div
                   id="filter-brands"
                   className={cn(
-                    `overflow-hidden transition-all ${FILTER_ANIMATION_DURATION}`,
+                    `grid transition-all ${FILTER_ANIMATION_DURATION}`,
                     !isBreakpointResolved
-                      ? 'max-h-0 opacity-0 lg:max-h-[500px] lg:opacity-100'
+                      ? 'grid-rows-[0fr] opacity-0 lg:grid-rows-[1fr] lg:opacity-100'
                       : isBrandsOpen
-                        ? `${BRANDS_MAX_HEIGHT} opacity-100`
-                        : 'max-h-0 opacity-0'
+                        ? 'grid-rows-[1fr] opacity-100'
+                        : 'grid-rows-[0fr] opacity-0'
                   )}
                 >
-                  <div className="mt-2 flex flex-col gap-1">
-                    {isBrandsLoading && <p className="text-xs text-gray-400">Загрузка...</p>}
-                    {brandsError && <p className="text-xs text-red-500">{brandsError}</p>}
-                    {!isBrandsLoading &&
-                      !brandsError &&
-                      (() => {
-                        const visibleBrands = brands.filter(
-                          brand =>
-                            sidebarVisibleBrandIds === null ||
-                            sidebarVisibleBrandIds.has(brand.id) ||
-                            selectedBrandIds.has(brand.id)
-                        );
+                  <div className="min-h-0 overflow-hidden">
+                    <div className="mt-2 flex flex-col gap-1">
+                      {isBrandsLoading && <p className="text-xs text-gray-400">Загрузка...</p>}
+                      {brandsError && <p className="text-xs text-red-500">{brandsError}</p>}
+                      {!isBrandsLoading &&
+                        !brandsError &&
+                        (() => {
+                          const visibleBrands = brands.filter(
+                            brand =>
+                              sidebarVisibleBrandIds === null ||
+                              sidebarVisibleBrandIds.has(brand.id) ||
+                              selectedBrandIds.has(brand.id)
+                          );
 
-                        if (visibleBrands.length === 0) {
-                          return <p className="text-xs text-gray-400">Торговые марки не найдены</p>;
-                        }
+                          if (visibleBrands.length === 0) {
+                            return (
+                              <p className="text-xs text-gray-400">Торговые марки не найдены</p>
+                            );
+                          }
 
-                        return visibleBrands.map(brand => (
-                          <div key={brand.id}>
-                            <Checkbox
-                              label={brand.name}
-                              checked={selectedBrandIds.has(brand.id)}
-                              onChange={() => handleBrandToggle(brand.id)}
-                            />
-                          </div>
-                        ));
-                      })()}
+                          return visibleBrands.map(brand => (
+                            <div key={brand.id}>
+                              <Checkbox
+                                label={brand.name}
+                                checked={selectedBrandIds.has(brand.id)}
+                                onChange={() => handleBrandToggle(brand.id)}
+                              />
+                            </div>
+                          ));
+                        })()}
+                    </div>
                   </div>
                 </div>
               </div>
