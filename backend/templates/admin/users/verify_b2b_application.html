@@ -15,6 +15,10 @@
 {% endblock %}
 
 {% block content %}
+{# instruction_url пуст в /admin/: инструкции есть только в разделе менеджера. #}
+{% if instruction_url %}
+<p class="help"><a href="{{ instruction_url }}">Инструкция: как подтвердить заявку</a></p>
+{% endif %}
 {# Все значения ниже — данные заявителя и выгрузки 1С: выводятся только через #}
 {# автоэкранирование шаблона, без |safe.                                        #}
 <fieldset class="module aligned">
