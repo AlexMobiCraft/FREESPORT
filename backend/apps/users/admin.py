@@ -41,6 +41,7 @@ from apps.users.services.verify_b2b_application import (
     verification_mode,
     verify_b2b_application,
 )
+from apps.users.staff_instructions import VERIFY_CLIENT_SLUG
 from apps.users.staff_roles import limit_manager_field, manager_label, staff_accounts_q
 
 from .models import Address, Company, Favorite, User, matches_q
@@ -782,6 +783,10 @@ class UserAdmin(BaseUserAdmin):
             "role_choice_needed": role_choice_needed,
             "change_url": reverse(
                 f"{self.admin_site.name}:{self.opts.app_label}_{self.opts.model_name}_change", args=[obj.pk]
+            ),
+            # Инструкции есть только в разделе менеджера: /admin/ пускает одного суперпользователя.
+            "instruction_url": (
+                reverse("manager:instruction", args=[VERIFY_CLIENT_SLUG]) if self.admin_site.name == "manager" else ""
             ),
         }
 

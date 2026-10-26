@@ -14,10 +14,11 @@ from typing import Any
 
 from django import forms
 from django.contrib import admin
-from django.http import HttpRequest
+from django.http import Http404, HttpRequest
 from django.template.response import TemplateResponse
 from django.urls import URLPattern, URLResolver, path, reverse
 
+from apps.users.staff_instructions import STAFF_INSTRUCTIONS, get_instruction
 from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP, is_supervisor
 
 # Период сводки руководителя в его сессии: строка `?date_from=…&date_to=…`, собранная
@@ -133,12 +134,45 @@ class ManagerAdminSite(StaffSectionAdminSite):
     index_template = "admin/manager/index.html"
     section_groups = (MANAGERS_GROUP, SUPERVISORS_GROUP)
 
+    def get_urls(self) -> list[URLResolver | URLPattern]:
+        # Свои пути — до родительских: AdminSite.get_urls() заканчивается
+        # catch-all, и путь после него отвечал бы 404.
+        return [
+            path("instructions/", self.admin_view(self.instructions_view), name="instructions"),
+            path("instructions/<slug:slug>/", self.admin_view(self.instruction_view), name="instruction"),
+            *super().get_urls(),
+        ]
+
+    def instructions_view(self, request: HttpRequest) -> TemplateResponse:
+        # current_app — для reverse() и {% url 'admin:…' %}: без него ссылки шапки
+        # и хлебных крошек вели бы в закрытую /admin/.
+        request.current_app = self.name
+        context = {**self.each_context(request), "title": "Инструкции", "instructions": STAFF_INSTRUCTIONS}
+        return TemplateResponse(request, "admin/instructions/index.html", context)
+
+    def instruction_view(self, request: HttpRequest, slug: str) -> TemplateResponse:
+        instruction = get_instruction(slug)
+        if instruction is None:
+            raise Http404("Инструкция не найдена")
+        request.current_app = self.name
+        context = {
+            **self.each_context(request),
+            "title": instruction.title,
+            "instruction": instruction,
+            "other_instructions": [other for other in STAFF_INSTRUCTIONS if other.slug != instruction.slug],
+        }
+        return TemplateResponse(request, "admin/instructions/detail.html", context)
+
     def index(self, request: HttpRequest, extra_context: dict[str, Any] | None = None) -> TemplateResponse:
         # Очередь главной (стори 42.5). Импорт внутри метода: модуль заказов
         # раздела сам импортирует manager_site, импорт на уровне модуля дал бы цикл.
         from apps.orders.manager_admin import manager_queue
 
-        extra_context = {**(extra_context or {}), "manager_queue": manager_queue(request, self)}
+        extra_context = {
+            **(extra_context or {}),
+            "manager_queue": manager_queue(request, self),
+            "staff_instructions": STAFF_INSTRUCTIONS,
+        }
         return super().index(request, extra_context)
 
     def get_app_list(self, request: HttpRequest, app_label: str | None = None) -> list[dict[str, Any]]:
