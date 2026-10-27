@@ -13,33 +13,41 @@ from django.db import connection
 from django.db.models import Q, QuerySet
 
 from .models import Attribute, Brand, Category, Product
-from .pricing_policy import ROLE_PRICE_FIELDS, resolve_pricing_role
+from .pricing_policy import resolve_pricing_role, role_price_fields
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
 
 
-def visible_price_q(price_field: str | None, lookup: str, value: Any) -> Q:
+def visible_price_q(price_fields: tuple[str, ...], lookup: str, value: Any) -> Q:
     """
     Условие «видимая пользователем цена варианта попадает в границу».
 
-    Специальная цена роли считается заданной, только если она строго больше
-    нуля: `ProductVariant.get_price_for_user` трактует и NULL, и 0.00 как
-    «цены для роли нет» и показывает `retail_price`. Фильтр обязан
-    откатываться на розницу в обоих случаях, иначе выдача по min_price /
-    max_price расходится с ценой в карточке товара (AC5 стори
-    `security-wholesale-price-visibility`).
+    `price_fields` — цепочка роли из `pricing_policy.role_price_fields`: поле роли,
+    затем запасное поле, затем розница. Цена роли считается заданной, только если
+    она строго больше нуля: `ProductVariant.get_price_for_user` трактует и NULL,
+    и 0.00 как «цены для роли нет» и берёт следующую ступень цепочки. Фильтр обязан
+    откатываться так же, иначе выдача по min_price / max_price расходится с ценой
+    в карточке товара (AC5 стори `security-wholesale-price-visibility`).
 
-    `price_field=None` — роль без своей цены (retail, unregistered, admin,
-    аноним): фильтруем прямо по розничной цене.
+    Пустая цепочка — роль без своей цены (retail, unregistered, admin, аноним):
+    фильтруем прямо по розничной цене.
     """
     retail_bound = Q(**{f"retail_price__{lookup}": value})
-    if price_field is None:
-        return retail_bound
 
-    has_special = Q(**{f"{price_field}__gt": 0})
-    no_special = Q(**{f"{price_field}__isnull": True}) | Q(**{price_field: 0})
-    return (has_special & Q(**{f"{price_field}__{lookup}": value})) | (no_special & retail_bound)
+    conditions: list[Q] = []
+    previous_unset = Q()  # все предыдущие ступени цепочки не заданы
+    for field in price_fields:
+        has_role_price = Q(**{f"{field}__gt": 0})
+        no_role_price = Q(**{f"{field}__isnull": True}) | Q(**{f"{field}__lte": 0})
+        conditions.append(previous_unset & has_role_price & Q(**{f"{field}__{lookup}": value}))
+        previous_unset &= no_role_price
+    conditions.append(previous_unset & retail_bound)
+
+    combined = conditions[0]
+    for condition in conditions[1:]:
+        combined |= condition
+    return combined
 
 
 class ProductFilter(django_filters.FilterSet):
@@ -291,7 +299,7 @@ class ProductFilter(django_filters.FilterSet):
         # Фильтруем по той цене, которую пользователь видит: неверифицированный
         # B2B понижается до retail (см. pricing_policy)
         user_role = resolve_pricing_role(getattr(request, "user", None) if request else None)
-        self._variant_filters &= visible_price_q(ROLE_PRICE_FIELDS.get(user_role), "gte", value)
+        self._variant_filters &= visible_price_q(role_price_fields(user_role), "gte", value)
 
         return queryset
 
@@ -309,7 +317,7 @@ class ProductFilter(django_filters.FilterSet):
         request = self.request
         # Симметрично filter_min_price: роль берём из политики видимости цен
         user_role = resolve_pricing_role(getattr(request, "user", None) if request else None)
-        self._variant_filters &= visible_price_q(ROLE_PRICE_FIELDS.get(user_role), "lte", value)
+        self._variant_filters &= visible_price_q(role_price_fields(user_role), "lte", value)
 
         return queryset
 

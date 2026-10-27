@@ -486,6 +486,8 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
     'wholesale_level4',
     'trainer',
     'federation_rep',
+    'vip',
+    'special_price',
     'admin',
   ].includes(userRole);
 

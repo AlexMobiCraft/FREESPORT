@@ -21,7 +21,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from apps.products.factories import ProductFactory
-from apps.products.pricing_policy import ROLE_PRICE_FIELDS
+from apps.products.pricing_policy import ROLE_PRICE_FALLBACKS, ROLE_PRICE_FIELDS
 from tests.conftest import get_unique_suffix
 
 pytestmark = [pytest.mark.integration, pytest.mark.django_db]
@@ -57,12 +57,18 @@ def _authenticate(api_client, role: str) -> None:
     )
 
 
-def _product_with_price(price_field: str, special_price):
-    """Товар с розничной ценой 1000 и заданной специальной ценой роли"""
+def _product_with_price(price_field: str, special_price, *, role: str | None = None):
+    """
+    Товар с розничной ценой 1000 и заданной ценой роли.
+
+    Запасное поле цепочки роли (у `special_price` — `opt1_price`) обнуляется: матрица
+    проверяет откат на розницу, а откат на запасное поле — `TestFallbackFieldFilters`.
+    """
+    fallback = ROLE_PRICE_FALLBACKS.get(role) if role else None
     return ProductFactory(
         retail_price=RETAIL_PRICE,
         stock_quantity=50,
-        **{price_field: special_price},
+        **{price_field: special_price, **({fallback: None} if fallback else {})},
     )
 
 
@@ -87,7 +93,7 @@ class TestZeroSpecialPriceFilters:
     @pytest.mark.parametrize("role,price_field", ROLE_MATRIX)
     def test_zero_special_price_is_shown_as_retail(self, api_client, role, price_field):
         """Опора всей матрицы: с нулевой спеццена карточка показывает розничную"""
-        product = _product_with_price(price_field, Decimal("0.00"))
+        product = _product_with_price(price_field, Decimal("0.00"), role=role)
         _authenticate(api_client, role)
 
         assert _current_price(api_client, product) == float(RETAIL_PRICE)
@@ -95,7 +101,7 @@ class TestZeroSpecialPriceFilters:
     @pytest.mark.parametrize("role,price_field", ROLE_MATRIX)
     def test_zero_special_price_passes_min_price(self, api_client, role, price_field):
         """Товар стоит 1000 — запрос «от 900 ₽» обязан его вернуть"""
-        product = _product_with_price(price_field, Decimal("0.00"))
+        product = _product_with_price(price_field, Decimal("0.00"), role=role)
         _authenticate(api_client, role)
 
         assert product.slug in _slugs(api_client, product, min_price=BELOW_RETAIL), (
@@ -106,7 +112,7 @@ class TestZeroSpecialPriceFilters:
     @pytest.mark.parametrize("role,price_field", ROLE_MATRIX)
     def test_zero_special_price_is_excluded_by_max_price(self, api_client, role, price_field):
         """Обратная сторона: «до 600 ₽» не должен показывать товар за 1000"""
-        product = _product_with_price(price_field, Decimal("0.00"))
+        product = _product_with_price(price_field, Decimal("0.00"), role=role)
         _authenticate(api_client, role)
 
         assert product.slug not in _slugs(api_client, product, max_price=ABOVE_SPECIAL), (
@@ -121,7 +127,7 @@ class TestFilledSpecialPriceFilters:
     @pytest.mark.parametrize("role,price_field", ROLE_MATRIX)
     def test_special_price_is_shown_and_filtered(self, api_client, role, price_field):
         """Показанная цена — специальная, обе границы согласованы с ней"""
-        product = _product_with_price(price_field, SPECIAL_PRICE)
+        product = _product_with_price(price_field, SPECIAL_PRICE, role=role)
         _authenticate(api_client, role)
 
         assert _current_price(api_client, product) == float(SPECIAL_PRICE)
@@ -131,7 +137,7 @@ class TestFilledSpecialPriceFilters:
     @pytest.mark.parametrize("role,price_field", ROLE_MATRIX)
     def test_empty_special_price_filters_by_retail(self, api_client, role, price_field):
         """Пустая специальная цена — прежнее поведение, откат на розницу"""
-        product = _product_with_price(price_field, None)
+        product = _product_with_price(price_field, None, role=role)
         _authenticate(api_client, role)
 
         assert _current_price(api_client, product) == float(RETAIL_PRICE)
@@ -158,3 +164,30 @@ class TestUnverifiedB2BPriceFilters:
         assert _current_price(api_client, product) == float(RETAIL_PRICE)
         assert product.slug in _slugs(api_client, product, min_price=BELOW_RETAIL)
         assert product.slug not in _slugs(api_client, product, max_price=ABOVE_SPECIAL)
+
+
+class TestFallbackFieldFilters:
+    """Роль `special_price` без спеццены платит «Опт 1»: выдача и карточка согласованы"""
+
+    def test_missing_special_price_filters_and_shows_opt1(self, api_client):
+        product = ProductFactory(
+            retail_price=RETAIL_PRICE, stock_quantity=50, special_price=None, opt1_price=Decimal("800.00")
+        )
+        _authenticate(api_client, "special_price")
+
+        assert _current_price(api_client, product) == 800.0
+        assert product.slug in _slugs(api_client, product, max_price=900)
+        assert product.slug not in _slugs(api_client, product, min_price=BELOW_RETAIL)
+
+    def test_special_price_above_opt1_is_the_shown_price(self, api_client):
+        product = ProductFactory(
+            retail_price=RETAIL_PRICE,
+            stock_quantity=50,
+            special_price=Decimal("1100.00"),
+            opt1_price=Decimal("1000.00"),
+        )
+        _authenticate(api_client, "special_price")
+
+        assert _current_price(api_client, product) == 1100.0
+        assert product.slug in _slugs(api_client, product, min_price=1050)
+        assert product.slug not in _slugs(api_client, product, max_price=1050)

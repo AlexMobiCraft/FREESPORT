@@ -338,3 +338,69 @@ class TestUnverifiedB2BOrderPrice:
         assert len(items) == 1
         assert items[0].unit_price == OPT1_PRICE
         assert items[0].total_price == OPT1_PRICE * 2
+
+
+class TestVipAndSpecialPriceRoles:
+    """
+    Роли «VIP» и «Спец цена»: итоговая цена и РРЦ/МРЦ видны после верификации,
+    сырых `vip_price` / `special_price` нет ни в одном ответе.
+    """
+
+    VIP_PRICE = Decimal("850.00")
+    SPECIAL_PRICE = Decimal("750.00")
+    RAW_KEYS = {"vip_price", "special_price"}
+
+    @pytest.fixture
+    def priced_product(self, product):
+        product.variants.update(vip_price=self.VIP_PRICE, special_price=self.SPECIAL_PRICE)
+        return product
+
+    @pytest.mark.parametrize(
+        "role, expected",
+        [("vip", VIP_PRICE), ("special_price", SPECIAL_PRICE)],
+    )
+    def test_verified_client_sees_own_price_and_info_prices(self, api_client, priced_product, role, expected):
+        api_client.force_authenticate(user=_make_user(role, is_verified=True))
+
+        item = _list_item(api_client, priced_product)
+        detail = api_client.get(f"/api/v1/products/{priced_product.slug}/")
+
+        assert float(item["current_price"]) == float(expected)
+        assert float(item["regular_price"]) == float(expected)
+        assert detail.status_code == 200
+        assert float(detail.data["current_price"]) == float(expected)
+        assert detail.data["variants"][0]["regular_price"] == f"{expected}"
+        assert detail.data["rrp"] == 1200.0
+        assert detail.data["msrp"] == 1300.0
+        _assert_wholesale_visible(detail.data, "карточка товара")
+
+    @pytest.mark.parametrize("role", ["vip", "special_price"])
+    def test_unverified_client_sees_retail_and_no_wholesale(self, api_client, priced_product, role):
+        api_client.force_authenticate(user=_make_user(role, is_verified=False))
+
+        item = _list_item(api_client, priced_product)
+        detail = api_client.get(f"/api/v1/products/{priced_product.slug}/")
+
+        assert float(item["current_price"]) == float(RETAIL_PRICE)
+        _assert_wholesale_hidden(item, "список каталога")
+        assert "rrp" not in detail.data
+        assert "msrp" not in detail.data
+
+    @pytest.mark.parametrize("role_spec", [None, ("vip", True), ("special_price", True), ("wholesale_level1", True)])
+    def test_raw_prices_are_never_serialized(self, api_client, priced_product, role_spec):
+        _authenticate(api_client, role_spec)
+
+        item = _list_item(api_client, priced_product)
+        detail = api_client.get(f"/api/v1/products/{priced_product.slug}/")
+
+        assert not self.RAW_KEYS & set(item), "сырые цены в списке"
+        assert not self.RAW_KEYS & set(detail.data), "сырые цены в карточке"
+        for variant in detail.data["variants"]:
+            assert not self.RAW_KEYS & set(variant), "сырые цены в варианте"
+
+    def test_other_roles_do_not_get_vip_or_special_price(self, api_client, priced_product):
+        api_client.force_authenticate(user=_make_user("wholesale_level1", is_verified=True))
+
+        item = _list_item(api_client, priced_product)
+
+        assert float(item["current_price"]) == float(OPT1_PRICE)

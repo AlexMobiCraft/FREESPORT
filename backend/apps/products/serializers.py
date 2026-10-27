@@ -54,7 +54,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     Serializer для ProductVariant с роле-ориентированной ценой
 
     Поля:
-    - current_price: цена, которую платит пользователь: акционная, если есть, иначе по роли
+    - current_price: цена, которую платит пользователь: меньшая из цены по роли и акционной
     - regular_price: цена по роли без акции (гостю — розница)
     - promo_price: акционная цена текущей акции, видна всем ролям; null — акции нет
     - color_hex: hex-код цвета из ColorMapping
@@ -458,6 +458,8 @@ def priced_variant_q() -> Q:
         | Q(opt4_price__gt=0)
         | Q(trainer_price__gt=0)
         | Q(federation_price__gt=0)
+        | Q(vip_price__gt=0)
+        | Q(special_price__gt=0)
         | Q(promo_price__gt=0)
     )
 

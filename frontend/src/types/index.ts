@@ -26,6 +26,8 @@ export type UserRole =
   | 'wholesale_level4'
   | 'trainer'
   | 'federation_rep'
+  | 'vip'
+  | 'special_price'
   | 'admin'
   // Контрагент 1С без портального аккаунта — не B2B, видит розничные цены
   | 'unregistered';

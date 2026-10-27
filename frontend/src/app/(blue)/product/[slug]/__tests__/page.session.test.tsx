@@ -1,9 +1,10 @@
 /**
  * SSR-страница товара: сессия покупателя доходит до запроса товара.
  *
- * У акционного товара API отдаёт `regular_price` по роли: розница 1200, опт 700, акция 800.
- * Если страница не передаст Cookie в запрос товара, оптовик получит гостевую 1200 и увидит
- * зачёркнутую цену вместо её отсутствия (700 ниже оплачиваемой 800 не зачёркивается).
+ * У акционного товара API отдаёт цены по роли: розница 1200, опт 700, акция 800. Клиент платит
+ * меньшую из цен, поэтому оптовику `current_price` = 700 и акция не применена, гостю — 800 с
+ * зачёркнутой 1200. Если страница не передаст Cookie в запрос товара, оптовик получит гостевой
+ * ответ и увидит акцию 800 вместо своей цены 700.
  *
  * Тест вызывает настоящий `ProductPage` и настоящий `productsService`; ответ MSW зависит
  * от заголовка Cookie, поэтому потеря заголовка на любом из шагов цепочки ломает проверки.
@@ -55,7 +56,7 @@ import { getUserRole } from '@/utils/server-auth';
 const API_BASE_URL = 'http://localhost:8001/api/v1';
 const WHOLESALE_SESSION = 'wholesale-session';
 
-const rawPromoProduct = (regularPrice: string) => ({
+const rawPromoProduct = (currentPrice: string, regularPrice: string) => ({
   id: 301,
   slug: 'promo-product',
   name: 'Товар с акцией',
@@ -63,7 +64,7 @@ const rawPromoProduct = (regularPrice: string) => ({
   category: { id: 1, name: 'Категория', slug: 'category' },
   description: 'Описание',
   retail_price: 1200,
-  current_price: '800.00',
+  current_price: currentPrice,
   regular_price: regularPrice,
   promo_price: '800.00',
   stock_quantity: 5,
@@ -72,13 +73,15 @@ const rawPromoProduct = (regularPrice: string) => ({
   variants: [],
 });
 
-/** API отдаёт оптовику розничную 700, а запросу без сессии — гостевую 1200. */
+/** API отдаёт оптовику его цену 700 (она ниже акции), а запросу без сессии — акцию 800 при рознице 1200. */
 function serveProductByCookie() {
   server.use(
     http.get(`${API_BASE_URL}/products/:slug/`, ({ request }) => {
       const cookie = request.headers.get('cookie') ?? '';
       const isWholesale = cookie.includes(`sessionid=${WHOLESALE_SESSION}`);
-      return HttpResponse.json(rawPromoProduct(isWholesale ? '700.00' : '1200.00'));
+      return HttpResponse.json(
+        isWholesale ? rawPromoProduct('700.00', '700.00') : rawPromoProduct('800.00', '1200.00')
+      );
     })
   );
 }
@@ -113,7 +116,7 @@ async function propsPassedToClient(): Promise<ClientProps> {
 }
 
 describe('Product Detail Page - сессия в запросе акционного товара', () => {
-  it('оптовик получает свою обычную цену, и зачёркнутой цены нет', async () => {
+  it('оптовик платит свою цену ниже акции, и страница выглядит как без акции', async () => {
     serveProductByCookie();
     openSession(WHOLESALE_SESSION);
     vi.mocked(getUserRole).mockResolvedValue('wholesale_level1');
@@ -121,15 +124,19 @@ describe('Product Detail Page - сессия в запросе акционно�
     const { product, userRole } = await propsPassedToClient();
 
     expect(userRole).toBe('wholesale_level1');
-    expect(product.regular_price).toBe('700.00');
+    expect(product.current_price).toBe('700.00');
     expect(product.promo_price).toBe('800.00');
 
     const html = renderToStaticMarkup(<ProductInfo product={product} userRole={userRole} />);
-    expect(html).toContain('data-testid="promo-price"');
+    expect(html).toMatch(/700\s₽/);
+    expect(html).not.toMatch(/800\s₽/);
+    expect(html).not.toContain('Акция');
+    expect(html).not.toContain('Акционная цена');
+    expect(html).not.toContain('data-testid="promo-price"');
     expect(html).not.toContain('data-testid="regular-price"');
   });
 
-  it('гость без сессии получает розничную цену и видит её зачёркнутой', async () => {
+  it('гость без сессии платит акцию и видит зачёркнутую розницу', async () => {
     serveProductByCookie();
     openSession(null);
     vi.mocked(getUserRole).mockResolvedValue('guest');
@@ -137,10 +144,12 @@ describe('Product Detail Page - сессия в запросе акционно�
     const { product, userRole } = await propsPassedToClient();
 
     expect(userRole).toBe('guest');
+    expect(product.current_price).toBe('800.00');
     expect(product.regular_price).toBe('1200.00');
 
     const html = renderToStaticMarkup(<ProductInfo product={product} userRole={userRole} />);
-    expect(html).toContain('data-testid="promo-price"');
-    expect(html).toContain('data-testid="regular-price"');
+    expect(html).toContain('Акция');
+    expect(html).toMatch(/data-testid="promo-price"[^>]*>.*?800\s₽/);
+    expect(html).toMatch(/data-testid="regular-price"[^>]*>.*?1\s200\s₽/);
   });
 });

@@ -19,6 +19,8 @@ export interface User {
     | 'wholesale_level4'
     | 'trainer'
     | 'federation_rep'
+    | 'vip'
+    | 'special_price'
     | 'admin';
   company_name?: string;
   tax_id?: string;
@@ -45,7 +47,7 @@ export interface Product {
   short_description?: string;
   retail_price: number;
   old_price?: number;
-  /** Цена, которую платит пользователь: акционная, если есть, иначе по роли (Decimal as string) */
+  /** Цена, которую платит пользователь: меньшая из цены по роли и акционной (Decimal as string) */
   current_price?: string;
   /** Цена по роли без акции; гостю — розница (Decimal as string) */
   regular_price?: string;
@@ -382,7 +384,7 @@ export interface ProductDetail {
   description: string;
   full_description?: string;
   price: ProductPrice;
-  /** Цена, которую платит пользователь: акционная, если есть, иначе по роли (Decimal as string) */
+  /** Цена, которую платит пользователь: меньшая из цены по роли и акционной (Decimal as string) */
   current_price?: string;
   /** Цена по роли без акции; гостю — розница (Decimal as string) */
   regular_price?: string;

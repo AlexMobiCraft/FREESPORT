@@ -798,6 +798,39 @@ class TestCustomerRoleFromPriceType:
         assert user.pk == existing.pk
         assert user.role == "wholesale_level2"
 
+    @pytest.mark.parametrize(
+        ("guid", "onec_name", "role", "product_field"),
+        [
+            ("0c0c0001-0001-11f0-81c3-00155d3cae02", "СПЕЦЦЕНА", "special_price", "special_price"),
+            ("0c0c0002-0001-11f0-81c3-00155d3cae02", "VIP цены", "vip", "vip_price"),
+        ],
+        ids=["special_price", "vip"],
+    )
+    def test_linked_account_gets_vip_and_special_price_roles(self, processor, guid, onec_name, role, product_field):
+        """
+        Соглашение с видом цен «СПЕЦЦЕНА» / «VIP цены» → роль special_price / vip
+        (spec-roles-vip-special-price). Контрагент собран вручную: в реальных
+        выгрузках этих видов цен пока нет.
+        """
+        self._ensure_price_type(guid, onec_name, role, product_field)
+        data = {
+            "onec_id": f"special-role-{role}",
+            "name": "ООО Спецклиент",
+            "role": "Покупатель",
+            "email": f"{role}-linked@example.com",
+            "price_type_ids": [guid],
+            "agreement_status": "",
+        }
+        existing = self._linked_account(data["onec_id"], "wholesale_level1", data["email"])
+
+        user = processor.process_customer(data)
+
+        assert user.pk == existing.pk
+        assert user.role == role
+        assert user.onec_price_type_id == guid
+        assert user.is_b2b_user is True
+        assert processor.last_role_outcome == "roles_updated_from_assigned"
+
     # -- AC3, AC5: перетирание ручной роли и журнал -------------------------
 
     def test_manual_role_is_overwritten_and_audited(self, processor, customer_with_opt4):

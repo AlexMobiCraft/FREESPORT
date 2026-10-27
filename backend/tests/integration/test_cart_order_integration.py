@@ -319,9 +319,23 @@ class CartOrderIntegrationTest(TestCase):
 @pytest.mark.integration
 @pytest.mark.django_db
 class PromoPriceCartOrderTest(TestCase):
-    """Акционная цена из 1С действует для всех ролей: корзина, заказ и экспорт в 1С (spec-1c-promo-price-type)."""
+    """
+    Клиент платит меньшую из цен — своей или акционной: корзина, заказ и экспорт в 1С.
+
+    Акция — вид цен 1С (spec-1c-promo-price-type), правило `min` — решение владельца 2026-10-26.
+    """
 
     PROMO = Decimal("800.00")
+
+    # Роль → цена, которую платит клиент. Цены ролей и выше, и ниже, и равны акционной.
+    EXPECTED_UNIT_PRICE = {
+        "retail": Decimal("800.00"),  # розница 1200 выше акции
+        "wholesale_level3": Decimal("700.00"),  # цена клиента ниже акции — платит свою
+        "trainer": Decimal("800.00"),  # цена клиента равна акции
+        "federation_rep": Decimal("800.00"),  # 900 выше акции
+        "vip": Decimal("650.00"),  # 650 ниже акции
+        "special_price": Decimal("800.00"),  # спеццена 900 выше акции — платит акцию
+    }
 
     def setUp(self):
         category = Category.objects.create(name="Promo Category", slug="promo-category")
@@ -329,7 +343,6 @@ class PromoPriceCartOrderTest(TestCase):
         product = Product.objects.create(
             name="Promo Product", slug="promo-product", category=category, brand=brand, is_active=True
         )
-        # Цены ролей и выше, и ниже, и равны акционной: акция применяется всегда
         self.variant = ProductVariant.objects.create(
             product=product,
             sku="PROMO-VAR",
@@ -338,6 +351,8 @@ class PromoPriceCartOrderTest(TestCase):
             opt3_price=Decimal("700.00"),
             trainer_price=Decimal("800.00"),
             federation_price=Decimal("900.00"),
+            vip_price=Decimal("650.00"),
+            special_price=Decimal("900.00"),
             promo_price=self.PROMO,
             stock_quantity=50,
             is_active=True,
@@ -351,10 +366,10 @@ class PromoPriceCartOrderTest(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(CartItem.objects.get(variant=self.variant).price_snapshot, self.PROMO)
 
-    def test_order_and_export_use_promo_price_for_every_role(self):
+    def test_order_and_export_use_the_lower_price_for_every_role(self):
         from apps.orders.services.order_export import OrderExportService
 
-        for index, role in enumerate(("retail", "wholesale_level3", "trainer", "federation_rep")):
+        for index, (role, expected) in enumerate(self.EXPECTED_UNIT_PRICE.items()):
             with self.subTest(role=role):
                 user = User.objects.create_user(
                     email=f"promo-{role}@example.com",
@@ -381,9 +396,127 @@ class PromoPriceCartOrderTest(TestCase):
                     "items__variant", "items__product", "user"
                 )
                 item = OrderItem.objects.get(order__in=sub_orders)
-                self.assertEqual(item.unit_price, self.PROMO)
+                self.assertEqual(item.unit_price, expected)
                 xml = OrderExportService().generate_xml(sub_orders)
-                self.assertIn("<ЦенаЗаЕдиницу>800.00</ЦенаЗаЕдиницу>", xml)
+                self.assertIn(f"<ЦенаЗаЕдиницу>{expected}</ЦенаЗаЕдиницу>", xml)
+
+
+@pytest.mark.integration
+@pytest.mark.django_db
+class SpecialPriceCartOrderTest(TestCase):
+    """Клиент ролей «VIP» и «Спец цена»: цена из 1С доходит до снимка корзины, заказа и экспорта."""
+
+    def setUp(self):
+        category = Category.objects.create(name="Special Category", slug="special-category")
+        brand = Brand.objects.create(name="Special Brand", slug="special-brand")
+        product = Product.objects.create(
+            name="Special Product", slug="special-product", category=category, brand=brand, is_active=True
+        )
+        self.variant = ProductVariant.objects.create(
+            product=product,
+            sku="SPECIAL-VAR",
+            onec_id="1C-SPECIAL-VAR",
+            retail_price=Decimal("1200.00"),
+            opt1_price=Decimal("1000.00"),
+            vip_price=Decimal("900.00"),
+            special_price=Decimal("750.00"),
+            stock_quantity=50,
+            is_active=True,
+        )
+
+    def _client(self, role, *, verified=True, code="20101"):
+        user = User.objects.create_user(
+            email=f"special-{role}-{code}@example.com",
+            password="testpass123",
+            role=role,
+            is_verified=verified,
+            customer_code=code,
+        )
+        client = APIClient()
+        client.force_authenticate(user=user)
+        return client
+
+    def _checkout(self, client, payment_method="bank_transfer"):
+        return client.post(
+            "/api/v1/orders/",
+            {"delivery_address": "Test Address", "delivery_method": "pickup", "payment_method": payment_method},
+        )
+
+    def test_cart_snapshot_is_role_price(self):
+        for code, (role, expected) in enumerate((("vip", "900.00"), ("special_price", "750.00")), start=20111):
+            with self.subTest(role=role):
+                client = self._client(role, code=str(code))
+
+                response = client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+
+                self.assertEqual(response.status_code, 201, response.data)
+                snapshot = CartItem.objects.get(cart__user__role=role, variant=self.variant).price_snapshot
+                self.assertEqual(snapshot, Decimal(expected))
+
+    def test_order_and_export_use_role_price(self):
+        from apps.orders.services.order_export import OrderExportService
+
+        for code, (role, expected) in enumerate((("vip", "900.00"), ("special_price", "750.00")), start=20121):
+            with self.subTest(role=role):
+                client = self._client(role, code=str(code))
+                client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+
+                response = self._checkout(client)
+
+                self.assertEqual(response.status_code, 201, response.data)
+                sub_orders = Order.objects.filter(parent_order_id=response.data["id"]).prefetch_related(
+                    "items__variant", "items__product", "user"
+                )
+                item = OrderItem.objects.get(order__in=sub_orders)
+                self.assertEqual(item.unit_price, Decimal(expected))
+                xml = OrderExportService().generate_xml(sub_orders)
+                self.assertIn(f"<ЦенаЗаЕдиницу>{expected}</ЦенаЗаЕдиницу>", xml)
+
+    def test_unverified_client_orders_at_retail(self):
+        client = self._client("special_price", verified=False, code="20131")
+        client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+
+        response = self._checkout(client)
+
+        self.assertEqual(response.status_code, 201, response.data)
+        item = OrderItem.objects.get(order__parent_order_id=response.data["id"])
+        self.assertEqual(item.unit_price, Decimal("1200.00"))
+
+    def test_card_payment_is_rejected_like_for_wholesale(self):
+        for code, role in enumerate(("vip", "special_price", "wholesale_level1"), start=20141):
+            with self.subTest(role=role):
+                client = self._client(role, code=str(code))
+                client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+
+                response = self._checkout(client, payment_method="card")
+
+                self.assertEqual(response.status_code, 400, response.data)
+                self.assertIn("банковский перевод", str(response.data))
+
+    def test_order_responses_do_not_expose_raw_role_prices(self):
+        """`OrderItemSerializer` отдаёт вариант целиком (depth=1): VIP и спеццена в ответ не попадают."""
+        client = self._client("special_price", code="20161")
+        client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+
+        created = self._checkout(client)
+        detail = client.get(f"/api/v1/orders/{created.data['id']}/")
+
+        self.assertEqual(created.status_code, 201, created.data)
+        self.assertEqual(detail.status_code, 200, detail.data)
+        for response in (created, detail):
+            variant = response.data["items"][0]["variant"]
+            self.assertNotIn("vip_price", variant)
+            self.assertNotIn("special_price", variant)
+
+    def test_payment_on_delivery_is_accepted(self):
+        for code, role in enumerate(("vip", "special_price"), start=20151):
+            with self.subTest(role=role):
+                client = self._client(role, code=str(code))
+                client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+
+                response = self._checkout(client, payment_method="payment_on_delivery")
+
+                self.assertEqual(response.status_code, 201, response.data)
 
 
 @pytest.mark.integration

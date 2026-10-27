@@ -181,6 +181,46 @@ def test_user_roles_endpoint(api_client):
     assert "retail" not in keys
     assert "admin" not in keys
     assert "unregistered" not in keys
+    # VIP и «Спец цена» назначает менеджер или 1С по виду цен соглашения, а не заявитель
+    assert "vip" not in keys
+    assert "special_price" not in keys
+
+
+@pytest.mark.parametrize("role", ["vip", "special_price"])
+def test_registration_with_assigned_role_is_rejected(api_client, role):
+    """POST /auth/register/ с ролью VIP / «Спец цена» отклоняется, как с ролью admin."""
+    data = {
+        "email": f"assigned-{role}@example.com",
+        "password": TEST_USER_PASSWORD,
+        "password_confirm": TEST_USER_PASSWORD,
+        "phone": "+79991234567",
+        "first_name": "Тест",
+        "last_name": "Пользователь",
+        "role": role,
+        "company_name": "Тестовая компания",
+        "tax_id": unique_tax_id(),
+        "pdp_consent": True,
+        "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
+    }
+
+    response = api_client.post(reverse("users:register"), data, format="json")
+
+    assert response.status_code == 400
+    assert "role" in response.json()
+    assert not User.objects.filter(email=data["email"]).exists()
+
+
+@pytest.mark.parametrize("role", ["vip", "special_price"])
+def test_profile_role_cannot_be_self_assigned(api_client, create_user_and_get_token, role):
+    """PATCH /users/profile/ роль не меняет: уровень цен клиент себе не назначает."""
+    email = f"self-assign-{role}@example.com"
+    token = create_user_and_get_token(email=email)
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+    response = api_client.patch(reverse("users:profile"), {"role": role}, format="json")
+
+    assert response.status_code == 200
+    assert User.objects.get(email=email).role == "wholesale_level1"
 
 
 @override_settings(REGISTRATION_ALLOW_RETAIL=True)
@@ -198,3 +238,5 @@ def test_user_roles_endpoint_follows_retail_flag(api_client):
     # Служебные роли не появляются ни при каком значении флага
     assert "admin" not in keys
     assert "unregistered" not in keys
+    assert "vip" not in keys
+    assert "special_price" not in keys

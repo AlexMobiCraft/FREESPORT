@@ -25,14 +25,15 @@ if TYPE_CHECKING:
     from apps.users.models import User
 
 
-def _skip_derived_field(instance: models.Model, args: tuple[Any, ...], kwargs: dict[str, Any], field: str) -> None:
+def _skip_derived_field(instance: models.Model, args: tuple[Any, ...], kwargs: dict[str, Any], *fields: str) -> None:
     """
-    Полное сохранение существующей записи не пишет поле, которое ведёт сервис акции.
+    Полное сохранение существующей записи не пишет поля, которые ведёт импорт 1С или сервис акции.
 
-    `Product.is_promo` и `ProductVariant.promo_price` меняют импорт 1С и `services/promo.py`
-    (`update_fields` или `QuerySet.update`). Экземпляр, загруженный до смены акции (форма
-    админки, инлайн товара), иначе вернул бы в БД устаревшее значение при правке любого
-    другого поля. Создание, явный `update_fields` и отложенные (`defer`) поля не затрагиваются.
+    `Product.is_promo`, `ProductVariant.promo_price` и `ProductVariant.special_price` меняют
+    импорт 1С и `services/promo.py` (`update_fields` или `QuerySet.update`). Экземпляр,
+    загруженный до их смены (форма админки, инлайн товара), иначе вернул бы в БД устаревшее
+    значение при правке любого другого поля. Создание, явный `update_fields` и отложенные
+    (`defer`) поля не затрагиваются.
     """
     update_fields = kwargs.get("update_fields")
     if update_fields is not None and not isinstance(update_fields, (list, tuple, set, frozenset)):
@@ -50,7 +51,7 @@ def _skip_derived_field(instance: models.Model, args: tuple[Any, ...], kwargs: d
         kwargs["update_fields"] = [
             f.name
             for f in instance._meta.concrete_fields
-            if not f.primary_key and f.name != field and f.attname not in deferred
+            if not f.primary_key and f.name not in fields and f.attname not in deferred
         ]
 
 
@@ -938,6 +939,8 @@ class PriceType(models.Model):
                 ("opt4_price", "Оптовая цена уровень 4"),
                 ("trainer_price", "Цена для тренера"),
                 ("federation_price", "Цена для представителя федерации"),
+                ("vip_price", "Цена VIP"),
+                ("special_price", "Специальная цена"),
                 (
                     "rrp",
                     "Рекомендованная розничная цена",
@@ -1178,6 +1181,33 @@ class ProductVariant(models.Model):
             help_text="Цена для роли federation_rep",
         ),
     )
+    vip_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Цена VIP",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли vip (вид цен «VIP цены» из 1С). Нет цены — розница.",
+        ),
+    )
+    special_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Специальная цена",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text=(
+                "Цена для роли special_price (вид цен «СПЕЦЦЕНА» из 1С). Нет цены — «Опт 1», затем розница. "
+                "Ставит и снимает только импорт 1С."
+            ),
+        ),
+    )
     rrp = cast(
         Decimal | None,
         models.DecimalField(
@@ -1384,6 +1414,15 @@ class ProductVariant(models.Model):
                 condition=models.Q(opt4_price__gte=0) | models.Q(opt4_price__isnull=True),
                 name="products_opt4_price_positive",
             ),
+            # Цены VIP и спеццена приходят из 1С и не бывают отрицательными
+            models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
+                condition=models.Q(vip_price__gte=0) | models.Q(vip_price__isnull=True),
+                name="products_vip_price_positive",
+            ),
+            models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
+                condition=models.Q(special_price__gte=0) | models.Q(special_price__isnull=True),
+                name="products_special_price_positive",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -1392,17 +1431,19 @@ class ProductVariant(models.Model):
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         """
-        Полное сохранение существующего варианта не пишет `promo_price`.
+        Полное сохранение существующего варианта не пишет `promo_price` и `special_price`.
 
         Акционную цену ставит и снимает только импорт 1С (`update_fields=["promo_price"]`)
-        и `services/promo.py`. Экземпляр, загруженный до сброса акции (форма админки,
-        инлайн товара), иначе вернул бы в БД устаревшую цену при правке любого другого поля.
+        и `services/promo.py`, спеццену — только импорт 1С (`update_fields=["special_price", ...]`).
+        Экземпляр, загруженный до сброса (форма админки, инлайн товара), иначе вернул бы в БД
+        устаревшую цену при правке любого другого поля. `vip_price` правится в админке как
+        `opt1–4`, поэтому полное сохранение его пишет.
 
         Запись активности или товара существующего варианта идёт в транзакции вместе с
         блокировками и пересчётом флага «Акция» (`signals.py`): упал пересчёт — откатится и
         сама запись. В автокоммите `UPDATE` иначе фиксировался бы до сигнала `post_save`.
         """
-        _skip_derived_field(self, args, kwargs, "promo_price")
+        _skip_derived_field(self, args, kwargs, "promo_price", "special_price")
         update_fields = None if args else kwargs.get("update_fields")
         writes_flag_source = update_fields is None or any(
             name in update_fields for name in ("is_active", "product", "product_id")
@@ -1474,31 +1515,32 @@ class ProductVariant(models.Model):
 
     def get_price_for_user(self, user: User | None) -> Decimal:
         """
-        Цена, которую платит пользователь: акционная, если она есть, иначе цена по роли.
+        Цена, которую платит пользователь: меньшая из цены по роли и акционной.
 
-        Акционная цена действует для всех ролей и применяется, даже если она выше
-        или равна цене клиента (решение владельца 2026-10-21).
+        Акционная цена действует для всех ролей, но клиенту невыгодной не бывает:
+        `min(цена по роли, акционная)` (решение владельца 2026-10-26, оно отменило
+        решение 2026-10-21 «акция применяется, даже если выше цены клиента»).
+        `min` считается только здесь: корзина, заказ, API и JSON-LD берут результат отсюда.
+        Цена роли `≤ 0` в сравнении не участвует: платит акцию.
         """
-        if self.promo_price is not None and self.promo_price > 0:
-            return self.promo_price
-        return self.get_regular_price_for_user(user)
+        regular = self.get_regular_price_for_user(user)
+        promo = self.promo_price
+        if promo is None or promo <= 0:
+            return regular
+        if regular <= 0:
+            return promo
+        return min(regular, promo)
 
     def get_regular_price_for_user(self, user: User | None) -> Decimal:
         """Цена варианта по роли пользователя без учёта акции"""
-        from apps.products.pricing_policy import ROLE_PRICE_FIELDS, resolve_pricing_role
+        from apps.products.pricing_policy import resolve_pricing_role, resolve_role_price
 
         # Неверифицированный B2B и гость понижаются до retail (project-context.md §3)
         role = resolve_pricing_role(user)
 
-        price_field = ROLE_PRICE_FIELDS.get(role)
-        if price_field is None:
-            # retail, unregistered, admin и аноним — своей цены не имеют
-            return self.retail_price
-
-        # Пустая и нулевая специальная цена одинаково означают «цены для роли
-        # нет». Ровно тот же откат делают ценовые фильтры каталога
-        # (`filters.visible_price_q`) — карта полей у них общая.
-        return getattr(self, price_field) or self.retail_price
+        # Цепочка «поле роли → запасное поле → розница» общая с ценовыми фильтрами
+        # каталога (`filters.visible_price_q`): живёт в pricing_policy.
+        return resolve_role_price(self, role)
 
 
 class Attribute(models.Model):

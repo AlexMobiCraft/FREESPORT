@@ -173,6 +173,39 @@ class TestPriceTypeMapping:
     def test_promo_word_not_at_start_is_not_promo(self, parser):
         assert parser._map_price_type_to_field("Опт 2 акция") == "opt2_price"
 
+    @pytest.mark.parametrize(
+        ("name", "field"),
+        [
+            ("VIP цены", "vip_price"),
+            ("СПЕЦЦЕНА", "special_price"),
+            # регистр и крайние пробелы не важны
+            (" vip цены ", "vip_price"),
+            ("Vip Цены", "vip_price"),
+            ("Спеццена", "special_price"),
+            ("\tспеццена\n", "special_price"),
+        ],
+    )
+    def test_vip_and_special_price_types_are_matched_by_exact_name(self, parser, name, field):
+        assert parser._map_price_type_to_field(name) == field
+
+    @pytest.mark.parametrize("name", ["Спец Цена", "VIP", "VIP цена", "Спец. цена", "СПЕЦЦЕНА 2", "Особые"])
+    def test_similar_names_are_not_matched_and_warn_with_hint(self, parser, caplog, name):
+        """Поиска по подстроке для этих видов цен нет: похожее название цену не получает."""
+        with caplog.at_level("WARNING", logger="import_products"):
+            assert parser._map_price_type_to_field(name) == ""
+
+        message = next(r.getMessage() for r in caplog.records if "Неопознанный вид цен" in r.getMessage())
+        assert "'VIP цены'" in message
+        assert "'СПЕЦЦЕНА'" in message
+
+    def test_promo_is_checked_before_exact_names(self, parser):
+        """Акция — первая ветка: «АКЦИЯ …» остаётся акцией, даже если дальше идёт точное название."""
+        assert parser._map_price_type_to_field("АКЦИЯ VIP цены") == "promo_price"
+
+    def test_exact_names_do_not_shadow_wholesale_branches(self, parser):
+        assert parser._map_price_type_to_field("Опт 1 (300-600 тыс.руб в квартал)") == "opt1_price"
+        assert parser._map_price_type_to_field("Тренерская") == "trainer_price"
+
 
 class TestRealReferenceFiles:
     def test_price_lists(self, parser):

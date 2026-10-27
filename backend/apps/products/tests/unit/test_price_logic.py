@@ -160,19 +160,31 @@ class TestPriceFallbackLogic:
         assert variant.get_price_for_user(user) == Decimal("100.00")
         assert user.is_b2b_user is False
 
-    def test_promo_price_overrides_role_price_and_keeps_regular(self, variant):
-        """Акционная цена — поверх цены роли; цена по роли без акции остаётся доступной."""
+    def test_promo_price_below_role_price_overrides_it_and_keeps_regular(self, variant):
+        """Акция ниже цены роли — платит акцию; цена по роли без акции остаётся доступной."""
         user = User.objects.create_user(
             email="fed-promo@example.com", password="password", role="federation_rep", is_verified=True
+        )
+        variant.federation_price = Decimal("80.00")
+        variant.promo_price = Decimal("70.00")
+        variant.save()
+
+        assert variant.get_price_for_user(user) == Decimal("70.00")
+        assert variant.get_regular_price_for_user(user) == Decimal("80.00")
+        assert variant.get_price_for_user(None) == Decimal("70.00")
+        assert variant.get_regular_price_for_user(None) == Decimal("100.00")
+
+    def test_promo_price_above_role_price_does_not_raise_the_price(self, variant):
+        """Акция выше цены роли клиенту не выгодна: он платит свою цену, розница платит акцию."""
+        user = User.objects.create_user(
+            email="fed-promo-high@example.com", password="password", role="federation_rep", is_verified=True
         )
         variant.federation_price = Decimal("80.00")
         variant.promo_price = Decimal("90.00")
         variant.save()
 
-        assert variant.get_price_for_user(user) == Decimal("90.00")
-        assert variant.get_regular_price_for_user(user) == Decimal("80.00")
+        assert variant.get_price_for_user(user) == Decimal("80.00")
         assert variant.get_price_for_user(None) == Decimal("90.00")
-        assert variant.get_regular_price_for_user(None) == Decimal("100.00")
 
     def test_zero_promo_price_is_ignored(self, variant):
         variant.promo_price = Decimal("0")

@@ -15,6 +15,11 @@ from apps.products.services.promo import PROMO_FIELD, is_promo_name
 
 logger = logging.getLogger("import_products")
 
+# Виды цен 1С для ролей VIP и «Спец цена»: точное название → поле варианта.
+# Названия в 1С неизменны (решение владельца 2026-10-26).
+EXACT_PRICE_TYPE_NAMES = {"VIP цены": "vip_price", "СПЕЦЦЕНА": "special_price"}
+EXACT_PRICE_TYPE_FIELDS = {name.lower(): field for name, field in EXACT_PRICE_TYPE_NAMES.items()}
+
 
 class PropertyValueData(TypedDict):
     """Данные значения свойства из goods.xml"""
@@ -591,6 +596,13 @@ class XMLDataParser:
         if is_promo_name(onec_name):
             return PROMO_FIELD
 
+        # Виды цен ролей VIP и «Спец цена» опознаются по точному названию, а не по
+        # подстроке: слово «VIP» или «спец» в чужом названии не должно отправлять цену
+        # в поле роли. Регистр и крайние пробелы не важны.
+        exact_field = EXACT_PRICE_TYPE_FIELDS.get(onec_name.strip().lower())
+        if exact_field:
+            return exact_field
+
         name_lower = onec_name.lower()
 
         if "опт 1" in name_lower or "опт1" in name_lower:
@@ -615,7 +627,9 @@ class XMLDataParser:
             logger.warning(
                 f"Неопознанный вид цен из 1С: '{onec_name}' — цена не будет импортирована. "
                 f"Добавьте ветку в _map_price_type_to_field или уберите вид цен "
-                f"из выгрузки 1С («Выгрузка информации о товарах» → вкладка «Цены»)."
+                f"из выгрузки 1С («Выгрузка информации о товарах» → вкладка «Цены»). "
+                f"Виды цен для ролей VIP и «Спец цена» опознаются только по точному названию: "
+                f"{', '.join(repr(name) for name in EXACT_PRICE_TYPE_NAMES)}."
             )
             return ""
 

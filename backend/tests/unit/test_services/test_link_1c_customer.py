@@ -437,6 +437,39 @@ class TestLinkAppliesPriceTypeAndRole:
         assert linked.onec_price_type_id == self.OPT4_GUID
         assert linked.role == "wholesale_level4"
 
+    @pytest.mark.parametrize(
+        ("guid", "role", "product_field"),
+        [
+            ("0c0c0003-0001-11f0-81c3-00155d3cae02", "special_price", "special_price"),
+            ("0c0c0004-0001-11f0-81c3-00155d3cae02", "vip", "vip_price"),
+        ],
+        ids=["special_price", "vip"],
+    )
+    def test_applies_vip_and_special_price_roles(self, guid, role, product_field):
+        """Привязка по соглашению «СПЕЦЦЕНА» / «VIP цены» выдаёт роль special_price / vip сразу."""
+        self.ensure_price_type(guid, role, product_field=product_field)
+        tax_id = unique_tax_id()
+        source = make_1c_record(tax_id, onec_price_type_id=guid)
+        target = make_applicant(tax_id, role="wholesale_level1")
+
+        linked = link_1c_customer(target_id=target.pk, source_id=source.pk, expected_onec_id=source.onec_id)
+
+        linked.refresh_from_db()
+        assert linked.onec_price_type_id == guid
+        assert linked.role == role
+
+    @pytest.mark.parametrize("role", ["vip", "special_price"])
+    def test_vip_and_special_price_accounts_are_valid_link_targets(self, role):
+        """Аккаунт с ролью VIP / «Спец цена» — B2B: менеджер вправе привязать к нему запись 1С."""
+        tax_id = unique_tax_id()
+        source = make_1c_record(tax_id)
+        target = make_applicant(tax_id, role=role)
+
+        linked = link_1c_customer(target_id=target.pk, source_id=source.pk, expected_onec_id=source.onec_id)
+
+        assert linked.pk == target.pk
+        assert linked.onec_id == source.onec_id
+
     def test_empty_source_price_type_does_not_wipe_target(self):
         """
         AC2: пустое значение источника не затирает вид цен цели и роль не меняет.

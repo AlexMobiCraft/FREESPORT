@@ -28,10 +28,16 @@ from apps.users.services.processor import CustomerDataProcessor
 
 pytestmark = [pytest.mark.django_db, pytest.mark.data_dependent]
 
-# Роль, которую сценарий назначает виду цен из снимка. Выбрана так, чтобы
-# отличаться от исходной роли заявителя (wholesale_level1) и оставаться в
-# User.B2B_ROLES: только тогда смена роли доказывает работу сервиса.
-EXPECTED_ROLE = "wholesale_level2"
+# Роль, которую сценарий назначает виду цен из снимка, и поле варианта этого вида.
+# Выбрана так, чтобы отличаться от исходной роли заявителя (wholesale_level1) и
+# оставаться в User.B2B_ROLES: только тогда смена роли доказывает работу сервиса.
+# `special_price` и `vip` — роли, которые 1С назначает по видам цен «СПЕЦЦЕНА» и
+# «VIP цены» (spec-roles-vip-special-price).
+EXPECTED_ROLES = [
+    pytest.param("wholesale_level2", "opt2_price", "Опт 2 (150-300 тыс.руб в квартал)", id="wholesale_level2"),
+    pytest.param("special_price", "special_price", "СПЕЦЦЕНА", id="special_price"),
+    pytest.param("vip", "vip_price", "VIP цены", id="vip"),
+]
 
 
 def _snapshot_files(onec_data_dir: Path) -> list[Path]:
@@ -106,7 +112,10 @@ def customer_with_price_type(onec_data_dir, processor) -> dict:
     pytest.skip("В выбранном файле снимка нет покупателя с ИНН и однозначным видом цен")
 
 
-def test_link_applies_role_from_agreement_without_reimport(processor, customer_with_price_type):
+@pytest.mark.parametrize(("expected_role_value", "product_field", "onec_name"), EXPECTED_ROLES)
+def test_link_applies_role_from_agreement_without_reimport(
+    processor, customer_with_price_type, expected_role_value, product_field, onec_name
+):
     """
     Роль применяется в момент привязки — повторный прогон импорта не нужен.
 
@@ -123,9 +132,9 @@ def test_link_applies_role_from_agreement_without_reimport(processor, customer_w
     price_type, _ = PriceType.objects.get_or_create(
         onec_id=imported.onec_price_type_id,
         defaults={
-            "onec_name": "Опт 2 (150-300 тыс.руб в квартал)",
-            "product_field": "opt2_price",
-            "user_role": EXPECTED_ROLE,
+            "onec_name": onec_name,
+            "product_field": product_field,
+            "user_role": expected_role_value,
             "is_active": True,
         },
     )
@@ -138,8 +147,8 @@ def test_link_applies_role_from_agreement_without_reimport(processor, customer_w
     # состояние справочника, а не поведение привязки. resolve_role_from_price_types
     # читает только активные записи, поэтому is_active довзводится наравне.
     stale_fields = []
-    if price_type.user_role != EXPECTED_ROLE:
-        price_type.user_role = EXPECTED_ROLE
+    if price_type.user_role != expected_role_value:
+        price_type.user_role = expected_role_value
         stale_fields.append("user_role")
     if not price_type.is_active:
         price_type.is_active = True

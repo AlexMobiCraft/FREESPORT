@@ -694,8 +694,9 @@ class ProductVariantAdmin(admin.ModelAdmin):
     )
     search_fields = ("sku", "onec_id", "product__name")
     raw_id_fields = ("product",)
-    # onec_deleted и promo_price ставит и снимает только импорт 1С — руками они не правятся.
-    readonly_fields = ("created_at", "updated_at", "last_sync_at", "onec_deleted", "promo_price")
+    # onec_deleted, promo_price и special_price ставит и снимает только импорт 1С — руками они
+    # не правятся: ручную правку сотрёт следующий импорт. vip_price правится как opt1–4.
+    readonly_fields = ("created_at", "updated_at", "last_sync_at", "onec_deleted", "promo_price", "special_price")
     fieldsets = (
         (
             "Идентификация",
@@ -729,6 +730,8 @@ class ProductVariantAdmin(admin.ModelAdmin):
                     "opt4_price",
                     "trainer_price",
                     "federation_price",
+                    "vip_price",
+                    "special_price",
                     "promo_price",
                     "vat_rate",
                 )

@@ -17,6 +17,7 @@ import { render, screen } from '@testing-library/react';
 import { ElectricHeroSection } from '../ElectricHeroSection';
 import { useAuthStore } from '@/stores/authStore';
 import bannersService from '@/services/bannersService';
+import type { User } from '@/types/api';
 
 vi.mock('@/stores/authStore');
 vi.mock('@/services/bannersService');
@@ -69,3 +70,49 @@ describe('ElectricHeroSection: fallback-картинка', () => {
     expect(image).toHaveAttribute('src', '/hero-fallback.jpg');
   });
 });
+
+/** Авторизованный клиент с ролью `role` без баннеров из API */
+function mockUserWithoutBanners(role: User['role'], failure: 'error' | 'empty') {
+  if (failure === 'error') {
+    vi.mocked(bannersService.getActive).mockRejectedValue(new Error('API Error'));
+  } else {
+    vi.mocked(bannersService.getActive).mockResolvedValue([]);
+  }
+
+  vi.mocked(useAuthStore).mockReturnValue({
+    user: {
+      id: 7,
+      email: `${role}@test.com`,
+      first_name: 'Test',
+      last_name: 'B2B',
+      phone: '+79001234567',
+      role,
+    },
+    isAuthenticated: true,
+    accessToken: 'mock-token',
+    setTokens: vi.fn(),
+    setUser: vi.fn(),
+    logout: vi.fn(),
+    getRefreshToken: vi.fn(),
+  });
+}
+
+// Роли vip и special_price назначает менеджер или 1С, но резервный баннер у них оптовый, как у
+// остальных B2B. Без условия для них баннер откатился бы на универсальный, гостевой.
+describe.each(['vip', 'special_price'] as const)(
+  'ElectricHeroSection: резервный оптовый баннер для роли %s',
+  role => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it.each(['error', 'empty'] as const)('показывает оптовый баннер: %s', async failure => {
+      mockUserWithoutBanners(role, failure);
+
+      render(<ElectricHeroSection />);
+
+      expect(await screen.findByText('ОПТОВЫЕ ПОСТАВКИ СПОРТИВНЫХ ТОВАРОВ')).toBeInTheDocument();
+      expect(screen.queryByText('OPTISPORT — ВАШ СПОРТИВНЫЙ ПАРТНЁР')).not.toBeInTheDocument();
+    });
+  }
+);

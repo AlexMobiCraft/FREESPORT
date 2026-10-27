@@ -26,6 +26,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.products.category_utils import REPAIR_ANCHOR_ONEC_ID
+from apps.products.pricing_policy import PRICE_TYPE_ROLES, SPECIAL_PRICE_FIELD
 from apps.products.services import promo
 from apps.products.services.onec_admission import (
     KIND_GROUP,
@@ -1588,6 +1589,8 @@ class VariantImportProcessor:
             opt4_price=None,
             trainer_price=None,
             federation_price=None,
+            vip_price=None,
+            special_price=None,
             stock_quantity=0,  # Будет обновлен из rests.xml
             vat_rate=vat_rate,  # Ставка НДС из goods.xml
         )
@@ -1859,6 +1862,8 @@ class VariantImportProcessor:
                 opt4_price=None,
                 trainer_price=None,
                 federation_price=None,
+                vip_price=None,
+                special_price=None,
                 stock_quantity=0,
                 vat_rate=Decimal(str(product.vat_rate)) if product.vat_rate is not None else None,
             )
@@ -1948,6 +1953,12 @@ class VariantImportProcessor:
                 if promo_changed:
                     price_updates[promo.PROMO_FIELD] = promo_value
 
+                # Спеццена ставится и снимается после остальных цен: сброс не должен
+                # затереть цену нового вида, когда в справочнике два активных
+                special_applies, special_value = self._resolve_special_price(variant, offer_values, price_types)
+                if special_applies:
+                    price_updates[SPECIAL_PRICE_FIELD] = special_value
+
                 # Применяем обновления цен
                 fields_to_update: list[str] = []
                 for field_name, value in price_updates.items():
@@ -2003,6 +2014,9 @@ class VariantImportProcessor:
                 continue
             # Акционные цены (в том числе прошлых акций из полной выгрузки) — отдельно, молча
             if price_type.product_field == promo.PROMO_FIELD:
+                continue
+            # Спеццену выбирает и снимает `_resolve_special_price`: видов может быть два
+            if price_type.product_field == SPECIAL_PRICE_FIELD:
                 continue
             # Неактивный тип — молча
             if not price_type.is_active:
@@ -2067,6 +2081,43 @@ class VariantImportProcessor:
         stored = state.promo_price if state is not None else None
         variant.promo_price = stored
         return new_value != stored, new_value
+
+    def _resolve_special_price(
+        self, variant: Any, offer_values: dict[str, Decimal], price_types: dict[str, Any]
+    ) -> tuple[bool, Decimal | None]:
+        """
+        Спеццена варианта (вид цен «СПЕЦЦЕНА»). Вызывать под `promo.lock_promo_state`,
+        вместе со справочником `price_types`, прочитанным под ней.
+
+        - Активных видов `special_price` в справочнике нет — писать и снимать нечего.
+        - Ни один активный вид не пришёл в предложении — спеццену убрали в 1С: `NULL`
+          (дальше роль платит «Опт 1»). Предложения вне пакета цен сюда не попадают.
+        - Цена `≤ 0` — «цены нет», как у акции: `NULL`.
+        - Пришли цены двух активных видов (вид пересоздали в 1С) — аномалия: берётся цена
+          вида с более поздним `created_at`, при равенстве — с большим `pk`; в лог
+          пишется предупреждение с артикулом, GUID и ценами всех видов.
+
+        Returns:
+            (нужно ли писать поле, новое значение)
+        """
+        active_types = [pt for pt in price_types.values() if pt.product_field == SPECIAL_PRICE_FIELD and pt.is_active]
+        if not active_types:
+            return False, None
+
+        present = [(pt, offer_values[pt.onec_id]) for pt in active_types if pt.onec_id in offer_values]
+        if not present:
+            return True, None
+
+        winner, value = max(present, key=lambda item: (item[0].created_at, item[0].pk))
+        if len(present) > 1:
+            prices = ", ".join(f"{pt.onec_id}={price}" for pt, price in present)
+            logger.warning(
+                f"Две цены special_price в одном предложении: артикул {variant.sku}, виды цен и цены: {prices}. "
+                f"Берётся цена вида {winner.onec_id} (создан в справочнике позже). "
+                f"Проверьте в 1С, нет ли дубля вида цен «СПЕЦЦЕНА»."
+            )
+            self.stats["warnings"] += 1
+        return True, (value if value > 0 else None)
 
     # ========================================================================
     # Task 6: Рефакторинг парсера rests.xml (AC: 8)
@@ -2639,6 +2690,11 @@ class VariantImportProcessor:
                         # что и требуется для неопознанного вида цен.
                         if price_type_data["product_field"]:
                             price_type.product_field = price_type_data["product_field"]
+
+                        # Роль видов «VIP цены» и «СПЕЦЦЕНА» известна заранее, а GUID нет:
+                        # проставляем её сами, но заполненную менеджером роль не трогаем
+                        if not price_type.user_role and price_type.product_field in PRICE_TYPE_ROLES:
+                            price_type.user_role = PRICE_TYPE_ROLES[price_type.product_field]
 
                         if price_type.product_field != promo.PROMO_FIELD:
                             price_type.is_active = True
