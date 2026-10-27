@@ -3,7 +3,14 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { getPriceForRole, getProductDisplayPrice, formatPrice, isB2BRole } from '../pricing';
+import {
+  getPriceForRole,
+  getProductDisplayPrice,
+  formatPrice,
+  isApiPricedRole,
+  isB2BRole,
+  isPromoApplied,
+} from '../pricing';
 import type { ProductPrice } from '@/types/api';
 
 describe('getPriceForRole', () => {
@@ -107,6 +114,66 @@ describe('isB2BRole', () => {
   it('не относит unregistered к B2B', () => {
     expect(isB2BRole('unregistered')).toBe(false);
   });
+
+  it.each(['vip', 'special_price'] as const)('относит %s к B2B (РРЦ/МРЦ, оптовые условия)', role => {
+    expect(isB2BRole(role)).toBe(true);
+  });
+
+  it.each(['retail', 'guest', 'admin', undefined] as const)('не относит %s к B2B', role => {
+    expect(isB2BRole(role)).toBe(false);
+  });
+});
+
+describe('isApiPricedRole', () => {
+  it.each(['vip', 'special_price'] as const)('%s берёт цену из API итогом', role => {
+    expect(isApiPricedRole(role)).toBe(true);
+  });
+
+  it.each(['retail', 'wholesale_level1', 'trainer', 'federation_rep', 'guest', undefined] as const)(
+    '%s считается по полям товара',
+    role => {
+      expect(isApiPricedRole(role)).toBe(false);
+    }
+  );
+});
+
+describe('isPromoApplied', () => {
+  it('акции нет — не применена', () => {
+    expect(isPromoApplied({ promo_price: null, current_price: '700.00' })).toBe(false);
+    expect(isPromoApplied({ promo_price: '', current_price: '700.00' })).toBe(false);
+    expect(isPromoApplied({ current_price: '700.00' })).toBe(false);
+    expect(isPromoApplied(null)).toBe(false);
+    expect(isPromoApplied(undefined)).toBe(false);
+  });
+
+  it('нулевая и мусорная акционная цена — не применена', () => {
+    expect(isPromoApplied({ promo_price: '0.00', current_price: '700.00' })).toBe(false);
+    expect(isPromoApplied({ promo_price: 'abc', current_price: '700.00' })).toBe(false);
+  });
+
+  it('клиент платит акционную цену (ниже своей) — применена', () => {
+    expect(isPromoApplied({ promo_price: '700.00', current_price: '700.00' })).toBe(true);
+  });
+
+  it('акция равна цене клиента — применена', () => {
+    expect(isPromoApplied({ promo_price: '800.00', current_price: '800.00' })).toBe(true);
+  });
+
+  it('клиент платит свою цену, она ниже акционной — не применена', () => {
+    expect(isPromoApplied({ promo_price: '800.00', current_price: '700.00' })).toBe(false);
+    expect(isPromoApplied({ promo_price: '900.00', current_price: '800.00' })).toBe(false);
+  });
+
+  it('копейки различаются: 800,40 против 800,49', () => {
+    expect(isPromoApplied({ promo_price: '800.49', current_price: '800.40' })).toBe(false);
+    expect(isPromoApplied({ promo_price: '800.40', current_price: '800.40' })).toBe(true);
+  });
+
+  it('нет current_price — акция считается применённой, как до правила «меньшая из цен»', () => {
+    expect(isPromoApplied({ promo_price: '800.00' })).toBe(true);
+    expect(isPromoApplied({ promo_price: '800.00', current_price: '' })).toBe(true);
+    expect(isPromoApplied({ promo_price: '800.00', current_price: null })).toBe(true);
+  });
 });
 
 describe('formatPrice', () => {
@@ -166,6 +233,46 @@ describe('getProductDisplayPrice', () => {
   it('у варианта с пустым current_price — цена по роли, а не NaN', () => {
     const variant = { current_price: '', promo_price: null };
     expect(getProductDisplayPrice(product, 'wholesale_level1', variant)).toBe(700);
+  });
+
+  describe('VIP и «Спец цена»: цену отдаёт API итогом', () => {
+    const roleProduct = {
+      price: { retail: 1200, currency: 'RUB' },
+      current_price: '900.00',
+      regular_price: '900.00',
+      promo_price: null,
+    };
+
+    it.each(['vip', 'special_price'] as const)('без варианта — current_price для %s', role => {
+      expect(getProductDisplayPrice(roleProduct, role, null)).toBe(900);
+    });
+
+    it.each(['vip', 'special_price'] as const)('current_price с акцией для %s', role => {
+      const promo = { ...roleProduct, current_price: '700.00', promo_price: '700.00' };
+      expect(getProductDisplayPrice(promo, role)).toBe(700);
+    });
+
+    it.each(['vip', 'special_price'] as const)(
+      'без current_price — regular_price, затем розница для %s',
+      role => {
+        const onlyRegular = { ...roleProduct, current_price: '' };
+        expect(getProductDisplayPrice(onlyRegular, role)).toBe(900);
+
+        const nothing = { ...roleProduct, current_price: '', regular_price: '' };
+        expect(getProductDisplayPrice(nothing, role)).toBe(1200);
+      }
+    );
+
+    it.each(['vip', 'special_price'] as const)('выбранный вариант задаёт цену для %s', role => {
+      const variant = { current_price: '850.00', promo_price: null };
+      expect(getProductDisplayPrice(roleProduct, role, variant)).toBe(850);
+    });
+
+    it('розница и другие роли по-прежнему считаются по полям товара', () => {
+      expect(getProductDisplayPrice(roleProduct, 'guest')).toBe(1200);
+      expect(getPriceForRole(roleProduct.price, 'vip')).toBe(1200);
+      expect(getPriceForRole(roleProduct.price, 'special_price')).toBe(1200);
+    });
   });
 
   it('без price у товара — 0', () => {

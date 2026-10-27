@@ -21,6 +21,11 @@ if TYPE_CHECKING:
 
 UNSAFE_CTA_SCHEMES = ("javascript:", "data:", "vbscript:")
 
+# Роли с оптовыми условиями, чьё имя не начинается с «wholesale»: VIP и «Спец цена»
+# видят баннеры «для оптовиков» (`show_to_wholesale`). Без этого `Banner.get_for_user`
+# и `services._get_role_filter` сочли бы их розницей или гостем.
+WHOLESALE_LIKE_ROLES = frozenset({"vip", "special_price"})
+
 # ИНН: 10 цифр у юрлиц, 12 — у ИП и физлиц. Контрольная сумма не проверяется намеренно:
 # реквизиты вводит менеджер вручную, ложное отклонение валидного ИНН дороже опечатки.
 #
@@ -423,7 +428,7 @@ class Banner(models.Model):
             if hasattr(user, "role"):
                 if user.role == "trainer":
                     role_filters |= Q(show_to_trainers=True)
-                elif user.role and user.role.startswith("wholesale"):
+                elif user.role and (user.role.startswith("wholesale") or user.role in WHOLESALE_LIKE_ROLES):
                     role_filters |= Q(show_to_wholesale=True)
                 elif user.role == "federation_rep":
                     role_filters |= Q(show_to_federation=True)

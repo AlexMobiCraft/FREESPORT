@@ -41,6 +41,9 @@ PHONE_REQUIRED_MESSAGE = "Укажите номер телефона."
 
 INVALID_SELF_SERVICE_ROLE_MESSAGE = "Недопустимая роль для регистрации."
 
+# B2B-роли с собственной ценой из 1С: назначает менеджер или 1С, не заявитель.
+ASSIGNED_ROLES = frozenset({"vip", "special_price"})
+
 
 def get_self_service_roles() -> frozenset[str]:
     """
@@ -52,12 +55,14 @@ def get_self_service_roles() -> frozenset[str]:
 
     Базой служит `User.B2B_ROLES` — тот же источник истины, что у `is_b2b_user`
     и admin-действий, иначе списки разошлись бы при добавлении новой роли.
+    `vip` и `special_price` из него вычитаются: их назначает менеджер или 1С по
+    виду цен соглашения, самовыбор дал бы клиенту чужой уровень цен.
     Розница добавляется флагом `REGISTRATION_ALLOW_RETAIL`: сейчас она выключена
     (портал — B2B-площадка), но отключение временное, поэтому включение не должно
     требовать релиза. Единый источник для choices поля `role`, серверной проверки
     и ответа GET /api/v1/users/roles/.
     """
-    roles = set(User.B2B_ROLES)
+    roles = set(User.B2B_ROLES) - ASSIGNED_ROLES
 
     if getattr(settings, "REGISTRATION_ALLOW_RETAIL", False):
         roles.add("retail")

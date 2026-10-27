@@ -115,6 +115,8 @@ class TestUserModel:
             ("wholesale_level4", True),
             ("trainer", True),
             ("federation_rep", True),
+            ("vip", True),
+            ("special_price", True),
             # B2C роли
             ("retail", False),
             ("admin", False),
@@ -139,6 +141,8 @@ class TestUserModel:
             ("retail", False),
             ("trainer", False),
             ("federation_rep", False),
+            ("vip", False),
+            ("special_price", False),
             ("admin", False),
         ],
     )
@@ -161,6 +165,8 @@ class TestUserModel:
             ("retail", None),
             ("trainer", None),
             ("federation_rep", None),
+            ("vip", None),
+            ("special_price", None),
             ("admin", None),
         ],
     )
@@ -181,6 +187,8 @@ class TestUserModel:
             "wholesale_level4",
             "trainer",
             "federation_rep",
+            "vip",
+            "special_price",
             "admin",
         ],
     )
@@ -821,3 +829,52 @@ class TestWholesaleLevel4Role:
         """get_role_display возвращает русское название роли"""
         user = UserFactory.create(role="wholesale_level4")
         assert user.get_role_display() == "Оптовик уровень 4"
+
+
+@pytest.mark.unit
+class TestVipAndSpecialPriceRoles:
+    """
+    Роли «VIP» и «Спец цена»: свои цены из 1С, B2B-функции, но не оптовые уровни
+    """
+
+    ROLES = ("vip", "special_price")
+
+    @pytest.mark.parametrize(
+        "role, label",
+        [("vip", "VIP"), ("special_price", "Спец цена")],
+    )
+    def test_role_present_in_choices(self, role, label):
+        """Роль есть в ROLE_CHOICES с ожидаемой подписью"""
+        User = get_user_model()
+        assert (role, label) in User.ROLE_CHOICES
+
+    @pytest.mark.parametrize("role", ROLES)
+    def test_role_is_b2b(self, role):
+        """Роль входит в B2B_ROLES: верификация, оптовые поля, действия менеджера"""
+        User = get_user_model()
+        assert role in User.B2B_ROLES
+        assert User(role=role).is_b2b_user is True
+
+    @pytest.mark.parametrize("role", ROLES)
+    def test_role_is_not_wholesale_level(self, role):
+        """Роль не оптовый уровень: is_wholesale_user и wholesale_level не трогаем"""
+        User = get_user_model()
+        user = User(role=role)
+        assert user.is_wholesale_user is False
+        assert user.wholesale_level is None
+
+    @pytest.mark.parametrize("role", ROLES)
+    def test_role_fits_field_max_length(self, role):
+        """Значение роли помещается в max_length поля role"""
+        User = get_user_model()
+        assert len(role) <= User._meta.get_field("role").max_length
+
+    @pytest.mark.django_db
+    @pytest.mark.parametrize(
+        "role, label",
+        [("vip", "VIP"), ("special_price", "Спец цена")],
+    )
+    def test_role_display(self, role, label):
+        """get_role_display возвращает подпись роли"""
+        user = UserFactory.create(role=role)
+        assert user.get_role_display() == label

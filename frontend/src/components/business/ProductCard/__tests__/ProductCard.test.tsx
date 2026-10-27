@@ -47,6 +47,11 @@ vi.mock('@/components/common/ProductBadge', () => ({
     if (product.is_sale && product.discount_percent) {
       return <span data-testid="badge-sale">{product.discount_percent}% скидка</span>;
     }
+    // Как настоящий ProductBadge: флаг is_promo — второй по приоритету стикер. Карточка обязана
+    // не отдавать ему флаг, пока акция клиенту не выгодна
+    if (product.is_promo) {
+      return <span data-testid="badge-promo">Акция</span>;
+    }
     if (product.is_new) {
       return <span data-testid="badge-new">Новинка</span>;
     }
@@ -358,17 +363,22 @@ describe('ProductCard', () => {
       expect(screen.getByTestId('promo-price')).toHaveTextContent('800 ₽');
     });
 
-    it.each(layouts)('сохраняет стикер акционного товара без цены в раскладке %s', layout => {
-      render(
-        <ProductCard
-          product={{ ...mockProduct, is_promo: true, is_sale: true, discount_percent: 20 }}
-          layout={layout}
-        />
-      );
+    it.each(layouts)(
+      'флаг is_promo без акционной цены не даёт стикер «Акция» в раскладке %s',
+      layout => {
+        render(
+          <ProductCard
+            product={{ ...mockProduct, is_promo: true, is_sale: true, discount_percent: 20 }}
+            layout={layout}
+          />
+        );
 
-      expect(screen.getByText('Акция')).toBeInTheDocument();
-      expect(screen.queryByText('20% скидка')).not.toBeInTheDocument();
-    });
+        // Стикер — по тому же правилу, что цена и подписи: нет применённой акции — нет стикера;
+        // вместо него обычный стикер товара (распродажа)
+        expect(screen.queryByText('Акция')).not.toBeInTheDocument();
+        expect(screen.getByText('20% скидка')).toBeInTheDocument();
+      }
+    );
 
     it.each(layouts)('shows bold promo price and struck regular price in %s layout', layout => {
       render(<ProductCard product={promoProduct} layout={layout} userRole="wholesale_level2" />);
@@ -426,19 +436,99 @@ describe('ProductCard', () => {
       expect(container.querySelector('.line-through')).not.toBeInTheDocument();
     });
 
-    it.each(layouts)('hides struck price when promo is above regular in %s layout', layout => {
-      const product = { ...promoProduct, regular_price: '700.00' };
-      render(<ProductCard product={product} layout={layout} userRole="wholesale_level1" />);
+    // Клиент платит меньшую из цен: цена клиента 700 при акции 800 — акция ему не выгодна
+    const unappliedPromo: Product = {
+      ...promoProduct,
+      promo_price: '800.00',
+      current_price: '700.00',
+      regular_price: '700.00',
+    };
 
-      expect(screen.getByTestId('promo-price')).toHaveTextContent('800 ₽');
+    it.each(layouts)('promo above client price looks like no promo in %s layout', layout => {
+      const { container } = render(
+        <ProductCard product={unappliedPromo} layout={layout} userRole="wholesale_level4" />
+      );
+
+      expect(screen.queryByText('Акция')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('badge-promo')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('promo-price')).not.toBeInTheDocument();
       expect(screen.queryByTestId('regular-price')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Акционная цена/)).not.toBeInTheDocument();
+      expect(container.querySelector('.line-through')).not.toBeInTheDocument();
+      expect(screen.getByText('700 ₽')).toBeInTheDocument();
     });
 
-    it('promo price wins over role price', () => {
-      render(<ProductCard product={promoProduct} layout="grid" userRole="wholesale_level4" />);
+    it.each(layouts)('promo above client price: all three marks come back at 900 in %s', layout => {
+      // Та же акция 800 при цене клиента 900: стикер, зачёркнутая цена и подпись
+      const product = { ...unappliedPromo, current_price: '800.00', regular_price: '900.00' };
+      render(<ProductCard product={product} layout={layout} userRole="wholesale_level4" />);
 
+      expect(screen.getByText('Акция')).toBeInTheDocument();
       expect(screen.getByTestId('promo-price')).toHaveTextContent('800 ₽');
-      expect(screen.queryByText('700 ₽')).not.toBeInTheDocument();
+      expect(screen.getByTestId('regular-price')).toHaveTextContent('900 ₽');
+      expect(screen.getByText(/Акционная цена/)).toBeInTheDocument();
+    });
+
+    it.each(layouts)('promo equal to client price counts as applied in %s layout', layout => {
+      const product = { ...promoProduct, current_price: '800.00', regular_price: '800.00' };
+      const { container } = render(
+        <ProductCard product={product} layout={layout} userRole="wholesale_level3" />
+      );
+
+      expect(screen.getByText('Акция')).toBeInTheDocument();
+      expect(screen.getByTestId('promo-price')).toHaveTextContent('800 ₽');
+      expect(screen.queryByTestId('regular-price')).not.toBeInTheDocument();
+      expect(container.querySelector('.line-through')).not.toBeInTheDocument();
+    });
+
+    // Неприменённая акция: сумму к оплате даёт current_price из API, а не цепочка цен карточки.
+    // Список не отдаёт trainer_price / federation_price, а цепочка опт N → опт N-1 расходится
+    // с backend, который без своей цены уровня берёт розницу
+    it.each(['trainer', 'federation_rep'] as const)(
+      'unapplied promo shows the API price of %s, not retail',
+      role => {
+        const product = {
+          ...mockProduct,
+          is_promo: true,
+          promo_price: '800.00',
+          current_price: '700.00',
+          regular_price: '700.00',
+        };
+        render(<ProductCard product={product} layout="grid" userRole={role} />);
+
+        expect(screen.getByText('700 ₽')).toBeInTheDocument();
+        expect(screen.queryByText('1 200 ₽')).not.toBeInTheDocument();
+        expect(screen.queryByText('Акция')).not.toBeInTheDocument();
+      }
+    );
+
+    it('unapplied promo shows the API price of a level without its own price', () => {
+      // opt3 пуст: backend берёт розницу 1200, а цепочка карточки дала бы opt2 = 900
+      const product = {
+        ...mockProduct,
+        opt3_price: undefined,
+        is_promo: true,
+        promo_price: '1300.00',
+        current_price: '1200.00',
+        regular_price: '1200.00',
+      };
+      render(<ProductCard product={product} layout="grid" userRole="wholesale_level3" />);
+
+      expect(screen.getByText('1 200 ₽')).toBeInTheDocument();
+      expect(screen.queryByText('900 ₽')).not.toBeInTheDocument();
+    });
+
+    it('promo price wins over role price when it is lower', () => {
+      const product = {
+        ...promoProduct,
+        promo_price: '600.00',
+        current_price: '600.00',
+        regular_price: '700.00',
+      };
+      render(<ProductCard product={product} layout="grid" userRole="wholesale_level4" />);
+
+      expect(screen.getByTestId('promo-price')).toHaveTextContent('600 ₽');
+      expect(screen.getByTestId('regular-price')).toHaveTextContent('700 ₽');
     });
 
     it('discount strike-through is not shown during promo', () => {
@@ -454,6 +544,89 @@ describe('ProductCard', () => {
 
       expect(screen.queryByTestId('promo-price')).not.toBeInTheDocument();
       expect(screen.getByText('1 000 ₽')).toBeInTheDocument();
+    });
+  });
+
+  describe('Роли VIP и «Спец цена»', () => {
+    // API сырых vip_price / special_price не отдаёт: цена роли приходит в regular_price,
+    // итог (с акцией) — в current_price
+    const rolePriced: Product = {
+      ...mockProduct,
+      opt1_price: undefined,
+      current_price: '900.00',
+      regular_price: '900.00',
+      promo_price: null,
+    };
+    const roles = ['vip', 'special_price'] as const;
+    const layouts = ['grid', 'list', 'compact'] as const;
+
+    it.each(roles)('shows the price of the role from regular_price for %s', role => {
+      render(<ProductCard product={rolePriced} userRole={role} layout="grid" />);
+
+      expect(screen.getByText('900 ₽')).toBeInTheDocument();
+      expect(screen.queryByText('1 200 ₽')).not.toBeInTheDocument();
+    });
+
+    it.each(roles)('falls back to current_price, then retail for %s', role => {
+      const onlyCurrent = { ...rolePriced, regular_price: undefined };
+      const { unmount } = render(
+        <ProductCard product={onlyCurrent} userRole={role} layout="grid" />
+      );
+      expect(screen.getByText('900 ₽')).toBeInTheDocument();
+      unmount();
+
+      const noApiPrices = { ...rolePriced, regular_price: undefined, current_price: undefined };
+      render(<ProductCard product={noApiPrices} userRole={role} layout="grid" />);
+      expect(screen.getByText('1 200 ₽')).toBeInTheDocument();
+    });
+
+    it.each(roles)('applied promo below the role price: promo, sticker, struck price for %s', role => {
+      const product = {
+        ...rolePriced,
+        is_promo: true,
+        promo_price: '700.00',
+        current_price: '700.00',
+        regular_price: '900.00',
+      };
+      render(<ProductCard product={product} userRole={role} layout="grid" />);
+
+      expect(screen.getByText('Акция')).toBeInTheDocument();
+      expect(screen.getByTestId('promo-price')).toHaveTextContent('700 ₽');
+      expect(screen.getByTestId('regular-price')).toHaveTextContent('900 ₽');
+    });
+
+    it.each(roles)('promo above the role price looks like no promo for %s', role => {
+      const product = {
+        ...rolePriced,
+        is_promo: true,
+        promo_price: '1000.00',
+        current_price: '900.00',
+        regular_price: '900.00',
+      };
+      render(<ProductCard product={product} userRole={role} layout="grid" />);
+
+      expect(screen.queryByText('Акция')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('promo-price')).not.toBeInTheDocument();
+      expect(screen.getByText('900 ₽')).toBeInTheDocument();
+    });
+
+    it.each(roles)('shows RRP like for other B2B roles for %s', role => {
+      render(
+        <ProductCard
+          product={{ ...rolePriced, rrp: 1300 }}
+          userRole={role}
+          mode="b2c"
+          layout="grid"
+        />
+      );
+
+      expect(screen.getByText(/РРЦ.*1 300/)).toBeInTheDocument();
+    });
+
+    it.each(layouts)('renders the role price in %s layout', layout => {
+      render(<ProductCard product={rolePriced} userRole="vip" layout={layout} />);
+
+      expect(screen.getByText('900 ₽')).toBeInTheDocument();
     });
   });
 

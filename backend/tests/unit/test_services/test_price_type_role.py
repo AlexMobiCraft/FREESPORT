@@ -196,6 +196,44 @@ class TestResolveRoleFromPriceTypes:
         assert result.reason == REASON_NO_AGREEMENT
 
 
+class TestVipAndSpecialPriceRoles:
+    """Виды цен «VIP цены» и «СПЕЦЦЕНА» несут роли vip и special_price (spec-roles-vip-special-price)."""
+
+    GUID_VIP = "0d0d0001-0001-11f0-81c3-00155d3cae02"
+    GUID_SPECIAL = "0d0d0002-0001-11f0-81c3-00155d3cae02"
+
+    @pytest.mark.parametrize(
+        ("guid", "name", "field", "role"),
+        [
+            (GUID_VIP, "VIP цены", "vip_price", "vip"),
+            (GUID_SPECIAL, "СПЕЦЦЕНА", "special_price", "special_price"),
+        ],
+    )
+    def test_agreement_resolves_to_the_new_role(self, price_types, guid, name, field, role):
+        _make_price_type(guid, name, field, role)
+
+        result = resolve_role_from_price_types([guid])
+
+        assert result.role == role
+        assert result.reason == REASON_RESOLVED
+        assert result.matched == [guid]
+
+    def test_two_such_agreements_are_ambiguous(self, price_types):
+        _make_price_type(self.GUID_VIP, "VIP цены", "vip_price", "vip")
+        _make_price_type(self.GUID_SPECIAL, "СПЕЦЦЕНА", "special_price", "special_price")
+
+        result = resolve_role_from_price_types([self.GUID_VIP, self.GUID_SPECIAL])
+
+        assert result.role is None
+        assert result.reason == REASON_AMBIGUOUS
+
+    def test_roles_are_valid_portal_roles(self):
+        """Роль вида цен обязана входить в B2B-роли: иначе привязка её не применит."""
+        from apps.users.models import User
+
+        assert {"vip", "special_price"} <= set(User.B2B_ROLES)
+
+
 class TestPriceTypeRoleMapLoading:
     """AC12: справочник читается один раз на сессию импорта."""
 

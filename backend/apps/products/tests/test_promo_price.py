@@ -617,19 +617,25 @@ class TestSyncPromoFlags:
 
 
 class TestPriceForUser:
+    """Клиент платит меньшую из цен: своей или акционной (решение владельца 2026-10-26)."""
+
     @pytest.mark.parametrize(
-        ("role", "field", "regular"),
+        ("role", "field", "regular", "expected"),
         [
-            ("wholesale_level2", "opt2_price", "1000.00"),  # акция ниже цены
-            ("wholesale_level1", "opt1_price", "700.00"),  # акция выше цены
-            ("wholesale_level3", "opt3_price", "800.00"),  # акция равна цене
+            ("wholesale_level2", "opt2_price", "1000.00", "800.00"),  # акция ниже цены — платит акцию
+            ("wholesale_level1", "opt1_price", "700.00", "700.00"),  # акция выше цены — своя цена
+            ("wholesale_level3", "opt3_price", "800.00", "800.00"),  # акция равна цене
+            ("special_price", "special_price", "850.00", "800.00"),
+            ("special_price", "special_price", "700.00", "700.00"),
+            ("vip", "vip_price", "900.00", "800.00"),
+            ("vip", "vip_price", "750.00", "750.00"),
         ],
     )
-    def test_promo_applies_whatever_the_regular_price(self, role, field, regular):
+    def test_client_pays_the_lower_of_role_and_promo_price(self, role, field, regular, expected):
         variant = make_variant(promo_price=Decimal("800.00"), **{field: Decimal(regular)})
         user = make_user(role)
 
-        assert variant.get_price_for_user(user) == Decimal("800.00")
+        assert variant.get_price_for_user(user) == Decimal(expected)
         assert variant.get_regular_price_for_user(user) == Decimal(regular)
 
     @pytest.mark.parametrize("role", ["retail", "trainer", "federation_rep"])
@@ -640,6 +646,27 @@ class TestPriceForUser:
 
         assert variant.get_price_for_user(make_user(role)) == Decimal("800.00")
         assert variant.get_price_for_user(None) == Decimal("800.00")
+
+    def test_promo_price_above_retail_keeps_retail(self):
+        """Акция выше розницы клиенту не выгодна: гость платит розницу."""
+        variant = make_variant(retail_price=Decimal("700.00"), promo_price=Decimal("800.00"))
+
+        assert variant.get_price_for_user(None) == Decimal("700.00")
+
+    def test_promo_price_is_used_when_role_price_is_not_positive(self):
+        """Цены роли нет (розница 0): платит акцию, а не 0."""
+        variant = make_variant(retail_price=Decimal("0"), promo_price=Decimal("500.00"))
+
+        assert variant.get_price_for_user(None) == Decimal("500.00")
+        assert variant.get_price_for_user(make_user("wholesale_level1")) == Decimal("500.00")
+
+    def test_unverified_client_pays_min_of_retail_and_promo(self):
+        """Неверифицированный B2B понижен до розницы, и `min` считается от неё."""
+        variant = make_variant(
+            retail_price=Decimal("1200.00"), special_price=Decimal("500.00"), promo_price=Decimal("800.00")
+        )
+
+        assert variant.get_price_for_user(make_user("special_price", verified=False)) == Decimal("800.00")
 
     def test_no_promo_keeps_role_price(self):
         variant = make_variant(opt2_price=Decimal("1000.00"))
@@ -697,6 +724,28 @@ class TestApi:
         for data in (item, without_prefetch):
             assert data["promo_price"] == "800.00"
             assert data["current_price"] == "800.00"
+
+    @pytest.mark.parametrize("role, field", [("vip", "vip_price"), ("special_price", "special_price")])
+    def test_list_shows_variant_with_only_role_price(self, role, field):
+        """Вариант, у которого положительна только цена VIP или спеццена, доходит до списка."""
+        from apps.products.serializers import ProductListSerializer
+
+        variant = make_variant(retail_price=Decimal("0"), **{field: Decimal("900.00")})
+        user = make_user(role)
+        client = APIClient()
+        client.force_authenticate(user=user)
+
+        response = client.get(reverse("products:product-list"))
+        item = next(row for row in response.json()["results"] if row["id"] == variant.product_id)
+        request = RequestFactory().get("/")
+        request.user = user
+        without_prefetch = ProductListSerializer(
+            Product.objects.get(pk=variant.product_id), context={"request": request}
+        ).data
+
+        for data in (item, without_prefetch):
+            assert data["current_price"] == "900.00"
+            assert data["regular_price"] == "900.00"
 
     def test_list_ignores_inactive_promo_variant(self):
         """R5: отключённый акционный вариант не вытесняет доступный обычный."""
@@ -1450,6 +1499,53 @@ class TestStaleVariantSaveKeepsPromoPrice:
         assert stored.size_value == "M"
 
 
+class TestStaleVariantSaveKeepsSpecialPrice:
+    """Сохранение устаревшего экземпляра варианта не возвращает спеццену, которую снял импорт."""
+
+    def test_full_save_does_not_write_special_price(self):
+        variant = make_variant(special_price=Decimal("800.00"), opt1_price=Decimal("1000.00"))
+        stale = ProductVariant.objects.get(pk=variant.pk)
+
+        ProductVariant.objects.filter(pk=variant.pk).update(special_price=None)  # пакет цен без «СПЕЦЦЕНА»
+        stale.vip_price = Decimal("900.00")
+        stale.save()
+
+        stored = ProductVariant.objects.get(pk=variant.pk)
+        assert stored.vip_price == Decimal("900.00")
+        assert stored.special_price is None
+
+    def test_admin_save_model_does_not_write_special_price(self):
+        variant = make_variant(special_price=Decimal("800.00"))
+        stale = ProductVariant.objects.get(pk=variant.pk)
+        ProductVariant.objects.filter(pk=variant.pk).update(special_price=None)
+
+        stale.stock_quantity = 99
+        ProductVariantAdmin(ProductVariant, AdminSite()).save_model(admin_request(), stale, form=None, change=True)
+
+        stored = ProductVariant.objects.get(pk=variant.pk)
+        assert stored.stock_quantity == 99
+        assert stored.special_price is None
+
+    def test_creation_and_explicit_update_fields_still_write_special_price(self):
+        variant = make_variant(special_price=Decimal("800.00"))
+        assert ProductVariant.objects.get(pk=variant.pk).special_price == Decimal("800.00")
+
+        variant.special_price = Decimal("750.00")
+        variant.save(update_fields=["special_price"])
+
+        assert ProductVariant.objects.get(pk=variant.pk).special_price == Decimal("750.00")
+
+    def test_full_save_still_writes_vip_price(self):
+        """`vip_price` правится в админке как `opt1–4`: полное сохранение его пишет."""
+        variant = make_variant(vip_price=Decimal("900.00"))
+        loaded = ProductVariant.objects.get(pk=variant.pk)
+
+        loaded.vip_price = Decimal("850.00")
+        loaded.save()
+
+        assert ProductVariant.objects.get(pk=variant.pk).vip_price == Decimal("850.00")
+
+
 class TestVariantSignalsEdgeCases:
     """R15–R17: флаг «Акция» следует за активностью и товаром варианта при любых способах сохранения."""
 
@@ -1650,8 +1746,24 @@ class TestListSelectionAndRoleRegularPrice:
         item = next(row for row in listing["results"] if row["id"] == variant.product_id)
         detail = client.get(reverse("products:product-detail", kwargs={"slug": variant.product.slug})).json()
 
+        # Акция 800 выше цены клиента 700: он платит свою цену, акция в ответе остаётся как данные
         for data in (item, detail):
             assert data["regular_price"] == "700.00"
+            assert data["promo_price"] == "800.00"
+            assert data["current_price"] == "700.00"
+
+    def test_product_current_price_is_promo_when_it_is_lower_than_role_price(self):
+        variant = make_variant(retail_price=Decimal("1200.00"), opt1_price=Decimal("900.00"))
+        ProductVariant.objects.filter(pk=variant.pk).update(promo_price=Decimal("800.00"))
+        client = APIClient()
+        client.force_authenticate(user=make_user("wholesale_level1"))
+
+        listing = client.get(reverse("products:product-list")).json()
+        item = next(row for row in listing["results"] if row["id"] == variant.product_id)
+        detail = client.get(reverse("products:product-detail", kwargs={"slug": variant.product.slug})).json()
+
+        for data in (item, detail):
+            assert data["regular_price"] == "900.00"
             assert data["promo_price"] == "800.00"
             assert data["current_price"] == "800.00"
 

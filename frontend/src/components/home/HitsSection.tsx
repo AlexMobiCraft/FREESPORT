@@ -108,6 +108,8 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
     'wholesale_level4',
     'trainer',
     'federation_rep',
+    'vip',
+    'special_price',
     'admin',
   ].includes(userRole);
 

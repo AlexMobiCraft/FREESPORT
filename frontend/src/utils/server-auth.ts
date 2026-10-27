@@ -46,6 +46,8 @@ export async function getUserRole(): Promise<UserRole> {
       'wholesale_level4',
       'trainer',
       'federation_rep',
+      'vip',
+      'special_price',
       'admin',
       'unregistered',
       'guest',

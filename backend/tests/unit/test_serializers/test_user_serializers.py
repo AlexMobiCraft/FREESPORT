@@ -132,18 +132,22 @@ class TestUserRegistrationSerializer:
 
     def test_self_service_roles_follow_the_flag(self):
         """Флаг — единственный переключатель состава ролей саморегистрации."""
-        assert get_self_service_roles() == frozenset(User.B2B_ROLES)
+        # `vip` и `special_price` — B2B-роли, но назначаются менеджером или 1С.
+        assigned_by_manager = {"vip", "special_price"}
+        self_service = frozenset(User.B2B_ROLES) - assigned_by_manager
+        assert get_self_service_roles() == self_service
 
         with override_settings(REGISTRATION_ALLOW_RETAIL=True):
-            assert get_self_service_roles() == frozenset(User.B2B_ROLES) | {"retail"}
+            assert get_self_service_roles() == self_service | {"retail"}
 
-    @pytest.mark.parametrize("service_role", ["admin", "unregistered"])
+    @pytest.mark.parametrize("service_role", ["admin", "unregistered", "vip", "special_price"])
     def test_service_roles_are_rejected(self, user_factory, service_role):
         """
         SELF_SERVICE_ROLES — белый список: служебные роли заявитель назначить
         себе не может. `admin` дал бы метку администратора в интерфейсе,
         `unregistered` ставит только импорт 1С, и такой аккаунт не попал бы
-        в admin-действие верификации.
+        в admin-действие верификации. `vip` и `special_price` назначает менеджер
+        или 1С по виду цен соглашения: самовыбор дал бы клиенту чужой уровень цен.
         """
         data = {
             "email": "service_role@test.com",

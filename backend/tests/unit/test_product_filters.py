@@ -14,7 +14,7 @@ from django.test import RequestFactory
 from apps.products.factories import ProductFactory
 from apps.products.filters import ProductFilter
 from apps.products.models import Product, ProductVariant
-from apps.products.pricing_policy import ROLE_PRICE_FIELDS
+from apps.products.pricing_policy import ROLE_PRICE_FALLBACKS, ROLE_PRICE_FIELDS
 
 User = get_user_model()
 
@@ -387,7 +387,7 @@ class TestProductFilterPricingPolicy:
         # Специальная цена применяется, только если она строго больше нуля:
         # 0.00 и NULL одинаково означают «цены для роли нет» (см. AC5)
         expected = (Q(opt1_price__gt=0) & Q(opt1_price__gte=100)) | (
-            (Q(opt1_price__isnull=True) | Q(opt1_price=0)) & Q(retail_price__gte=100)
+            (Q(opt1_price__isnull=True) | Q(opt1_price__lte=0)) & Q(retail_price__gte=100)
         )
         assert product_filter._variant_filters == expected
 
@@ -406,7 +406,7 @@ class TestProductFilterPricingPolicy:
         product_filter.filter_max_price(Mock(), "max_price", 1000)
 
         expected = (Q(trainer_price__gt=0) & Q(trainer_price__lte=1000)) | (
-            (Q(trainer_price__isnull=True) | Q(trainer_price=0)) & Q(retail_price__lte=1000)
+            (Q(trainer_price__isnull=True) | Q(trainer_price__lte=0)) & Q(retail_price__lte=1000)
         )
         assert product_filter._variant_filters == expected
 
@@ -452,7 +452,7 @@ class TestOpt4PriceFilter:
         product_filter.filter_min_price(Mock(), "min_price", 100)
 
         expected = (Q(opt4_price__gt=0) & Q(opt4_price__gte=100)) | (
-            (Q(opt4_price__isnull=True) | Q(opt4_price=0)) & Q(retail_price__gte=100)
+            (Q(opt4_price__isnull=True) | Q(opt4_price__lte=0)) & Q(retail_price__gte=100)
         )
         assert product_filter._variant_filters == expected
 
@@ -463,7 +463,7 @@ class TestOpt4PriceFilter:
         product_filter.filter_max_price(Mock(), "max_price", 1000)
 
         expected = (Q(opt4_price__gt=0) & Q(opt4_price__lte=1000)) | (
-            (Q(opt4_price__isnull=True) | Q(opt4_price=0)) & Q(retail_price__lte=1000)
+            (Q(opt4_price__isnull=True) | Q(opt4_price__lte=0)) & Q(retail_price__lte=1000)
         )
         assert product_filter._variant_filters == expected
 
@@ -515,11 +515,18 @@ class TestZeroSpecialPriceFallsBackToRetail:
         product_filter.request = mock_request
         return product_filter
 
-    def _variants(self, price_field):
-        """Три варианта с одной розничной ценой: нулевая, пустая и заполненная специальная"""
+    def _variants(self, role, price_field):
+        """
+        Три варианта с одной розничной ценой: нулевая, пустая и заполненная цена роли.
 
-        def variant(special_price):
-            product = ProductFactory(retail_price=self.RETAIL_PRICE, **{price_field: special_price})
+        Запасное поле цепочки (у `special_price` — `opt1_price`) обнуляется: этот класс
+        проверяет откат на розницу, а откат на запасное поле — в `TestRoleChainInPriceFilters`.
+        """
+        fallback = ROLE_PRICE_FALLBACKS.get(role)
+
+        def variant(role_price):
+            prices = {price_field: role_price, **({fallback: None} if fallback else {})}
+            product = ProductFactory(retail_price=self.RETAIL_PRICE, **prices)
             return product.variants.first()
 
         return variant(Decimal("0.00")), variant(None), variant(self.SPECIAL_PRICE)
@@ -532,7 +539,7 @@ class TestZeroSpecialPriceFallsBackToRetail:
     @pytest.mark.parametrize("role,price_field", sorted(ROLE_PRICE_FIELDS.items()))
     def test_min_price_uses_retail_for_zero_special_price(self, role, price_field):
         """min_price=900: видимая цена варианта с нулевой спеццена — розничная 1000"""
-        zero, empty, filled = self._variants(price_field)
+        zero, empty, filled = self._variants(role, price_field)
 
         product_filter = self._filter_for_role(role)
         product_filter.filter_min_price(Mock(), "min_price", 900)
@@ -548,7 +555,7 @@ class TestZeroSpecialPriceFallsBackToRetail:
     @pytest.mark.parametrize("role,price_field", sorted(ROLE_PRICE_FIELDS.items()))
     def test_max_price_uses_retail_for_zero_special_price(self, role, price_field):
         """max_price=600: вариант с нулевой спеццена стоит 1000 и в выдачу не попадает"""
-        zero, empty, filled = self._variants(price_field)
+        zero, empty, filled = self._variants(role, price_field)
 
         product_filter = self._filter_for_role(role)
         product_filter.filter_max_price(Mock(), "max_price", 600)
@@ -564,7 +571,7 @@ class TestZeroSpecialPriceFallsBackToRetail:
     @pytest.mark.parametrize("role,price_field", sorted(ROLE_PRICE_FIELDS.items()))
     def test_filter_matches_price_shown_to_user(self, role, price_field):
         """Связь с показанной ценой: get_price_for_user и фильтр смотрят на одно и то же"""
-        zero, empty, filled = self._variants(price_field)
+        zero, empty, filled = self._variants(role, price_field)
         user = Mock()
         user.is_authenticated = True
         user.role = role
@@ -573,3 +580,67 @@ class TestZeroSpecialPriceFallsBackToRetail:
         assert zero.get_price_for_user(user) == self.RETAIL_PRICE
         assert empty.get_price_for_user(user) == self.RETAIL_PRICE
         assert filled.get_price_for_user(user) == self.SPECIAL_PRICE
+
+
+@pytest.mark.unit
+class TestRoleChainInPriceFilters:
+    """
+    Цепочка «поле роли → запасное поле → розница» в ценовых фильтрах.
+
+    Фильтр обязан отбирать по той же видимой цене, что показывает
+    `get_price_for_user`: у роли `special_price` при пустой спеццене это `opt1_price`.
+    """
+
+    @staticmethod
+    def _matched(role, **bounds):
+        product_filter = TestZeroSpecialPriceFallsBackToRetail._filter_for_role(role)
+        if "min_price" in bounds:
+            product_filter.filter_min_price(Mock(), "min_price", bounds["min_price"])
+        if "max_price" in bounds:
+            product_filter.filter_max_price(Mock(), "max_price", bounds["max_price"])
+        return set(ProductVariant.objects.filter(product_filter._variant_filters).values_list("id", flat=True))
+
+    @staticmethod
+    def _variant(**prices):
+        prices.setdefault("retail_price", Decimal("1200.00"))
+        return ProductFactory(**prices).variants.first()
+
+    @pytest.mark.parametrize("empty", [None, Decimal("0.00")])
+    def test_special_price_role_without_special_price_filters_by_opt1(self, empty):
+        """Спеццены нет, «Опт 1» 800: при max_price=900 товар в выдаче (строка матрицы спеки)"""
+        variant = self._variant(special_price=empty, opt1_price=Decimal("800.00"))
+
+        assert variant.id in self._matched("special_price", max_price=900)
+        assert variant.id not in self._matched("special_price", min_price=900)
+
+    def test_special_price_role_filters_by_special_price_even_above_opt1(self):
+        """Спеццена 1100 выше «Опт 1» 1000: границы считаются по ней"""
+        variant = self._variant(special_price=Decimal("1100.00"), opt1_price=Decimal("1000.00"))
+
+        assert variant.id not in self._matched("special_price", max_price=1050)
+        assert variant.id in self._matched("special_price", min_price=1050)
+
+    def test_special_price_role_without_special_price_and_opt1_filters_by_retail(self):
+        variant = self._variant(special_price=None, opt1_price=None)
+
+        assert variant.id in self._matched("special_price", min_price=1100)
+        assert variant.id not in self._matched("special_price", max_price=1100)
+
+    def test_vip_has_no_fallback_to_opt1(self):
+        """У VIP запасного поля нет: без `vip_price` фильтр смотрит на розницу, а не на «Опт 1»"""
+        variant = self._variant(vip_price=None, opt1_price=Decimal("800.00"))
+
+        assert variant.id in self._matched("vip", min_price=1100)
+        assert variant.id not in self._matched("vip", max_price=900)
+
+    def test_vip_filters_by_vip_price(self):
+        variant = self._variant(vip_price=Decimal("900.00"), opt1_price=Decimal("1000.00"))
+
+        assert variant.id in self._matched("vip", max_price=950)
+        assert variant.id not in self._matched("vip", min_price=950)
+
+    def test_opt1_is_not_used_by_other_roles_as_fallback(self):
+        """Запасное поле принадлежит цепочке `special_price`, остальные роли его не наследуют"""
+        variant = self._variant(special_price=None, trainer_price=None, opt1_price=Decimal("800.00"))
+
+        assert variant.id in self._matched("trainer", min_price=1100)

@@ -90,6 +90,8 @@ class ProductFactory(DjangoModelFactory):
         "opt3_price",
         "trainer_price",
         "federation_price",
+        "vip_price",
+        "special_price",
         "stock_quantity",
         "reserved_quantity",
         "sku",
@@ -156,6 +158,8 @@ class ProductFactory(DjangoModelFactory):
             "opt3_price",
             "trainer_price",
             "federation_price",
+            "vip_price",
+            "special_price",
         ]:
             if price_field in variant_params:
                 final_params[price_field] = variant_params[price_field]

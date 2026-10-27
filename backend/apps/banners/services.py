@@ -20,7 +20,7 @@ from django.utils import timezone
 
 from apps.users.models import User
 
-from .models import Banner
+from .models import WHOLESALE_LIKE_ROLES, Banner
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +135,10 @@ def _get_role_filter(role_key: str) -> Q:
         return base
     elif role_key == "trainer":
         return base | Q(show_to_trainers=True)
-    elif role_key in {"wholesale_level1", "wholesale_level2", "wholesale_level3", "wholesale_level4"}:
+    elif (
+        role_key in {"wholesale_level1", "wholesale_level2", "wholesale_level3", "wholesale_level4"}
+        or role_key in WHOLESALE_LIKE_ROLES
+    ):
         return base | Q(show_to_wholesale=True)
     elif role_key == "federation_rep":
         return base | Q(show_to_federation=True)

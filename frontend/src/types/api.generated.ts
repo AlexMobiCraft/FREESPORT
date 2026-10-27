@@ -2675,7 +2675,7 @@ export interface components {
      * @description Serializer для ProductVariant с роле-ориентированной ценой
      *
      *     Поля:
-     *     - current_price: цена, которую платит пользователь: акционная, если есть, иначе по роли
+     *     - current_price: цена, которую платит пользователь: меньшая из цены по роли и акционной
      *     - regular_price: цена по роли без акции (гостю — розница)
      *     - promo_price: акционная цена текущей акции, видна всем ролям; null — акции нет
      *     - color_hex: hex-код цвета из ColorMapping
@@ -2976,6 +2976,8 @@ export interface components {
      *     * `wholesale_level4` - Оптовик уровень 4
      *     * `trainer` - Тренер/Фитнес-клуб
      *     * `federation_rep` - Представитель федерации
+     *     * `vip` - VIP
+     *     * `special_price` - Спец цена
      *     * `admin` - Администратор
      *     * `unregistered` - Не зарегистрирован на портале
      * @enum {string}
@@ -2988,6 +2990,8 @@ export interface components {
       | 'wholesale_level4'
       | 'trainer'
       | 'federation_rep'
+      | 'vip'
+      | 'special_price'
       | 'admin'
       | 'unregistered';
     /** @description Serializer для регистрации новых пользователей */

@@ -1,7 +1,9 @@
 /**
  * Auth Store Tests
  */
-import { useAuthStore } from '../authStore';
+import { renderHook } from '@testing-library/react';
+import type { User } from '@/types/api';
+import { authSelectors, useAuthStore } from '../authStore';
 
 describe('authStore', () => {
   beforeEach(async () => {
@@ -68,5 +70,52 @@ describe('authStore', () => {
     localStorage.setItem('refreshToken', 'test-refresh');
 
     expect(store.getRefreshToken()).toBe('test-refresh');
+  });
+});
+
+describe('authSelectors.useIsB2BUser', () => {
+  const makeUser = (role: User['role'], is_verified: boolean): User => ({
+    id: 1,
+    email: 'test@test.com',
+    first_name: 'Test',
+    last_name: 'User',
+    phone: '+79001234567',
+    role,
+    is_verified,
+  });
+
+  beforeEach(async () => {
+    await useAuthStore.getState().logout();
+    localStorage.clear();
+  });
+
+  test.each(['vip', 'special_price', 'wholesale_level1', 'trainer'] as const)(
+    'верифицированная роль %s — B2B',
+    role => {
+      useAuthStore.getState().setUser(makeUser(role, true));
+
+      const { result } = renderHook(() => authSelectors.useIsB2BUser());
+
+      expect(result.current).toBe(true);
+    }
+  );
+
+  test.each(['vip', 'special_price'] as const)(
+    'неверифицированная роль %s считается розничной',
+    role => {
+      useAuthStore.getState().setUser(makeUser(role, false));
+
+      const { result } = renderHook(() => authSelectors.useIsB2BUser());
+
+      expect(result.current).toBe(false);
+    }
+  );
+
+  test('розница не B2B даже после верификации', () => {
+    useAuthStore.getState().setUser(makeUser('retail', true));
+
+    const { result } = renderHook(() => authSelectors.useIsB2BUser());
+
+    expect(result.current).toBeFalsy();
   });
 });

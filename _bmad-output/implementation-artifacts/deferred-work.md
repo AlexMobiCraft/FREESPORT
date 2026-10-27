@@ -1,3 +1,15 @@
+## Отложено из обсуждения spec-roles-vip-special-price.md с владельцем (2026-10-26)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-roles-vip-special-price.md`
+  summary: **Раздел «Акции» и `PromoSection` показывают товары, акция которых клиенту невыгодна.** По спеке клиент любой роли платит меньшую из цен (свою или акционную), а бейдж «Акция» виден, только когда акция применена. Отбор раздела и ленты на главной остаётся по флагу товара `is_promo`, поэтому VIP или оптовик, чья цена ниже акционной, увидит в «Акциях» товары без бейджа и без зачёркнутой цены. Первым это заметит VIP-клиент. Решение владельца 26.10.2026: в спеку не включать.
+  evidence: `backend/apps/products/filters.py:177` — `is_promo = BooleanFilter(field_name="is_promo")`; `frontend/src/components/home/PromoSection.tsx` отбирает по `is_promo=true`. Вариант исправления: хелпер `promo_applied_q` рядом с `visible_price_q` — `promo_price > 0` и цена роли с откатами из `pricing_policy` `≥ promo_price`; подключить в фильтре `is_promo` для авторизованных B2B-ролей.
+- source_spec: `_bmad-output/implementation-artifacts/spec-roles-vip-special-price.md`
+  summary: **Интеграционный тест импорта видов цен «VIP цены» и «СПЕЦЦЕНА» на реальной выгрузке.** В `data/import_1c/priceLists/` этих видов цен нет, а синтетические XML для тестов импорта запрещены (AGENTS.md), поэтому спека покрывает импорт юнит-тестами на словарях. Тест писать после того, как владелец включит оба вида цен в белый список БУС («Выгрузка информации о товарах» → «Цены») и будет снята свежая выгрузка.
+  evidence: реальный `priceLists_1_1_*.xml` содержит только МРЦ, РРЦ, «Опт 1–4», «Тренерская», «Товары 1С». Образец теста — `backend/tests/integration/test_import_opt4_prices.py`; проверять строки матрицы спеки про импорт: запись цен, `PriceType.user_role`, снятие спеццены, две цены `special_price` в одном предложении.
+- source_spec: `_bmad-output/implementation-artifacts/spec-roles-vip-special-price.md`
+  summary: **Карточка товара откатывает опт 2–4 на младшие опты, а бэкенд — сразу на розницу.** Если у варианта нет `opt3_price`, клиент «Опт 3» на плитке видит опт 2 (или опт 1), а в корзине и заказе платит розницу. Расхождение старое, спека его не трогает.
+  evidence: `frontend/src/components/business/ProductCard/ProductCard.tsx:113-145` (`getProductPrice`: `opt3_price || opt2_price || opt1_price || retail_price`) против `backend/apps/products/models.py:1501` (`getattr(self, price_field) or self.retail_price`). Плитка берёт `getProductPrice` только без акции. Вариант исправления: брать `current_price` из API, как спека делает для `vip` и `special_price`.
+
 ## Отложено из ревью spec-d14-2-jsonld-wholesale-price.md (2026-10-25)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-d14-2-jsonld-wholesale-price.md`
@@ -1148,3 +1160,21 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-catalog-sidebar-categories-height.md`
   summary: `frontend/src/components/ui/FilterGroup/FilterGroup.tsx` обрезает раскрытое содержимое потолком `max-h-[1000px]` с `overflow-hidden` — тот же дефект, что исправлен в `(blue)`-каталоге.
   evidence: `FilterGroup.tsx:75`; компонент используют `SidebarFilters` и `ElectricSidebar`, при длинном списке нижние пункты пропадут без прокрутки.
+
+## Deferred from: code review of spec-roles-vip-special-price (2026-10-27, второй круг)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-roles-vip-special-price.md`
+  summary: Плитка товара без акции показывает тренеру и представителю федерации розницу, а с акцией — их цену из `current_price`. У одного и того же клиента цена на плитке зависит от того, есть ли у товара акция; в корзине и заказе он платит свою цену.
+  evidence: `frontend/src/components/business/ProductCard/ProductCard.tsx:136` — `getProductPrice` читает `trainer_price` / `federation_price`, которых `ProductListSerializer` не отдаёт; правка ревью 2026-10-26 берёт `current_price` только при `promo_price > 0`. Без акции так было и до спеки. Общее исправление с D14-2 и с пунктом про цепочку опт 2–4: брать `current_price` из API как цену по роли (меняет то, что видит покупатель, нужно решение владельца).
+
+## Deferred from: code review of spec-roles-vip-special-price (2026-10-26)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-roles-vip-special-price.md`
+  summary: МРЦ (`msrp`) не выводится ни в карточке, ни на странице товара ни для одной роли. На странице товара РРЦ показывается только при выбранном варианте, поэтому AC6 («VIP видит РРЦ/МРЦ») выполнен только по РРЦ.
+  evidence: `frontend/src/components/product/ProductInfo.tsx:185` — условие `canSeeRrp && selectedVariant && rrp > 0`, вывода `msrp` нет; `ProductCard.tsx:531,673` выводит только `product.rrp`. API отдаёт `msrp` ролям из `INFO_PRICE_ROLES`. Так было до правки, новые роли получили тот же набор, что и оптовики (ревью Acceptance Auditor, 2026-10-26).
+
+## Deferred from: code review of spec-roles-vip-special-price (2026-10-27, третий круг)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-roles-vip-special-price.md`
+  summary: Electric-вариант `HitsSection` показывает всем ролям сырую розничную цену товара, а не цену клиента: VIP, «Спец цена», оптовик, тренер видят розницу 1200, в корзину товар попадает по их цене 900. Пересекается с записью про плитку тренера (второй круг, выше).
+  evidence: `frontend/src/components/home/HitsSection.tsx:323` — `price={product.retail_price}` в `ElectricProductCard` без учёта роли; `ProductListSerializer.get_retail_price` (`serializers.py:599`) отдаёт `variant.retail_price`. Строка стоит в `HEAD` для всех ролей: спека добавила `vip` и `special_price` только в `isB2B` (показ РРЦ: `rrp={isB2B ? product.rrp : undefined}`). Исправление — передавать в `ElectricProductCard` итоговую цену клиента из API; меняет то, что видит покупатель на теме electric, нужно решение владельца, нужен тест на оптовика и VIP (ревью Verification Gap, 2026-10-27, третий круг).

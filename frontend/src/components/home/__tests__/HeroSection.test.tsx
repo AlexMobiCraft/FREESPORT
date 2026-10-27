@@ -373,6 +373,46 @@ describe('HeroSection Component', () => {
     });
   });
 
+  // Роли vip и special_price назначает менеджер или 1С, но баннер у них оптовый, как у остальных B2B.
+  // Без условия для них резервный баннер откатился бы на универсальный, гостевой.
+  describe.each(['vip', 'special_price'] as const)(
+    'Резервный оптовый баннер для роли %s',
+    role => {
+      it.each([
+        ['ошибке API', () => vi.mocked(bannersService.getActive).mockRejectedValue(new Error('API'))],
+        ['пустом ответе API', () => vi.mocked(bannersService.getActive).mockResolvedValue([])],
+      ])('должен показывать B2B баннер при %s', async (_case, mockBanners) => {
+        mockBanners();
+
+        const mockUser: User = {
+          id: 7,
+          email: `${role}@test.com`,
+          first_name: 'Test',
+          last_name: 'B2B',
+          phone: '+79001234567',
+          role,
+        };
+
+        vi.mocked(useAuthStore).mockReturnValue({
+          user: mockUser,
+          isAuthenticated: true,
+          accessToken: 'mock-token',
+          setTokens: vi.fn(),
+          setUser: vi.fn(),
+          logout: vi.fn(),
+          getRefreshToken: vi.fn(),
+        });
+
+        render(<HeroSection />);
+
+        expect(await screen.findByText(/Оптовые поставки спортивных товаров/i)).toBeInTheDocument();
+        expect(
+          screen.queryByText(/Спортивные товары для профессионалов и любителей/i)
+        ).not.toBeInTheDocument();
+      });
+    }
+  );
+
   describe('Проверка CTA кнопок', () => {
     it('API баннер должен содержать правильную ссылку', async () => {
       vi.mocked(bannersService.getActive).mockResolvedValue([

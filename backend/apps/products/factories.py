@@ -96,6 +96,8 @@ class ProductFactory(factory.django.DjangoModelFactory):
             "opt4_price",
             "trainer_price",
             "federation_price",
+            "vip_price",
+            "special_price",
             "stock_quantity",
             "reserved_quantity",
             "sku",
@@ -150,6 +152,10 @@ class ProductVariantFactory(factory.django.DjangoModelFactory):
     opt4_price = fuzzy.FuzzyDecimal(90.0, 9000.0, 2)
     trainer_price = fuzzy.FuzzyDecimal(40.0, 4000.0, 2)
     federation_price = fuzzy.FuzzyDecimal(45.0, 4500.0, 2)
+    # VIP и спеццена приходят из 1С не на всех товарах: по умолчанию не заданы,
+    # иначе случайная цена перекрыла бы цепочку «спеццена → Опт 1 → розница»
+    vip_price = None
+    special_price = None
 
     # Остатки
     stock_quantity = fuzzy.FuzzyInteger(0, 100)

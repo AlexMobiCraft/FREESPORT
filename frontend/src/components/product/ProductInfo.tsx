@@ -11,6 +11,7 @@ import {
   formatExactPrice,
   formatPrice,
   getProductDisplayPrice,
+  isPromoApplied,
   type UserRole,
 } from '@/utils/pricing';
 import type { ProductVariant } from '@/types/api';
@@ -30,11 +31,12 @@ export default function ProductInfo({
   const defaultPrice = { retail: 0, currency: 'RUB' };
   const price = product.price || defaultPrice;
 
-  // Акционная цена из 1С действует для всех ролей: по выбранному варианту,
-  // без него — по полям первого варианта из ответа о товаре
+  // Акция из 1С по выбранному варианту, без него — по полям первого варианта из ответа о товаре.
+  // Клиент платит меньшую из цен — своей и акционной: если он платит свою, акция не применена
+  // и страница выглядит как без акции (без стикера, подписей и зачёркнутой цены)
   const pricingSource = selectedVariant ?? product;
-  const promoPrice = pricingSource.promo_price ? parseFloat(pricingSource.promo_price) : NaN;
-  const hasPromo = promoPrice > 0;
+  const hasPromo = isPromoApplied(pricingSource);
+  const promoPrice = hasPromo ? parseFloat(pricingSource.promo_price ?? '') : NaN;
   const regularPrice = pricingSource.regular_price ? parseFloat(pricingSource.regular_price) : NaN;
   // Зачёркнутая цена ниже оплачиваемой выглядела бы повышением под видом скидки
   const strikedRegularPrice = hasPromo && regularPrice > promoPrice ? regularPrice : null;
@@ -67,13 +69,15 @@ export default function ProductInfo({
 
   const stockStatus = getStockStatus();
 
-  // RRP видят только оптовики (1-4), тренеры и админы
+  // RRP видят только оптовики (1-4), тренеры, VIP, «Спец цена» и админы
   const canSeeRrp = [
     'wholesale_level1',
     'wholesale_level2',
     'wholesale_level3',
     'wholesale_level4',
     'trainer',
+    'vip',
+    'special_price',
     'admin',
   ].includes(userRole);
 

@@ -37,7 +37,7 @@ import { Badge } from '@/components/ui/Badge/Badge';
 import Button from '@/components/ui/Button';
 import type { Product } from '@/types/api';
 import { cn } from '@/utils/cn';
-import { formatPrice, isB2BRole, type UserRole } from '@/utils/pricing';
+import { formatPrice, isB2BRole, isPromoApplied, type UserRole } from '@/utils/pricing';
 export type { UserRole };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -139,6 +139,14 @@ function getProductPrice(product: Product, userRole: UserRole): number {
         (product as Product & { trainer_price?: number }).trainer_price ||
         product.retail_price
       );
+    case 'vip':
+    case 'special_price':
+      // API сырых цен этих ролей не отдаёт: цена роли без акции приходит в regular_price
+      return (
+        parseFloat(product.regular_price ?? '') ||
+        parseFloat(product.current_price ?? '') ||
+        product.retail_price
+      );
     default:
       return product.retail_price;
   }
@@ -150,15 +158,16 @@ const PROMO_PRICE_LABEL = 'Акционная цена: ';
 const REGULAR_PRICE_LABEL = 'Цена без акции: ';
 
 /**
- * Акционная цена из 1С (вид цен «АКЦИЯ …») действует для всех ролей.
- * Зачёркнутая цена клиента показывается, только если она выше акционной:
+ * Акционная цена из 1С (вид цен «АКЦИЯ …») для клиента любой роли: он платит меньшую из цен —
+ * своей и акционной. Зачёркнутая цена клиента показывается, только если она выше акционной:
  * зачёркнутая цена ниже оплачиваемой выглядела бы повышением под видом скидки.
- * Возвращает null, если акции у товара нет.
+ * Возвращает null, если акции нет или клиент платит свою цену (акция ему не выгодна):
+ * такая карточка выглядит как без акции — без стикера, подписей и жирной цены.
  */
 function getPromoPricing(product: Product): { price: number; regularPrice: number | null } | null {
-  const promoPrice = product.promo_price ? parseFloat(product.promo_price) : NaN;
-  if (!(promoPrice > 0)) return null;
+  if (!isPromoApplied(product)) return null;
 
+  const promoPrice = parseFloat(product.promo_price ?? '');
   const currentPrice = product.current_price ? parseFloat(product.current_price) : NaN;
   const regularPrice = product.regular_price ? parseFloat(product.regular_price) : NaN;
   return {
@@ -187,15 +196,26 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
     ref
   ) => {
     const promoPricing = getPromoPricing(product);
-    const productBadge = product.is_promo ? (
+    // Стикер «Акция» — по тому же правилу, что цена и подписи: товар с акцией, которая клиенту
+    // невыгодна, не обещает скидку. Флаг is_promo ProductBadge не читает, пока акция не применена
+    const productBadge = promoPricing ? (
       <>
         <Badge variant="promo">Акция</Badge>
         <TextSeparator />
       </>
     ) : (
-      <ProductBadge product={product} />
+      <ProductBadge product={product.is_promo ? { ...product, is_promo: false } : product} />
     );
-    const currentPrice = promoPricing ? promoPricing.price : getProductPrice(product, userRole);
+    // У товара с акцией сумму к оплате считает backend: даже если акция не применена, берём
+    // current_price — список не отдаёт trainer_price / federation_price, а цепочка уровней опта
+    // в getProductPrice расходится с backend, который без цены уровня берёт розницу
+    const apiCurrentPrice = parseFloat(product.current_price ?? '');
+    const hasPromoPrice = parseFloat(product.promo_price ?? '') > 0;
+    const currentPrice = promoPricing
+      ? promoPricing.price
+      : hasPromoPrice && apiCurrentPrice > 0
+        ? apiCurrentPrice
+        : getProductPrice(product, userRole);
     // Зачёркнутая розница по скидке — только когда акции нет
     const hasDiscount = !promoPricing && product.discount_percent && product.discount_percent > 0;
     const promoRegularPrice = promoPricing?.regularPrice ?? null;

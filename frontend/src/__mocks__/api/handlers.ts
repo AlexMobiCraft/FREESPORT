@@ -58,6 +58,11 @@ const mockHitsProducts: Product[] = [
     slug: 'wilson-pro-staff',
     description: 'Профессиональная теннисная ракетка',
     retail_price: 18000,
+    // Акция применена: клиент платит акционную цену (меньшую из своей и акционной),
+    // стикер «Акция» показывается только в этом случае
+    current_price: '15000.00',
+    regular_price: '18000.00',
+    promo_price: '15000.00',
     is_in_stock: true,
     category: { id: 3, name: 'Теннис', slug: 'tennis' },
     images: [{ id: 3, image: '/images/wilson-racket.jpg', is_primary: true }],
@@ -160,6 +165,10 @@ const mockNewProducts: Product[] = [
     slug: 'wilson-blade-new',
     description: 'Новинка 2025 года',
     retail_price: 19000,
+    // Акция применена: см. комментарий у товара #3
+    current_price: '16000.00',
+    regular_price: '19000.00',
+    promo_price: '16000.00',
     is_in_stock: true,
     category: { id: 3, name: 'Теннис', slug: 'tennis' },
     images: [{ id: 10, image: '/images/wilson-blade.jpg', is_primary: true }],
