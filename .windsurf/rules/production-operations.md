@@ -36,6 +36,16 @@ docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-c
 docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml restart nginx
 ```
 
+## Деплой оборвался на `docker pull` (`Connection reset by peer`, exit 255)
+
+**Симптомы:** шаг «Deploy to production server» падает с `Read from remote host …: Connection reset by peer` и `client_loop: send disconnect: Broken pipe`, код 255; последние строки лога — прогресс `docker pull`, перед обрывом несколько минут тишины (28.10.2026, run 40699691360). Job `rollback` после этого ничего не откатывает — он только печатает инструкцию.
+
+**Причина:** pull тяжёлого образа идёт минутами без вывода, SSH-сессию сбрасывает промежуточный узел, и скрипт на сервере умирает вместе с ней. Шаг «Configure SSH keepalive» в `deploy.yml` (`ServerAliveInterval 30`) закрывает это; сервер при разборе не смотрели, так что если обрыв повторится при включённом keepalive — искать на сервере (`journalctl -u ssh`, `dmesg | grep -i oom`).
+
+**Что с продом:** пока обрыв случился на pull, контейнеры не тронуты — `compose up`, миграции и collectstatic идут после него, и сайт продолжает отдавать прежний релиз. Рабочая копия на сервере при этом уже на новом коммите: `git reset --hard` выполняется до pull. Обрыв позже pull оставляет прод между `compose up` и миграциями — тогда см. комментарий к `timeout-minutes` в `deploy.yml`.
+
+**Повтор:** `gh run rerun <id> --failed` берёт `deploy.yml` из коммита прогона, то есть без исправления. Чтобы выкатить с keepalive, нужен новый push в `main` (синк `develop → main`). Завершённые слои образа сервер уже скачал, повторный pull быстрее.
+
 ## Правка nginx не доехала до прода, хотя `nginx -t` и reload прошли
 
 **Симптомы:** после деплоя новой `location` нет (15.10.2026: `/manager/` отвечал 308 от Next вместо 302 от Django), а `nginx -t` и `nginx -s reload` отработали без ошибок.
