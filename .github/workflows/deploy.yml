@@ -341,6 +341,18 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.PRODUCTION_SERVER_HOST }} >> ~/.ssh/known_hosts
 
+      # Шаг «Deploy to production server» держит одну SSH-сессию на весь `docker pull`, а
+      # слои тянутся минутами без единой строки вывода. 28.10.2026 после 4 мин 23 с тишины
+      # сессию сбросили (`Connection reset by peer`, exit 255): скрипт на сервере умер на
+      # pull бэкенда, до `compose up`, и релиз не дошёл до контейнеров. Keepalive каждые
+      # 30 с не даёт промежуточному узлу счесть соединение простаивающим, а по-настоящему
+      # мёртвое ловит за 10 минут (20 × 30 с) вместо ожидания таймаута job'а.
+      - name: Configure SSH keepalive
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' 'Host *' '  ServerAliveInterval 30' '  ServerAliveCountMax 20' >> ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
       # ssh ... VAR=... bash -se <<'ENDSSH' — единственный способ довезти значения до
       # сервера. Раньше здесь был `ssh host << 'ENDSSH'`: кавычки запрещают подстановку
       # на раннере, а на сервере переменных job'а нет, поэтому `cd $DEPLOY_PATH` уводил
