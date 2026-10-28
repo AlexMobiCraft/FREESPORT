@@ -119,7 +119,7 @@ export const buildInitialProductFilters = (
     max_price: price.max,
   };
 
-  (['is_new', 'is_hit', 'is_sale'] as const).forEach(badge => {
+  (['is_new', 'is_hit', 'is_sale', 'is_promo'] as const).forEach(badge => {
     if (get(badge) === 'true') filters[badge] = true;
   });
 

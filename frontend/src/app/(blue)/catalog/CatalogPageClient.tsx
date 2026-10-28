@@ -404,6 +404,7 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
   const isNewParam = searchParams?.get('is_new') ?? null;
   const isHitParam = searchParams?.get('is_hit') ?? null;
   const isSaleParam = searchParams?.get('is_sale') ?? null;
+  const isPromoParam = searchParams?.get('is_promo') ?? null;
   const orderingParam = searchParams?.get('ordering') ?? null;
   const minPriceParam = searchParams?.get('min_price') ?? null;
   const maxPriceParam = searchParams?.get('max_price') ?? null;
@@ -427,16 +428,19 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
   // схлопнулся бы после гидратации и сдвинул выдачу
   const [isBreakpointResolved, setIsBreakpointResolved] = useState(false);
 
-  // Badge-фильтры из URL (is_new, is_hit, is_sale)
+  // Badge-фильтры из URL (is_new, is_hit, is_sale, is_promo)
   const activeBadge = useMemo(
     () => ({
       is_new: isNewParam === 'true' ? true : undefined,
       is_hit: isHitParam === 'true' ? true : undefined,
       is_sale: isSaleParam === 'true' ? true : undefined,
+      is_promo: isPromoParam === 'true' ? true : undefined,
     }),
-    [isNewParam, isHitParam, isSaleParam]
+    [isNewParam, isHitParam, isSaleParam, isPromoParam]
   );
-  const hasBadgeFilter = Boolean(activeBadge.is_new || activeBadge.is_hit || activeBadge.is_sale);
+  const hasBadgeFilter = Boolean(
+    activeBadge.is_new || activeBadge.is_hit || activeBadge.is_sale || activeBadge.is_promo
+  );
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
   // Видимость категорий в sidebar: null = показывать всё (fallback / initial)
@@ -1427,7 +1431,7 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
     setActiveCategoryLabel('');
     setExpandedKeys(new Set()); // Очищаем развёрнутые подкатегории
 
-    // Один push со всеми ключами фильтров сайдбара. Бейджи is_new/is_hit/is_sale
+    // Один push со всеми ключами фильтров сайдбара. Бейджи is_new/is_hit/is_sale/is_promo
     // намеренно переживают сброс: они приходят внешним контекстом (переход с
     // главной) и в сайдбаре как фильтр не показаны.
     resetPage({

@@ -27,6 +27,11 @@ const COLLECTIONS = {
     description:
       'Скидки в каталоге OPTISPORT: подборка спортивных товаров со сниженными ценами и условиями заказа для оптовых покупателей.',
   },
+  is_promo: {
+    title: 'Акции — каталог спортивных товаров | OPTISPORT',
+    description:
+      'Акции в каталоге OPTISPORT: подборка спортивных товаров по акционным ценам и условиям заказа для оптовых покупателей.',
+  },
 };
 
 const response = (body: unknown, ok = true) =>
@@ -77,6 +82,7 @@ describe('generateMetadata каталога', () => {
     ['is_new', COLLECTIONS.is_new],
     ['is_hit', COLLECTIONS.is_hit],
     ['is_sale', COLLECTIONS.is_sale],
+    ['is_promo', COLLECTIONS.is_promo],
   ])('подборка %s=true получает собственные metadata с собственным canonical', async (key, texts) => {
     const metadata = await metadataFor({ [key]: 'true' });
 
@@ -108,6 +114,8 @@ describe('generateMetadata каталога', () => {
     ['пустое значение', { is_new: '' }],
     ['значение TRUE', { is_hit: 'TRUE' }],
     ['значение 1', { is_sale: '1' }],
+    ['is_promo не в виде true', { is_promo: '1' }],
+    ['is_promo и page', { is_promo: 'true', page: '2' }],
     ['повтор флага', { is_new: ['true', 'true'] }],
     ['флаг и page', { is_new: 'true', page: '2' }],
     ['флаг и ordering', { is_hit: 'true', ordering: '-name' }],

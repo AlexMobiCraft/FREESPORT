@@ -11,7 +11,7 @@ import { Sparkles, Flame, Percent } from 'lucide-react';
 export interface QuickLink {
   label: string;
   link: string;
-  variant: 'new' | 'hit' | 'sale';
+  variant: 'new' | 'hit' | 'promo';
   icon: React.ReactNode;
   /** Tailwind цвет фона кружка иконки */
   color: string;
@@ -40,10 +40,10 @@ export const STATIC_QUICK_LINKS: QuickLink[] = [
     color: 'bg-orange-500',
   },
   {
-    label: 'Скидки',
+    label: 'Акции',
     icon: <Percent className="w-5 h-5" />,
-    link: '/catalog?is_sale=true',
-    variant: 'sale',
+    link: '/catalog?is_promo=true',
+    variant: 'promo',
     color: 'bg-emerald-500',
   },
 ];
