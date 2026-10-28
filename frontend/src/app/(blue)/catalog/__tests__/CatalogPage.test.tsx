@@ -2055,6 +2055,18 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
     expect((productsService.getAll as Mock).mock.calls[0][0]).toHaveProperty('category_id', 2);
   });
 
+  it('передаёт подборку is_promo=true из адреса в запрос товаров', async () => {
+    resetSearchParams('is_promo=true');
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(
+        expect.objectContaining({ is_promo: true })
+      );
+    });
+  });
+
   it('игнорирует устаревший ответ visible-categories', async () => {
     const user = userEvent.setup();
     let resolveStale: (ids: number[]) => void = () => {};

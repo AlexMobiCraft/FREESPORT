@@ -46,6 +46,14 @@ describe('buildInitialProductFilters', () => {
     });
   });
 
+  it.each(['is_new', 'is_hit', 'is_sale', 'is_promo'])(
+    'подборка %s=true попадает в фильтры, а любое другое значение — нет',
+    badge => {
+      expect(buildInitialProductFilters(reader(`${badge}=true`), null)).toHaveProperty(badge, true);
+      expect(buildInitialProductFilters(reader(`${badge}=1`), null)).not.toHaveProperty(badge);
+    }
+  );
+
   it('мусор в параметрах заменяет умолчаниями тех же парсеров', () => {
     const filters = buildInitialProductFilters(
       reader('page=abc&ordering=price&min_price=9000&max_price=1000&search=a'),

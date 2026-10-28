@@ -72,7 +72,7 @@ describe('QuickLinksSection', () => {
     await waitFor(() => {
       expect(screen.getByText('Новинки')).toBeInTheDocument();
       expect(screen.getByText('Лидеры продаж')).toBeInTheDocument();
-      expect(screen.getByText('Скидки')).toBeInTheDocument();
+      expect(screen.getByText('Акции')).toBeInTheDocument();
     });
   });
 
@@ -87,11 +87,11 @@ describe('QuickLinksSection', () => {
 
     const novinki = screen.getByText('Новинки').closest('a');
     const hits = screen.getByText('Лидеры продаж').closest('a');
-    const sale = screen.getByText('Скидки').closest('a');
+    const sale = screen.getByText('Акции').closest('a');
 
     expect(novinki).toHaveAttribute('href', '/catalog?is_new=true');
     expect(hits).toHaveAttribute('href', '/catalog?is_hit=true');
-    expect(sale).toHaveAttribute('href', '/catalog?is_sale=true');
+    expect(sale).toHaveAttribute('href', '/catalog?is_promo=true');
   });
 
   it('loads and displays categories from API', async () => {
@@ -160,7 +160,7 @@ describe('QuickLinksSection', () => {
       // Static links still visible
       expect(screen.getByText('Новинки')).toBeInTheDocument();
       expect(screen.getByText('Лидеры продаж')).toBeInTheDocument();
-      expect(screen.getByText('Скидки')).toBeInTheDocument();
+      expect(screen.getByText('Акции')).toBeInTheDocument();
     });
 
     // No categories should be rendered

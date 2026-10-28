@@ -40,6 +40,11 @@ const CATALOG_COLLECTIONS = {
     description:
       'Скидки в каталоге OPTISPORT: подборка спортивных товаров со сниженными ценами и условиями заказа для оптовых покупателей.',
   },
+  is_promo: {
+    title: 'Акции — каталог спортивных товаров | OPTISPORT',
+    description:
+      'Акции в каталоге OPTISPORT: подборка спортивных товаров по акционным ценам и условиям заказа для оптовых покупателей.',
+  },
 } as const;
 
 type CatalogCollectionKey = keyof typeof CATALOG_COLLECTIONS;
@@ -96,7 +101,7 @@ function buildCatalogMetadata(): Metadata {
   });
 }
 
-// Подборка — только адрес с единственным параметром is_new, is_hit или is_sale, равным строке 'true'
+// Подборка — только адрес с единственным параметром is_new, is_hit, is_sale или is_promo, равным строке 'true'
 // (как сравнивает клиент). Любой другой набор параметров оставляет прежнюю логику метаданных.
 function findCatalogCollection(params: CatalogSearchParams): CatalogCollectionKey | null {
   const keys = Object.keys(params).filter(key => params[key] !== undefined);

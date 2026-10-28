@@ -18,7 +18,7 @@ const CATEGORY_TREE_FETCH_TIMEOUT_MS = 3000;
 /** Предохранитель от бесконечного обхода пагинации */
 const MAX_PAGES = 60;
 /** Подборки каталога; порядок массива — порядок адресов в sitemap */
-const COLLECTION_KEYS = ['is_new', 'is_hit', 'is_sale'] as const;
+const COLLECTION_KEYS = ['is_new', 'is_hit', 'is_sale', 'is_promo'] as const;
 
 type CollectionKey = (typeof COLLECTION_KEYS)[number];
 

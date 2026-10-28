@@ -8,7 +8,7 @@ const response = (body: unknown, ok = true) =>
 
 const pathOf = (url: string) => new URL(url).pathname + new URL(url).search;
 
-const COLLECTION_KEYS = ['is_new', 'is_hit', 'is_sale'] as const;
+const COLLECTION_KEYS = ['is_new', 'is_hit', 'is_sale', 'is_promo'] as const;
 
 type CollectionKey = (typeof COLLECTION_KEYS)[number];
 
@@ -26,6 +26,7 @@ describe('sitemap: публичные категории каталога', () =
       is_new: () => Promise.resolve(response({ count: 5, results: [{ slug: 'ball' }] })),
       is_hit: () => Promise.resolve(response({ count: 4, results: [{ slug: 'ball' }] })),
       is_sale: () => Promise.resolve(response({ count: 5, results: [{ slug: 'ball' }] })),
+      is_promo: () => Promise.resolve(response({ count: 3, results: [{ slug: 'ball' }] })),
     };
     vi.stubGlobal(
       'fetch',
@@ -117,7 +118,7 @@ describe('sitemap: публичные категории каталога', () =
     }
     // Каждый вызов — ровно 3000 мс: суммарного счётчика мало, он пропустил бы
     // один collection-запрос с другим таймаутом
-    expect(timeoutSpy.mock.calls).toEqual([[3000], [3000], [3000], [3000]]);
+    expect(timeoutSpy.mock.calls).toEqual([[3000], [3000], [3000], [3000], [3000]]);
   });
 
   it('запускает проверки всех подборок параллельно', async () => {
@@ -183,6 +184,7 @@ describe('sitemap: публичные категории каталога', () =
     expect(paths.some(path => path.includes('is_hit='))).toBe(false);
     expect(paths).toContain('/catalog?is_new=true');
     expect(paths).toContain('/catalog?is_sale=true');
+    expect(paths).toContain('/catalog?is_promo=true');
     expect(paths).toContain('/catalog');
     expect(paths).toContain('/home');
     expect(paths).toContain('/catalog?category=games');
@@ -194,9 +196,9 @@ describe('sitemap: публичные категории каталога', () =
 
   it('не сочетает подборки с другими параметрами', async () => {
     const paths = (await sitemap()).map(entry => pathOf(entry.url));
-    const collectionPaths = paths.filter(path => /is_(new|hit|sale)=/.test(path));
+    const collectionPaths = paths.filter(path => /is_(new|hit|sale|promo)=/.test(path));
 
-    expect(collectionPaths).toHaveLength(3);
+    expect(collectionPaths).toHaveLength(4);
     for (const path of collectionPaths) {
       expect(new URL(path, 'https://optisport.ru').searchParams.size).toBe(1);
     }
