@@ -201,6 +201,29 @@ class TestSendOrderNotificationEmail:
         assert "admin@optisport.ru" in recipient_list
         assert "admin2@optisport.ru" in recipient_list
 
+    @patch("apps.orders.tasks.send_mail")
+    def test_supervisor_gets_manager_section_link(self, mock_send_mail, notification_recipient, order, settings):
+        """Руководитель получает ссылку на заказ в /manager/: /admin/ его не пускает."""
+        from django.contrib.auth.models import Group
+
+        from apps.users.staff_roles import SUPERVISORS_GROUP
+        from tests.factories import UserFactory
+
+        settings.SITE_URL = "https://optisport.ru"
+        supervisor = UserFactory(email="boss@optisport.ru", is_staff=True)
+        supervisor.groups.add(Group.objects.get_or_create(name=SUPERVISORS_GROUP)[0])
+        NotificationRecipient.objects.create(email="boss@optisport.ru", name="Boss", notify_new_orders=True)
+
+        assert send_order_notification_email(order.id) is True
+
+        assert mock_send_mail.call_count == 2
+        by_recipients = {tuple(call.kwargs["recipient_list"]): call.kwargs for call in mock_send_mail.call_args_list}
+        admin_mail = by_recipients[(notification_recipient.email,)]
+        manager_mail = by_recipients[("boss@optisport.ru",)]
+        for part in ("message", "html_message"):
+            assert f"https://optisport.ru/admin/orders/order/{order.id}/change/" in admin_mail[part]
+            assert f"https://optisport.ru/manager/orders/order/{order.id}/change/" in manager_mail[part]
+
 
 @pytest.mark.unit
 @pytest.mark.django_db

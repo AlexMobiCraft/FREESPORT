@@ -12,10 +12,12 @@ from smtplib import SMTPException
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.contrib.auth.models import Group
 from django.core import mail
 from django.utils import timezone
 
 from apps.users.models import User
+from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP
 from apps.users.tasks import monitor_pending_verification_queue, send_admin_verification_email, send_user_pending_email
 from tests.factories import UserFactory
 
@@ -130,6 +132,43 @@ class TestSendAdminVerificationEmail:
         call_kwargs = mock_send_mail.call_args.kwargs
         assert "Телефон: не указан" in call_kwargs["message"]
         assert "не указан" in call_kwargs["html_message"]
+
+    @patch("apps.users.tasks.send_mail")
+    def test_section_staff_get_manager_section_link(self, mock_send_mail, settings, verification_recipient):
+        """Руководитель и менеджер получают ссылку в /manager/: /admin/ их не пускает."""
+        from apps.common.models import NotificationRecipient
+
+        settings.SITE_URL = "https://optisport.ru"
+        # Адрес учётной записи и получателя различаются регистром — это один человек.
+        _staff("Boss@Optisport.ru", SUPERVISORS_GROUP)
+        _staff("manager@optisport.ru", MANAGERS_GROUP)
+        _staff("marketing@optisport.ru", MARKETING_GROUP)
+        _staff("root@optisport.ru", SUPERVISORS_GROUP, is_superuser=True)
+        for email in ("boss@optisport.ru", "manager@optisport.ru", "marketing@optisport.ru", "root@optisport.ru"):
+            NotificationRecipient.objects.create(email=email, name=email, notify_user_verification=True)
+        user = UserFactory(role="wholesale_level1", company_name="ООО Тест")
+
+        assert send_admin_verification_email(user.id) is True
+
+        assert mock_send_mail.call_count == 2
+        by_recipients = {
+            frozenset(call.kwargs["recipient_list"]): call.kwargs for call in mock_send_mail.call_args_list
+        }
+        admin_mail = by_recipients[frozenset({"admin@example.com", "marketing@optisport.ru", "root@optisport.ru"})]
+        manager_mail = by_recipients[frozenset({"boss@optisport.ru", "manager@optisport.ru"})]
+        admin_link = f"https://optisport.ru/admin/users/user/{user.id}/verify/"
+        manager_link = f"https://optisport.ru/manager/users/user/{user.id}/verify/"
+        for part in ("message", "html_message"):
+            assert admin_link in admin_mail[part]
+            assert manager_link in manager_mail[part]
+            assert "/admin/" not in manager_mail[part]
+
+
+def _staff(email, group_name, is_superuser=False):
+    """Сотрудник в группе роли: менеджер, руководитель, маркетинг или суперпользователь."""
+    staff = UserFactory(email=email, is_staff=True, is_superuser=is_superuser)
+    staff.groups.add(Group.objects.get_or_create(name=group_name)[0])
+    return staff
 
 
 @pytest.mark.unit
