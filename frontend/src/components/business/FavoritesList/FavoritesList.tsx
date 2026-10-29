@@ -19,12 +19,8 @@ import type { FavoriteWithAvailability } from '@/types/favorite';
 export interface FavoritesListProps {
   /** Список избранных товаров */
   favorites: FavoriteWithAvailability[];
-  /** Callback добавления в корзину */
-  onAddToCart: (favorite: FavoriteWithAvailability) => void;
   /** Callback удаления из избранного */
   onRemoveFavorite: (favoriteId: number) => void;
-  /** ID товара в процессе добавления в корзину */
-  addingToCartId?: number | null;
   /** ID товара в процессе удаления */
   removingId?: number | null;
   /** Флаг загрузки */
@@ -36,9 +32,7 @@ export interface FavoritesListProps {
  */
 export const FavoritesList: React.FC<FavoritesListProps> = ({
   favorites,
-  onAddToCart,
   onRemoveFavorite,
-  addingToCartId = null,
   removingId = null,
   isLoading = false,
 }) => {
@@ -99,9 +93,7 @@ export const FavoritesList: React.FC<FavoritesListProps> = ({
         <FavoriteProductCard
           key={favorite.id}
           favorite={favorite}
-          onAddToCart={() => onAddToCart(favorite)}
           onRemoveFavorite={() => onRemoveFavorite(favorite.id)}
-          isAddingToCart={addingToCartId === favorite.id}
           isRemoving={removingId === favorite.id}
         />
       ))}

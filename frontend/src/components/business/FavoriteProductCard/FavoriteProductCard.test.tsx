@@ -16,8 +16,14 @@ vi.mock('next/image', () => ({
 
 // Mock next/link
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+  default: ({
+    children,
+    href,
+    ...props
+  }: { children: React.ReactNode; href: string } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
   ),
 }));
 
@@ -36,7 +42,6 @@ const mockFavorite: FavoriteWithAvailability = {
 };
 
 describe('FavoriteProductCard', () => {
-  const mockOnAddToCart = vi.fn();
   const mockOnRemoveFavorite = vi.fn();
 
   beforeEach(() => {
@@ -48,7 +53,6 @@ describe('FavoriteProductCard', () => {
     render(
       <FavoriteProductCard
         favorite={mockFavorite}
-        onAddToCart={mockOnAddToCart}
         onRemoveFavorite={mockOnRemoveFavorite}
       />
     );
@@ -59,36 +63,16 @@ describe('FavoriteProductCard', () => {
     expect(screen.getByText(/2\s?500/)).toBeInTheDocument(); // Price with locale formatting
   });
 
-  it('shows "В корзину" button when product is available (AC: 5)', () => {
+  it('«Выбрать» ведёт на страницу товара вместо добавления в корзину', () => {
     // ARRANGE
-    render(
-      <FavoriteProductCard
-        favorite={mockFavorite}
-        onAddToCart={mockOnAddToCart}
-        onRemoveFavorite={mockOnRemoveFavorite}
-      />
-    );
+    render(<FavoriteProductCard favorite={mockFavorite} onRemoveFavorite={mockOnRemoveFavorite} />);
 
     // ASSERT
-    expect(screen.getByRole('button', { name: /в корзину/i })).toBeInTheDocument();
-  });
-
-  it('calls onAddToCart when "В корзину" button is clicked (AC: 5)', () => {
-    // ARRANGE
-    render(
-      <FavoriteProductCard
-        favorite={mockFavorite}
-        onAddToCart={mockOnAddToCart}
-        onRemoveFavorite={mockOnRemoveFavorite}
-      />
+    expect(screen.getByRole('link', { name: 'Выбрать Мяч футбольный Nike' })).toHaveAttribute(
+      'href',
+      '/product/myach-futbolny-nike'
     );
-
-    // ACT
-    const addButton = screen.getByRole('button', { name: /в корзину/i });
-    fireEvent.click(addButton);
-
-    // ASSERT
-    expect(mockOnAddToCart).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /в корзину/i })).not.toBeInTheDocument();
   });
 
   it('shows out of stock badge when product is not available (AC: 7)', () => {
@@ -97,7 +81,6 @@ describe('FavoriteProductCard', () => {
     render(
       <FavoriteProductCard
         favorite={unavailableFavorite}
-        onAddToCart={mockOnAddToCart}
         onRemoveFavorite={mockOnRemoveFavorite}
       />
     );
@@ -113,7 +96,6 @@ describe('FavoriteProductCard', () => {
     render(
       <FavoriteProductCard
         favorite={unavailableFavorite}
-        onAddToCart={mockOnAddToCart}
         onRemoveFavorite={mockOnRemoveFavorite}
       />
     );
@@ -122,6 +104,7 @@ describe('FavoriteProductCard', () => {
     const notifyButton = screen.getByRole('button', { name: /сообщить о поступлении/i });
     expect(notifyButton).toBeInTheDocument();
     expect(notifyButton).toBeDisabled();
+    expect(screen.queryByRole('link', { name: /^выбрать/i })).not.toBeInTheDocument();
   });
 
   it('calls onRemoveFavorite when heart button is clicked (AC: 6)', () => {
@@ -129,7 +112,6 @@ describe('FavoriteProductCard', () => {
     render(
       <FavoriteProductCard
         favorite={mockFavorite}
-        onAddToCart={mockOnAddToCart}
         onRemoveFavorite={mockOnRemoveFavorite}
       />
     );
@@ -147,7 +129,6 @@ describe('FavoriteProductCard', () => {
     render(
       <FavoriteProductCard
         favorite={mockFavorite}
-        onAddToCart={mockOnAddToCart}
         onRemoveFavorite={mockOnRemoveFavorite}
         isRemoving={true}
       />
@@ -163,7 +144,6 @@ describe('FavoriteProductCard', () => {
     render(
       <FavoriteProductCard
         favorite={mockFavorite}
-        onAddToCart={mockOnAddToCart}
         onRemoveFavorite={mockOnRemoveFavorite}
       />
     );

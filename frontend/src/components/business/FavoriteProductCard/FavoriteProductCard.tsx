@@ -7,7 +7,7 @@
  * - Название и SKU
  * - Цена
  * - Бейдж "Нет в наличии" (AC: 7)
- * - Кнопка "В корзину" (AC: 5)
+ * - Кнопка «Выбрать» — ведёт на страницу товара, в корзину добавляют только оттуда
  * - Кнопка удаления из избранного (AC: 6)
  */
 
@@ -60,12 +60,8 @@ const resolveImageUrl = (path?: string | null): string | null => {
 export interface FavoriteProductCardProps {
   /** Данные избранного товара */
   favorite: FavoriteWithAvailability;
-  /** Callback добавления в корзину */
-  onAddToCart: () => void;
   /** Callback удаления из избранного */
   onRemoveFavorite: () => void;
-  /** Флаг загрузки добавления в корзину */
-  isAddingToCart?: boolean;
   /** Флаг удаления */
   isRemoving?: boolean;
 }
@@ -75,9 +71,7 @@ export interface FavoriteProductCardProps {
  */
 export const FavoriteProductCard: React.FC<FavoriteProductCardProps> = ({
   favorite,
-  onAddToCart,
   onRemoveFavorite,
-  isAddingToCart = false,
   isRemoving = false,
 }) => {
   const { isAvailable } = favorite;
@@ -170,18 +164,22 @@ export const FavoriteProductCard: React.FC<FavoriteProductCardProps> = ({
             : 'Цена не указана'}
         </p>
 
-        {/* Кнопка "В корзину" (AC: 5) */}
+        {/* «Выбрать» ведёт на страницу товара: вариант выбирают там */}
         {isAvailable ? (
-          <Button
-            variant="primary"
-            size="medium"
-            className="w-full"
-            onClick={onAddToCart}
-            loading={isAddingToCart}
-            disabled={isAddingToCart}
+          <Link
+            href={`/product/${favorite.product_slug}`}
+            aria-label={`Выбрать ${favorite.product_name}`}
+            className={cn(
+              'inline-flex items-center justify-center w-full h-11 px-6 rounded-2xl',
+              'typo-body-m font-medium transition-all',
+              'bg-primary text-white border border-transparent shadow-primary',
+              'hover:bg-primary-hover hover:-translate-y-0.5',
+              'active:bg-primary-active active:translate-y-0',
+              'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2'
+            )}
           >
-            В корзину
-          </Button>
+            Выбрать
+          </Link>
         ) : (
           <Button variant="secondary" size="medium" className="w-full" disabled>
             Сообщить о поступлении

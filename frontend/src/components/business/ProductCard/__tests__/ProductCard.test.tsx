@@ -115,22 +115,21 @@ describe('ProductCard', () => {
     discount_percent: null,
   };
 
-  const mockOnAddToCart = vi.fn();
   const mockOnToggleFavorite = vi.fn();
 
   beforeEach(() => {
-    mockOnAddToCart.mockClear();
     mockOnToggleFavorite.mockClear();
   });
 
   describe('Grid Layout', () => {
     it('renders grid layout correctly', () => {
-      render(<ProductCard product={mockProduct} layout="grid" onAddToCart={mockOnAddToCart} />);
+      render(<ProductCard product={mockProduct} layout="grid" showSelectButton />);
 
       expect(screen.getByText('Nike')).toBeInTheDocument();
       expect(screen.getByText('Test Product')).toBeInTheDocument();
       expect(screen.getByText('1 200 ₽')).toBeInTheDocument();
-      expect(screen.getByText('В корзину')).toBeInTheDocument();
+      expect(screen.getByText('Выбрать')).toBeInTheDocument();
+      expect(screen.queryByText('В корзину')).not.toBeInTheDocument();
     });
 
     it('displays product image with correct alt text', () => {
@@ -151,35 +150,35 @@ describe('ProductCard', () => {
       expect(svg).toBeInTheDocument();
     });
 
-    it('calls onAddToCart when button is clicked', () => {
-      render(<ProductCard product={mockProduct} layout="grid" onAddToCart={mockOnAddToCart} />);
+    it('«Выбрать» ведёт на страницу товара, а не в корзину', () => {
+      render(<ProductCard product={mockProduct} layout="grid" showSelectButton />);
 
-      const addButton = screen.getByText('В корзину');
-      fireEvent.click(addButton);
-
-      expect(mockOnAddToCart).toHaveBeenCalledWith(1);
-      expect(mockOnAddToCart).toHaveBeenCalledTimes(1);
+      const selectButton = screen.getByText('Выбрать');
+      // Не кнопка: интерактивный элемент внутри ссылки карточки недопустим
+      expect(selectButton.closest('button')).toBeNull();
+      expect(selectButton.closest('a')).toHaveAttribute('href', '/product/test-product');
     });
 
-    it('does not show add to cart button when out of stock', () => {
+    it('does not show select button when out of stock', () => {
       const outOfStockProduct = { ...mockProduct, is_in_stock: false };
-      render(
-        <ProductCard product={outOfStockProduct} layout="grid" onAddToCart={mockOnAddToCart} />
-      );
+      render(<ProductCard product={outOfStockProduct} layout="grid" showSelectButton />);
 
-      expect(screen.queryByText('В корзину')).not.toBeInTheDocument();
+      expect(screen.queryByText('Выбрать')).not.toBeInTheDocument();
       expect(screen.getByText('Нет в наличии')).toBeInTheDocument();
     });
   });
 
   describe('List Layout', () => {
     it('renders list layout correctly', () => {
-      render(<ProductCard product={mockProduct} layout="list" onAddToCart={mockOnAddToCart} />);
+      render(<ProductCard product={mockProduct} layout="list" showSelectButton />);
 
       expect(screen.getByText('Nike')).toBeInTheDocument();
       expect(screen.getByText('Test Product')).toBeInTheDocument();
       expect(screen.getByText('Test description')).toBeInTheDocument();
-      expect(screen.getByText('В корзину')).toBeInTheDocument();
+      expect(screen.getByText('Выбрать').closest('a')).toHaveAttribute(
+        'href',
+        '/product/test-product'
+      );
     });
 
     it('displays description in list layout', () => {
@@ -764,10 +763,10 @@ describe('ProductCard', () => {
       expect(screen.queryByText('Test description')).not.toBeInTheDocument();
     });
 
-    it('handles missing onAddToCart callback', () => {
+    it('hides select button without showSelectButton', () => {
       render(<ProductCard product={mockProduct} layout="grid" />);
 
-      expect(screen.queryByText('В корзину')).not.toBeInTheDocument();
+      expect(screen.queryByText('Выбрать')).not.toBeInTheDocument();
     });
 
     it('handles missing onToggleFavorite callback', () => {

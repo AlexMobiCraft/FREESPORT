@@ -4,7 +4,7 @@
  *
  * Функционал:
  * - Отображение списка избранных товаров
- * - Добавление товара в корзину (AC: 5)
+ * - Переход на страницу товара кнопкой «Выбрать»: в корзину добавляют только оттуда
  * - Удаление из избранного с optimistic UI (AC: 6)
  * - Отображение бейджа "Нет в наличии" (AC: 7)
  */
@@ -16,7 +16,6 @@ import { toast } from 'sonner';
 import { FavoritesList } from '@/components/business/FavoritesList';
 import Button from '@/components/ui/Button';
 import { useFavoritesStore } from '@/stores/favoritesStore';
-import { useCartStore } from '@/stores/cartStore';
 import type { FavoriteWithAvailability } from '@/types/favorite';
 
 /**
@@ -31,11 +30,7 @@ export default function FavoritesPage() {
   const removeFavorite = useFavoritesStore(state => state.removeFavorite);
 
   // Action states
-  const [addingToCartId, setAddingToCartId] = useState<number | null>(null);
   const [removingId, setRemovingId] = useState<number | null>(null);
-
-  // Cart store
-  const addToCart = useCartStore(state => state.addItem);
 
   // Загрузка избранных при монтировании
   useEffect(() => {
@@ -53,33 +48,6 @@ export default function FavoritesPage() {
       })),
     [storeFavorites]
   );
-
-  /**
-   * Добавить товар в корзину (AC: 5)
-   */
-  const handleAddToCart = async (favorite: FavoriteWithAvailability) => {
-    if (!favorite.isAvailable) {
-      toast.error('Товар недоступен');
-      return;
-    }
-
-    setAddingToCartId(favorite.id);
-
-    try {
-      const result = await addToCart(favorite.product, 1);
-
-      if (result.success) {
-        toast.success('Товар добавлен в корзину');
-      } else {
-        toast.error(result.error || 'Не удалось добавить в корзину');
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Ошибка добавления в корзину';
-      toast.error(message);
-    } finally {
-      setAddingToCartId(null);
-    }
-  };
 
   /**
    * Удалить из избранного (AC: 6)
@@ -133,9 +101,7 @@ export default function FavoritesPage() {
       {/* Список избранных */}
       <FavoritesList
         favorites={favorites}
-        onAddToCart={handleAddToCart}
         onRemoveFavorite={handleRemoveFavorite}
-        addingToCartId={addingToCartId}
         removingId={removingId}
         isLoading={isLoading}
       />

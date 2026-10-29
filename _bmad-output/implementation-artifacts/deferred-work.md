@@ -1178,3 +1178,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-roles-vip-special-price.md`
   summary: Electric-вариант `HitsSection` показывает всем ролям сырую розничную цену товара, а не цену клиента: VIP, «Спец цена», оптовик, тренер видят розницу 1200, в корзину товар попадает по их цене 900. Пересекается с записью про плитку тренера (второй круг, выше).
   evidence: `frontend/src/components/home/HitsSection.tsx:323` — `price={product.retail_price}` в `ElectricProductCard` без учёта роли; `ProductListSerializer.get_retail_price` (`serializers.py:599`) отдаёт `variant.retail_price`. Строка стоит в `HEAD` для всех ролей: спека добавила `vip` и `special_price` только в `isB2B` (показ РРЦ: `rrp={isB2B ? product.rrp : undefined}`). Исправление — передавать в `ElectricProductCard` итоговую цену клиента из API; меняет то, что видит покупатель на теме electric, нужно решение владельца, нужен тест на оптовика и VIP (ревью Verification Gap, 2026-10-27, третий круг).
+
+## Deferred from: spec-product-card-select-button (2026-10-29)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-product-card-select-button.md`
+  summary: На теме electric маленькие карточки по-прежнему молча кладут в корзину первый доступный вариант; «Выбрать» туда не перенесено.
+  evidence: `frontend/src/components/home/HitsSection.tsx:177` (`handleAddToCart` берёт `variants.find(v => v.is_in_stock)`), `frontend/src/components/home/ElectricProductSection.tsx:279`, `frontend/src/app/(electric)/electric/catalog/page.tsx:612` — `ElectricProductCard` с `onAddToCart`. Спека тему electric исключила как демо.
+- source_spec: `_bmad-output/implementation-artifacts/spec-product-card-select-button.md`
+  summary: В `ProductCard` (grid, list, compact) кнопка избранного `<button>` лежит внутри `<Link>` карточки — интерактивный элемент внутри `<a>`, невалидная вложенность.
+  evidence: `frontend/src/components/business/ProductCard/ProductCard.tsx` — `<button onClick={handleToggleFavorite}>` внутри `<Link href={`/product/${product.slug}`}>`; было до этой спеки. Исправление — вынести ссылку на фото/название или сделать карточку `relative` со ссылкой-оверлеем.
+- source_spec: `_bmad-output/implementation-artifacts/spec-product-card-select-button.md`
+  summary: `docs/architecture/coding-standards.md` приводит как эталон `ProductCard` с `onAddToCart` и кнопкой «В корзину» — пример противоречит текущему API компонента.
+  evidence: `docs/architecture/coding-standards.md:276-289` и `:436` — `onAddToCart: (productId: number) => void`, `<button onClick={handleAddToCart}>В корзину</button>`.
