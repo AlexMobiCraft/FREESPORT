@@ -13,9 +13,11 @@ from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from django.urls import reverse
 
 from apps.common.models import NotificationRecipient
 from apps.orders.models import Order, OrderItem
+from apps.users.staff_roles import split_by_manager_section
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,31 @@ def _get_order_display_items(order: Order) -> Any:
     if order.is_master and order.sub_orders.exists():
         return OrderItem.objects.filter(order__parent_order=order).select_related("product", "variant")
     return order.items.select_related("product", "variant").all()
+
+
+def _render_new_order_email(order: Order, context: dict[str, Any]) -> tuple[str | None, str]:
+    """Возвращает `(html, текст)` письма о новом заказе; при сбое шаблона — простой текст без HTML."""
+    try:
+        html_message = render_to_string("emails/admin_new_order.html", context)
+        plain_message = str(render_to_string("emails/admin_new_order.txt", context))
+    except Exception as e:
+        logger.error(
+            "Failed to render order notification template",
+            extra={
+                "order_id": order.id,
+                "exception": str(e),
+            },
+        )
+        # Fallback на простое сообщение
+        plain_message = (
+            f"Новый заказ #{order.order_number}\n\n"
+            f"Клиент: {context['customer_name']}\n"
+            f"Email: {context['customer_email']}\n"
+            f"Сумма: {order.total_amount} ₽\n\n"
+            f"Откройте заказ по ссылке: {context['admin_url']}"
+        )
+        return None, plain_message
+    return html_message, plain_message
 
 
 @shared_task(
@@ -200,42 +227,33 @@ def send_order_notification_email(self: Any, order_id: int) -> bool:
         "customer_email": customer_email,
         "customer_phone": customer_phone,
         "delivery_method": delivery_methods.get(order.delivery_method, order.delivery_method),
-        "admin_url": f"{getattr(settings, 'SITE_URL', 'http://localhost:8001')}/admin/orders/order/{order.id}/change/",
     }
 
-    # Рендерим шаблоны
-    plain_message: str
-    try:
-        html_message = render_to_string("emails/admin_new_order.html", context)
-        plain_message = str(render_to_string("emails/admin_new_order.txt", context))
-    except Exception as e:
-        logger.error(
-            "Failed to render order notification template",
-            extra={
-                "order_id": order_id,
-                "exception": str(e),
-            },
-        )
-        # Fallback на простое сообщение
-        plain_message = (
-            f"Новый заказ #{order.order_number}\n\n"
-            f"Клиент: {customer_name}\n"
-            f"Email: {customer_email}\n"
-            f"Сумма: {order.total_amount} ₽\n\n"
-            f"Откройте Django Admin для просмотра деталей."
-        )
-        html_message = None
+    # Менеджер или руководитель среди получателей в /admin/ не войдёт —
+    # ему уходит отдельное письмо со ссылкой на заказ в разделе менеджера.
+    site_url = getattr(settings, "SITE_URL", "http://localhost:8001")
+    admin_part, manager_part = split_by_manager_section(recipients)
+    change_paths = (
+        (admin_part, f"/admin/orders/order/{order.id}/change/"),
+        (manager_part, reverse("manager:orders_order_change", args=[order.id])),
+    )
 
     # Отправляем email
     try:
-        send_mail(
-            subject=f"[OPTISPORT] Новый заказ #{order.order_number}",
-            message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=list(recipients),
-            html_message=html_message,
-            fail_silently=False,
-        )
+        for recipient_list, change_path in change_paths:
+            if not recipient_list:
+                continue
+            html_message, plain_message = _render_new_order_email(
+                order, {**context, "admin_url": f"{site_url}{change_path}"}
+            )
+            send_mail(
+                subject=f"[OPTISPORT] Новый заказ #{order.order_number}",
+                message=plain_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=recipient_list,
+                html_message=html_message,
+                fail_silently=False,
+            )
 
         logger.info(
             "Order notification email sent successfully",

@@ -14,10 +14,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, cast
 
 from django.core.exceptions import ValidationError
 from django.db.models import Exists, OuterRef, Q, QuerySet
+from django.db.models.functions import Lower
 from django.forms import Field, ModelChoiceField
 from django.http import HttpRequest
 
@@ -86,6 +88,32 @@ def responsible_manager_candidates() -> QuerySet[User]:
     from apps.users.models import User
 
     return User.objects.filter(responsible_manager_candidate_q())
+
+
+def split_by_manager_section(emails: Iterable[str]) -> tuple[list[str], list[str]]:
+    """
+    Делит адреса писем на `(для /admin/, для /manager/)` — по тому, куда пустят получателя.
+
+    В раздел менеджера входит ровно тот, кого можно назначить ответственным
+    (`responsible_manager_candidate_q`, см. `ManagerAdminSite`): менеджер или
+    руководитель. `/admin/` их не пускает, поэтому ссылка из письма должна вести
+    в `/manager/`. Остальные адреса — суперпользователь или адрес без учётной
+    записи — получают ссылку в `/admin/`, как раньше. Email сравнивается без
+    учёта регистра, порядок адресов сохраняется.
+    """
+    from apps.users.models import User
+
+    emails = list(emails)
+    section = {
+        email.lower()
+        for email in User.objects.filter(responsible_manager_candidate_q())
+        .annotate(email_lower=Lower("email"))
+        .filter(email_lower__in=[email.lower() for email in emails])
+        .values_list("email_lower", flat=True)
+    }
+    admin = [email for email in emails if email.lower() not in section]
+    manager = [email for email in emails if email.lower() in section]
+    return admin, manager
 
 
 def manager_label(user: User) -> str:

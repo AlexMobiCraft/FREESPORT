@@ -20,6 +20,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.users.models import User
+from apps.users.staff_roles import split_by_manager_section
 
 logger = logging.getLogger(__name__)
 
@@ -66,29 +67,37 @@ def send_admin_verification_email(self: Any, user_id: int) -> bool:
             )
             return False
 
-        # Рендерим template
-        context = {
-            "user": user,
-            "role_display": user.get_role_display(),
-            "company_name": user.company_name,
-            "tax_id": user.tax_id,
-            "phone": user.phone,
-            "registration_date": user.created_at,
-            "admin_url": f"{settings.SITE_URL}/admin/users/user/{user.id}/verify/",
-        }
-
-        html_message = render_to_string("emails/admin_new_verification_request.html", context)
-        plain_message = render_to_string("emails/admin_new_verification_request.txt", context)
-
-        # Отправляем email
-        send_mail(
-            subject=(f"[OPTISPORT] Новая заявка: {user.get_role_display()} - " f"{user.company_name}"),
-            message=plain_message,
-            from_email=None,  # Uses DEFAULT_FROM_EMAIL
-            recipient_list=admin_emails,
-            html_message=html_message,
-            fail_silently=False,
+        # Менеджер или руководитель среди получателей в /admin/ не войдёт —
+        # ему уходит отдельное письмо со ссылкой в раздел менеджера.
+        admin_part, manager_part = split_by_manager_section(admin_emails)
+        verify_paths = (
+            (admin_part, f"/admin/users/user/{user.id}/verify/"),
+            (manager_part, reverse("manager:users_user_verify", args=[user.id])),
         )
+        for recipient_list, verify_path in verify_paths:
+            if not recipient_list:
+                continue
+            context = {
+                "user": user,
+                "role_display": user.get_role_display(),
+                "company_name": user.company_name,
+                "tax_id": user.tax_id,
+                "phone": user.phone,
+                "registration_date": user.created_at,
+                "admin_url": f"{settings.SITE_URL}{verify_path}",
+            }
+
+            html_message = render_to_string("emails/admin_new_verification_request.html", context)
+            plain_message = render_to_string("emails/admin_new_verification_request.txt", context)
+
+            send_mail(
+                subject=(f"[OPTISPORT] Новая заявка: {user.get_role_display()} - " f"{user.company_name}"),
+                message=plain_message,
+                from_email=None,  # Uses DEFAULT_FROM_EMAIL
+                recipient_list=recipient_list,
+                html_message=html_message,
+                fail_silently=False,
+            )
 
         logger.info(
             "Admin verification email sent successfully",
