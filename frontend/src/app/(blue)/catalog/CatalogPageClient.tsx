@@ -22,7 +22,6 @@ import categoriesService from '@/services/categoriesService';
 import brandsService from '@/services/brandsService';
 import type { AxiosError } from 'axios';
 import type { Product, CategoryTree as CategoryTreeResponse, Brand } from '@/types/api';
-import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useFavoritesStore } from '@/stores/favoritesStore';
 import { useToast } from '@/components/ui/Toast';
@@ -496,9 +495,8 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
     'admin',
   ].includes(userRole);
 
-  // Cart integration
-  const { addItem } = useCartStore();
-  const { success, error: toastError } = useToast();
+  // Ошибки избранного
+  const { error: toastError } = useToast();
 
   // Favorites integration
   const favorites = useFavoritesStore(state => state.favorites);
@@ -1466,56 +1464,6 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
     return Array.from({ length: MAX_VISIBLE_PAGES }, (_, index) => startPage + index);
   }, [page, totalPages]);
 
-  /**
-   * Обработчик добавления товара в корзину
-   *
-   * ВАЖНО: Список товаров не содержит variants (оптимизация API).
-   * Поэтому сначала запрашиваем детали товара для получения вариантов.
-   * Автоматически выбираем первый доступный вариант.
-   *
-   * TODO: В будущем добавить модальное окно для выбора конкретного варианта
-   */
-  const handleAddToCart = useCallback(
-    async (productId: number) => {
-      const product = products.find(p => p.id === productId);
-      if (!product) {
-        toastError('Товар не найден');
-        return;
-      }
-
-      try {
-        // Запрашиваем детали товара для получения вариантов
-        const productDetail = await productsService.getProductBySlug(product.slug);
-
-        if (!productDetail.variants || productDetail.variants.length === 0) {
-          toastError('У товара отсутствуют варианты для заказа');
-          return;
-        }
-
-        // Выбираем первый доступный вариант
-        const availableVariant = productDetail.variants.find(v => v.is_in_stock);
-
-        if (!availableVariant) {
-          toastError('К сожалению, выбранный товар недоступен');
-          return;
-        }
-
-        // Добавляем в корзину
-        const result = await addItem(availableVariant.id, 1);
-
-        if (result.success) {
-          success(`${product.name} добавлен в корзину`);
-        } else {
-          toastError(result.error || 'Ошибка при добавлении в корзину');
-        }
-      } catch (error) {
-        console.error('Error adding to cart:', error);
-        toastError('Не удалось добавить товар в корзину');
-      }
-    },
-    [products, addItem, success, toastError]
-  );
-
   const renderProducts = () => {
     if (isProductsLoading) {
       return (
@@ -1545,7 +1493,7 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
               layout="list"
               userRole={userRole}
               mode={isB2B ? 'b2b' : 'b2c'}
-              onAddToCart={handleAddToCart}
+              showSelectButton
               isFavorite={favorites.some(f => f.product === product.id)}
               onToggleFavorite={handleToggleFavorite}
             />
@@ -1563,7 +1511,7 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
             layout="grid"
             userRole={userRole}
             mode={isB2B ? 'b2b' : 'b2c'}
-            onAddToCart={handleAddToCart}
+            showSelectButton
             isFavorite={favorites.some(f => f.product === product.id)}
             onToggleFavorite={handleToggleFavorite}
           />

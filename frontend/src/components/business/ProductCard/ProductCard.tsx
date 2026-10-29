@@ -19,7 +19,7 @@
  *   product={product}
  *   layout="grid"
  *   userRole="retail"
- *   onAddToCart={(id) => handleAddToCart(id)}
+ *   showSelectButton
  *   onToggleFavorite={(id) => handleToggleFavorite(id)}
  * />
  * ```
@@ -34,7 +34,6 @@ import { Heart } from 'lucide-react';
 import { ProductBadge } from '@/components/common/ProductBadge';
 import { TextSeparator } from '@/components/common/TextSeparator';
 import { Badge } from '@/components/ui/Badge/Badge';
-import Button from '@/components/ui/Button';
 import type { Product } from '@/types/api';
 import { cn } from '@/utils/cn';
 import { formatPrice, isB2BRole, isPromoApplied, type UserRole } from '@/utils/pricing';
@@ -95,8 +94,8 @@ export interface ProductCardProps {
   userRole?: UserRole;
   /** Показывать RRP (Recommended Retail Price) для B2B */
   showRRP?: boolean;
-  /** Callback при добавлении в корзину */
-  onAddToCart?: (productId: number) => void;
+  /** Показывать кнопку «Выбрать» (ведёт на страницу товара; в корзину — только оттуда) */
+  showSelectButton?: boolean;
   /** Callback при переключении избранного */
   onToggleFavorite?: (productId: number) => void;
   /** Товар в избранном */
@@ -176,6 +175,15 @@ function getPromoPricing(product: Product): { price: number; regularPrice: numbe
   };
 }
 
+// Вид кнопки Button variant="secondary". Вместо <button> — <span>: карточка целиком обёрнута
+// в Link, он и ведёт на товар. Подсветка — по наведению на карточку (group), раз кликабельна вся
+// она; подъём не дублируется — его уже даёт карточка
+const SELECT_BUTTON_STYLES = cn(
+  'inline-flex items-center justify-center px-6 rounded-2xl font-medium transition-all',
+  'bg-neutral-100 text-primary border border-primary shadow-default',
+  'group-hover:bg-primary group-hover:text-white group-hover:shadow-hover'
+);
+
 /**
  * Компонент ProductCard
  */
@@ -187,7 +195,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
       mode = 'b2c',
       userRole = 'retail',
       // showRRP = false,
-      onAddToCart,
+      showSelectButton = false,
       onToggleFavorite,
       isFavorite = false,
       onClick,
@@ -233,13 +241,6 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
       e.preventDefault();
       e.stopPropagation();
       onToggleFavorite?.(product.id);
-    };
-
-    // Обработчик добавления в корзину
-    const handleAddToCart = (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      onAddToCart?.(product.id);
     };
 
     // Получаем основное изображение
@@ -416,7 +417,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
     // List layout
     if (layout === 'list') {
       return (
-        <Link href={`/product/${product.slug}`} className="block">
+        <Link href={`/product/${product.slug}`} className="group block">
           <div
             ref={ref}
             className={cn(
@@ -545,17 +546,9 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                   </div>
                 )}
 
-                {/* Кнопка "В корзину" */}
-                {isInStock && onAddToCart && (
-                  <Button
-                    variant="secondary"
-                    size="small"
-                    onClick={handleAddToCart}
-                    className="mt-3"
-                    aria-label={`Добавить ${product.name} в корзину`}
-                  >
-                    В корзину
-                  </Button>
+                {/* «Выбрать» ведёт на страницу товара через Link карточки */}
+                {isInStock && showSelectButton && (
+                  <span className={cn(SELECT_BUTTON_STYLES, 'h-10 typo-body-s mt-3')}>Выбрать</span>
                 )}
               </div>
             </div>
@@ -566,7 +559,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
 
     // Grid layout (default)
     return (
-      <Link href={`/product/${product.slug}`} className="block">
+      <Link href={`/product/${product.slug}`} className="group block">
         <div
           ref={ref}
           className={cn(
@@ -688,17 +681,9 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
               )}
             </div>
 
-            {/* Кнопка "В корзину" */}
-            {isInStock && onAddToCart && (
-              <Button
-                variant="secondary"
-                size="medium"
-                onClick={handleAddToCart}
-                className="w-full"
-                aria-label={`Добавить ${product.name} в корзину`}
-              >
-                В корзину
-              </Button>
+            {/* «Выбрать» ведёт на страницу товара через Link карточки */}
+            {isInStock && showSelectButton && (
+              <span className={cn(SELECT_BUTTON_STYLES, 'h-11 typo-body-m w-full')}>Выбрать</span>
             )}
 
             {/* Статус наличия */}

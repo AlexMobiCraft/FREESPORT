@@ -44,7 +44,7 @@ test.describe('Favorites Management', () => {
     await expect(favoriteCard.locator('text=Артикул:')).toBeVisible(); // SKU
   });
 
-  test('shows "В корзину" button for available products (AC: 5)', async ({ page }) => {
+  test('shows "Выбрать" link for available products', async ({ page }) => {
     const favoriteCard = page.locator('[data-testid="favorite-card"]').first();
 
     // Skip if no favorites
@@ -56,12 +56,12 @@ test.describe('Favorites Management', () => {
     const outOfStockBadge = favoriteCard.locator('[data-testid="out-of-stock-badge"]');
 
     if (!(await outOfStockBadge.isVisible())) {
-      // Product is available - should have "В корзину" button
-      await expect(favoriteCard.locator('button:has-text("В корзину")')).toBeVisible();
+      // Product is available - should have "Выбрать" link to the product page
+      await expect(favoriteCard.getByRole('link', { name: /^Выбрать/ })).toBeVisible();
     }
   });
 
-  test('adds product to cart when "В корзину" is clicked (AC: 5)', async ({ page }) => {
+  test('opens product page when "Выбрать" is clicked', async ({ page }) => {
     const favoriteCard = page.locator('[data-testid="favorite-card"]').first();
 
     // Skip if no favorites
@@ -76,10 +76,12 @@ test.describe('Favorites Management', () => {
     }
 
     // ACT
-    await favoriteCard.locator('button:has-text("В корзину")').click();
+    const selectLink = favoriteCard.getByRole('link', { name: /^Выбрать/ });
+    const href = await selectLink.getAttribute('href');
+    await selectLink.click();
 
-    // ASSERT - toast notification should appear
-    await expect(page.locator('text=Товар добавлен в корзину')).toBeVisible({ timeout: 5000 });
+    // ASSERT - в корзину добавляют только со страницы товара этой карточки
+    await expect(page).toHaveURL(new RegExp(`${href}$`));
   });
 
   test('removes product from favorites (AC: 6)', async ({ page }) => {
