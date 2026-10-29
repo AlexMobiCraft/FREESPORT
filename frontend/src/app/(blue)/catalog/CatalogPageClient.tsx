@@ -420,12 +420,13 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
   const [serverHeadingSlug] = useState(categorySlugParam);
   // Флаг означает "попытка загрузки категорий завершена" (включая ошибку) — F3
   const [isCategoryLoadAttempted, setIsCategoryLoadAttempted] = useState(false);
-  // Стартуем раскрытыми (десктоп); на мобилке их сворачивает layout-эффект при маунте
+  // «Категории» раскрыты по умолчанию на любом экране
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
+  // Стартуем раскрытыми (десктоп); на мобилке их сворачивает layout-эффект при маунте
   const [isBrandsOpen, setIsBrandsOpen] = useState(true);
-  // Пока false (серверный HTML и первый клиентский рендер), раскрытость секций задаёт
-  // CSS-брейкпоинт lg:, а не состояние: иначе на мобилке раскрытый в SSR сайдбар
-  // схлопнулся бы после гидратации и сдвинул выдачу
+  // Пока false (серверный HTML и первый клиентский рендер), раскрытость «Торговой марки»
+  // задаёт CSS-брейкпоинт lg:, а не состояние: иначе на мобилке раскрытая в SSR секция
+  // схлопнулась бы после гидратации и сдвинула выдачу
   const [isBreakpointResolved, setIsBreakpointResolved] = useState(false);
 
   // Badge-фильтры из URL (is_new, is_hit, is_sale, is_promo)
@@ -510,14 +511,12 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
     }
   }, [user, fetchFavorites]);
 
-  // Responsive: при маунте секции «Категории» и «Торговая марка» раскрыты на десктопе
-  // и свёрнуты на мобилке. До этого их вид задавали lg:-классы, поэтому видимое состояние
+  // Responsive: при маунте секция «Торговая марка» раскрыта на десктопе и свёрнута
+  // на мобилке. До этого её вид задавали lg:-классы, поэтому видимое состояние
   // не меняется. useLayoutEffect выполняется ДО paint → исключает «мигание» (F1).
   // Listener на change не ставим: ресайз не сбрасывает выбор пользователя (AC 11)
   useIsomorphicLayoutEffect(() => {
-    const isDesktop = window.matchMedia(DESKTOP_BREAKPOINT).matches;
-    setIsCategoriesOpen(isDesktop);
-    setIsBrandsOpen(isDesktop);
+    setIsBrandsOpen(window.matchMedia(DESKTOP_BREAKPOINT).matches);
     setIsBreakpointResolved(true);
   }, []);
 
@@ -1663,13 +1662,13 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
                     'flex items-center gap-2 cursor-pointer text-base font-semibold text-gray-900',
                     'min-h-[44px]' // Минимальный touch target для a11y (F8)
                   )}
-                  aria-expanded={isBreakpointResolved ? isCategoriesOpen : undefined}
+                  aria-expanded={isCategoriesOpen}
                   aria-controls="filter-categories"
                 >
                   <ChevronDown
                     className={cn(
                       `w-4 h-4 text-gray-500 transition-transform ${FILTER_ANIMATION_DURATION}`,
-                      isBreakpointResolved ? isCategoriesOpen && 'rotate-180' : 'lg:rotate-180'
+                      isCategoriesOpen && 'rotate-180'
                     )}
                   />
                   <span>Категории</span>
@@ -1686,11 +1685,9 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
                 id="filter-categories"
                 className={cn(
                   `grid transition-all ${FILTER_ANIMATION_DURATION}`,
-                  !isBreakpointResolved
-                    ? 'grid-rows-[0fr] opacity-0 mt-0 lg:grid-rows-[1fr] lg:opacity-100 lg:mt-4'
-                    : isCategoriesOpen
-                      ? 'grid-rows-[1fr] opacity-100 mt-4'
-                      : 'grid-rows-[0fr] opacity-0 mt-0'
+                  isCategoriesOpen
+                    ? 'grid-rows-[1fr] opacity-100 mt-4'
+                    : 'grid-rows-[0fr] opacity-0 mt-0'
                 )}
               >
                 <div className="min-h-0 overflow-hidden">

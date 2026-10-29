@@ -469,7 +469,7 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
     }
   });
 
-  it('F4: фильтры должны быть свёрнуты на мобильных устройствах', async () => {
+  it('F4: на мобилке «Категории» раскрыты, «Торговая марка» свёрнута', async () => {
     // Переопределяем matchMedia для мобильного устройства
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
@@ -488,9 +488,8 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
     render(<CatalogPage />);
 
     await waitFor(() => {
-      // Проверяем, что кнопки фильтров имеют aria-expanded="false"
       const categoryButton = screen.getByRole('button', { name: /Категории/i });
-      expect(categoryButton).toHaveAttribute('aria-expanded', 'false');
+      expect(categoryButton).toHaveAttribute('aria-expanded', 'true');
 
       const brandButton = screen.getByRole('button', { name: /Торговая марка/i });
       expect(brandButton).toHaveAttribute('aria-expanded', 'false');
@@ -696,8 +695,8 @@ describe('CatalogPage — сортировка и скрытие пустых к
 });
 
 // ---------------------------------------------------------------------------
-// Секции «Категории» и «Торговая марка»: раскрыты на десктопе, свёрнуты на мобилке
-// (мобилка — тест F4 выше)
+// Секции сайдбара: «Категории» раскрыты на любом экране, «Торговая марка» — на десктопе,
+// на мобилке свёрнута (мобилка — также тест F4 выше)
 // ---------------------------------------------------------------------------
 
 describe('CatalogPage — раскрытость секций сайдбара по умолчанию', () => {
@@ -746,7 +745,7 @@ describe('CatalogPage — раскрытость секций сайдбара �
     }
   });
 
-  it('на мобилке после гидратации обе секции свёрнуты без lg:-классов', async () => {
+  it('на мобилке после гидратации «Категории» раскрыты, «Торговая марка» свёрнута', async () => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -762,18 +761,20 @@ describe('CatalogPage — раскрытость секций сайдбара �
     });
     render(<CatalogPage />);
 
-    await screen.findByRole('button', { name: /Категории/i });
+    const categoryButton = await screen.findByRole('button', { name: /Категории/i });
+    const brandButton = screen.getByRole('button', { name: /Торговая марка/i });
     const categories = document.getElementById('filter-categories');
     const brands = document.getElementById('filter-brands');
 
-    expect(categories).toHaveClass('grid-rows-[0fr]');
-    expect(categories).not.toHaveClass('lg:grid-rows-[1fr]');
+    expect(categoryButton).toHaveAttribute('aria-expanded', 'true');
+    expect(categories).toHaveClass('grid-rows-[1fr]', 'opacity-100');
+    expect(chevron(document, 'filter-categories')).toHaveClass('rotate-180');
+
+    expect(brandButton).toHaveAttribute('aria-expanded', 'false');
     expect(brands).toHaveClass('grid-rows-[0fr]');
     expect(brands).not.toHaveClass('lg:grid-rows-[1fr]');
-    for (const controls of ['filter-categories', 'filter-brands']) {
-      expect(chevron(document, controls)).not.toHaveClass('rotate-180');
-      expect(chevron(document, controls)).not.toHaveClass('lg:rotate-180');
-    }
+    expect(chevron(document, 'filter-brands')).not.toHaveClass('rotate-180');
+    expect(chevron(document, 'filter-brands')).not.toHaveClass('lg:rotate-180');
   });
 
   it('на десктопе клик по «Категории» сворачивает секцию', async () => {
@@ -818,21 +819,22 @@ describe('CatalogPage — раскрытость секций сайдбара �
     expect(allCheckbox).toBeChecked();
   });
 
-  it('в серверном HTML раскрытость секций задаёт брейкпоинт lg:', () => {
+  it('в серверном HTML «Категории» раскрыты, раскрытость «Торговой марки» задаёт lg:', () => {
     const container = document.createElement('div');
     container.innerHTML = renderToString(<CatalogPage />);
 
     const categories = container.querySelector('#filter-categories');
     const brands = container.querySelector('#filter-brands');
 
-    expect(categories).toHaveClass(
-      'grid-rows-[0fr]',
-      'opacity-0',
-      'lg:grid-rows-[1fr]',
-      'lg:opacity-100'
+    // «Категории» раскрыты на любом экране — гидратация их не схлопывает
+    expect(categories).toHaveClass('grid-rows-[1fr]', 'opacity-100', 'mt-4');
+    expect(categories).not.toHaveClass('lg:grid-rows-[1fr]');
+    expect(chevron(container, 'filter-categories')).toHaveClass('rotate-180');
+    expect(container.querySelector('[aria-controls="filter-categories"]')).toHaveAttribute(
+      'aria-expanded',
+      'true'
     );
-    expect(categories).not.toHaveClass('grid-rows-[1fr]');
-    expect(categories).not.toHaveClass('opacity-100');
+
     expect(brands).toHaveClass(
       'grid-rows-[0fr]',
       'opacity-0',
@@ -841,14 +843,12 @@ describe('CatalogPage — раскрытость секций сайдбара �
     );
     expect(brands).not.toHaveClass('grid-rows-[1fr]');
     expect(brands).not.toHaveClass('opacity-100');
-    for (const controls of ['filter-categories', 'filter-brands']) {
-      expect(chevron(container, controls)).toHaveClass('lg:rotate-180');
-      expect(chevron(container, controls)).not.toHaveClass('rotate-180');
-      // До гидратации раскрытость неизвестна: aria-expanded не выводим
-      expect(container.querySelector(`[aria-controls="${controls}"]`)).not.toHaveAttribute(
-        'aria-expanded'
-      );
-    }
+    expect(chevron(container, 'filter-brands')).toHaveClass('lg:rotate-180');
+    expect(chevron(container, 'filter-brands')).not.toHaveClass('rotate-180');
+    // До гидратации раскрытость «Торговой марки» неизвестна: aria-expanded не выводим
+    expect(container.querySelector('[aria-controls="filter-brands"]')).not.toHaveAttribute(
+      'aria-expanded'
+    );
   });
 });
 
