@@ -109,6 +109,28 @@ class TestSendAdminVerificationEmail:
         assert result is True
         mock_send_mail.assert_called_once()
 
+    @patch("apps.users.tasks.send_mail")
+    def test_send_admin_email_contains_phone(self, mock_send_mail, verification_recipient):
+        """Телефон клиента виден в обеих версиях письма."""
+        user = UserFactory(role="wholesale_level1", company_name="ООО Тест", phone="+79991234567")
+
+        send_admin_verification_email(user.id)
+
+        call_kwargs = mock_send_mail.call_args.kwargs
+        assert "+79991234567" in call_kwargs["html_message"]
+        assert "Телефон: +79991234567" in call_kwargs["message"]
+
+    @patch("apps.users.tasks.send_mail")
+    def test_send_admin_email_without_phone(self, mock_send_mail, verification_recipient):
+        """Без телефона в письме пишется «не указан», а не пустое место."""
+        user = UserFactory(role="wholesale_level1", company_name="ООО Тест", phone="")
+
+        send_admin_verification_email(user.id)
+
+        call_kwargs = mock_send_mail.call_args.kwargs
+        assert "Телефон: не указан" in call_kwargs["message"]
+        assert "не указан" in call_kwargs["html_message"]
+
 
 @pytest.mark.unit
 @pytest.mark.django_db

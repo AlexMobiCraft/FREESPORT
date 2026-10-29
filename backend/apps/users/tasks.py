@@ -72,6 +72,7 @@ def send_admin_verification_email(self: Any, user_id: int) -> bool:
             "role_display": user.get_role_display(),
             "company_name": user.company_name,
             "tax_id": user.tax_id,
+            "phone": user.phone,
             "registration_date": user.created_at,
             "admin_url": f"{settings.SITE_URL}/admin/users/user/{user.id}/verify/",
         }
