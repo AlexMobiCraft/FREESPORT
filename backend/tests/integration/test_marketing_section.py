@@ -628,7 +628,7 @@ class TestProductChangelist:
     @pytest.mark.parametrize(
         ("photo", "base_image", "expected"),
         [
-            (True, "/products/b.png", None),
+            (True, "/products/b.png", "/media/products/b.png"),
             (False, "/products/b.png", "/media/products/b.png"),
             (False, "/media/products/b.png", "/media/products/b.png"),
             (False, "http://cdn.example.com/b.png", "http://cdn.example.com/b.png"),
@@ -638,18 +638,26 @@ class TestProductChangelist:
         ],
     )
     def test_photo_src(self, marketer_client, photo, base_image, expected):
-        """Фото варианта важнее base_images; путь base_images приводится к /media/."""
-        product = make_product(photo=photo, base_images=[base_image])
-        if expected is None:
-            expected = f"{settings.MEDIA_URL}{product.variants.get().main_image.name}"
+        """Первое фото 1С (base_images) важнее фото варианта; путь приводится к /media/."""
+        make_product(photo=photo, base_images=[base_image])
 
         html = marketer_client.get(PRODUCTS_URL).content.decode()
 
         assert re.findall(r'<img src="([^"]*)" style="max-height:50px', html) == [expected]
 
+    def test_photo_of_variant_without_base_images(self, marketer_client):
+        """Без base_images — фото варианта."""
+        product = make_product(base_images=[])
+
+        html = marketer_client.get(PRODUCTS_URL).content.decode()
+
+        assert re.findall(r'<img src="([^"]*)" style="max-height:50px', html) == [
+            f"{settings.MEDIA_URL}{product.variants.get().main_image.name}"
+        ]
+
     def test_photo_of_first_variant_with_photo(self, marketer_client):
         """Из нескольких вариантов с фото — вариант с меньшим pk; вариант без фото пропускается."""
-        product = make_product(photo=False, base_images=["/products/b.png"])
+        product = make_product(photo=False, base_images=[])
         first, second = (
             ProductVariantFactory(product=product, main_image=f"products/variants/{get_unique_suffix()}.png")
             for _ in range(2)

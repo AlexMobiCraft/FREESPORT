@@ -20,6 +20,7 @@ from apps.common.consent_texts import MAX_VERSION_LENGTH, is_current_consent_tex
 from apps.common.models import UserConsent
 from apps.common.serializers import CONSENT_TEXT_OUTDATED, consent_text_outdated_error
 from apps.orders.models import Order
+from apps.products.utils.images import product_main_image_url
 
 from .models import Address, Company, Favorite, User
 from .phone import ANY_PHONE_PATTERN, get_phone_format, is_known_phone_country, is_valid_phone_for_country
@@ -815,19 +816,11 @@ class FavoriteSerializer(serializers.ModelSerializer):
 
     def get_product_image(self, obj: Favorite) -> str | None:
         """
-        Получить изображение товара из ProductVariant или Product.base_images.
-        Epic 13/14: изображения хранятся в ProductVariant.main_image
-        с fallback на Product.base_images.
+        Получить изображение товара — тот же кадр, что в каталоге:
+        первое из Product.base_images, затем фото первого активного варианта.
         """
         product = obj.product
-        # Пробуем получить изображение из первого активного варианта
-        first_variant = self._get_first_active_variant(product)
-        if first_variant and first_variant.main_image:
-            return str(first_variant.main_image)
-        # Fallback на base_images
-        if product.base_images and len(product.base_images) > 0:
-            return str(product.base_images[0])
-        return None
+        return product_main_image_url(product, self._get_first_active_variant(product))
 
 
 class FavoriteCreateSerializer(serializers.ModelSerializer):

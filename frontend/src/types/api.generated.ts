@@ -1721,9 +1721,8 @@ export interface components {
        */
       readonly product_price: string | null;
       /**
-       * @description Получить изображение товара из ProductVariant или Product.base_images.
-       *     Epic 13/14: изображения хранятся в ProductVariant.main_image
-       *     с fallback на Product.base_images.
+       * @description Получить изображение товара — тот же кадр, что в каталоге:
+       *     первое из Product.base_images, затем фото первого активного варианта.
        */
       readonly product_image: string | null;
       readonly product_slug: string;
@@ -2483,7 +2482,7 @@ export interface components {
       /** @description Проверить наличие товара (любой вариант в наличии) */
       readonly is_in_stock: boolean;
       /**
-       * @description Получить основное изображение из первого варианта или base_images
+       * @description Получить основное изображение: первое из base_images, затем из первого варианта
        *
        *     Возвращает относительный URL с /media/ префиксом
        */
@@ -2541,7 +2540,7 @@ export interface components {
      *       по первому варианту (вариант с акционной ценой — первым)
      *     - stock_quantity: суммарное количество на складе по всем вариантам
      *     - is_in_stock: есть ли хотя бы один вариант в наличии
-     *     - main_image: изображение из первого варианта или base_images
+     *     - main_image: первое фото из base_images (порядок 1С), без него — из первого варианта
      *     - can_be_ordered: можно ли заказать товар
      */
     ProductList: {
@@ -2645,7 +2644,7 @@ export interface components {
       /** @description Проверить наличие товара (любой вариант в наличии) */
       readonly is_in_stock: boolean;
       /**
-       * @description Получить основное изображение из первого варианта или base_images
+       * @description Получить основное изображение: первое из base_images, затем из первого варианта
        *
        *     Возвращает относительный URL с /media/ префиксом
        */

@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any, Dict
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from apps.products.utils.images import product_main_image_url
+
 from .models import Cart, CartItem
 
 if TYPE_CHECKING:
@@ -50,31 +52,9 @@ class CartItemSerializer(serializers.ModelSerializer):
         """Получить информацию о товаре"""
         product = obj.variant.product
 
-        # Получаем главное изображение (логика аналогична ProductListSerializer)
+        # Главное изображение — как в каталоге (ProductListSerializer.get_main_image).
         # ВАЖНО: Возвращаем относительный URL для проксирования через Next.js
-        image_url = None
-
-        # 1. Проверяем main_image варианта
-        if obj.variant.main_image:
-            image_url = obj.variant.main_image.url
-        # 2. Fallback на gallery_images варианта
-        elif obj.variant.gallery_images and isinstance(obj.variant.gallery_images, list):
-            img = obj.variant.gallery_images[0]
-            if img.startswith("/products/"):
-                image_url = f"/media{img}"
-            elif not img.startswith("/media/") and not img.startswith(("http://", "https://")):
-                image_url = f"/media/{img.lstrip('/')}"
-            else:
-                image_url = img
-        # 3. Fallback на base_images товара
-        elif product.base_images and isinstance(product.base_images, list) and product.base_images:
-            img = product.base_images[0]
-            if img.startswith("/products/"):
-                image_url = f"/media{img}"
-            elif not img.startswith("/media/") and not img.startswith(("http://", "https://")):
-                image_url = f"/media/{img.lstrip('/')}"
-            else:
-                image_url = img
+        image_url = product_main_image_url(product, obj.variant)
 
         return {
             "id": product.id,

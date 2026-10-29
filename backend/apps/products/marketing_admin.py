@@ -25,6 +25,7 @@ from django.utils.html import format_html
 
 from apps.products.admin import BrandAdmin, HomepageCategoryAdmin, ProductAdmin
 from apps.products.models import Brand, Category, HomepageCategory, Product, ProductVariant
+from apps.products.utils.images import product_main_image_url
 from freesport.admin_site import marketing_site
 
 # Метки, которые сотрудник правит руками. «Акция» в их число не входит: её
@@ -181,18 +182,9 @@ class MarketingProductAdmin(ProductAdmin):
 
 
 def _product_photo_url(obj: Product) -> str | None:
-    # Порядок и нормализация пути — как ProductListSerializer.get_main_image.
+    # Тот же кадр, что в каталоге (ProductListSerializer.get_main_image).
     variants = getattr(obj, "marketing_photo_variants", [])
-    if variants:
-        return str(variants[0].main_image.url)
-    if obj.base_images and isinstance(obj.base_images, list):
-        img_url = str(obj.base_images[0])
-        if img_url.startswith("/products/"):
-            return f"/media{img_url}"
-        if not img_url.startswith("/media/") and not img_url.startswith(("http://", "https://")):
-            return f"/media/{img_url.lstrip('/')}"
-        return img_url
-    return None
+    return product_main_image_url(obj, variants[0] if variants else None)
 
 
 class MarketingBrandForm(SeenValuesForm):
