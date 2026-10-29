@@ -15,6 +15,7 @@ from rest_framework import serializers
 from .category_utils import FULL_PLACEHOLDER_CATEGORY_RE_PATTERN
 from .models import Attribute, AttributeValue, Brand, Category, ColorMapping, Product, ProductImage, ProductVariant
 from .pricing_policy import WHOLESALE_PRICE_FIELDS, can_see_info_prices, can_see_wholesale_prices
+from .utils.images import product_main_image_url
 
 # Константы для отображения диапазонов остатков
 STOCK_RANGE_LIMITS = {
@@ -502,7 +503,7 @@ class ProductListSerializer(serializers.ModelSerializer):
       по первому варианту (вариант с акционной ценой — первым)
     - stock_quantity: суммарное количество на складе по всем вариантам
     - is_in_stock: есть ли хотя бы один вариант в наличии
-    - main_image: изображение из первого варианта или base_images
+    - main_image: первое фото из base_images (порядок 1С), без него — из первого варианта
     - can_be_ordered: можно ли заказать товар
     """
 
@@ -720,24 +721,11 @@ class ProductListSerializer(serializers.ModelSerializer):
 
     def get_main_image(self, obj: Product) -> str | None:
         """
-        Получить основное изображение из первого варианта или base_images
+        Получить основное изображение: первое из base_images, затем из первого варианта
 
         Возвращает относительный URL с /media/ префиксом
         """
-        variant = self._get_first_variant(obj)
-        if variant and variant.main_image:
-            # Возвращаем URL, а не ImageField объект
-            return str(variant.main_image.url)
-        # Fallback на base_images
-        if obj.base_images and isinstance(obj.base_images, list) and obj.base_images:
-            img_url = obj.base_images[0]
-            # Добавляем /media/ префикс если путь начинается с /products/
-            if img_url.startswith("/products/"):
-                return f"/media{img_url}"
-            elif not img_url.startswith("/media/") and not img_url.startswith(("http://", "https://")):
-                return f"/media/{img_url.lstrip('/')}"
-            return str(img_url)
-        return None
+        return product_main_image_url(obj, self._get_first_variant(obj))
 
     def get_can_be_ordered(self, obj: Product) -> bool:
         """Проверить можно ли заказать товар"""
