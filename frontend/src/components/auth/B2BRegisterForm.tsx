@@ -437,13 +437,15 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
         <h3 className="text-body-m font-semibold text-gray-900">Реквизиты компании</h3>
 
         <Input
-          label="Название компании"
+          label="Юридическое лицо или ИП"
           type="text"
           {...register('company_name')}
           error={errors.company_name?.message}
           disabled={isSubmitting}
           autoComplete="organization"
-          placeholder="ООО Спорт"
+          placeholder="ООО «Ромашка»"
+          helper="Как в регистрационных документах, а не торговая марка. Например, ИП Иванов Иван Иванович."
+          aria-required
         />
 
         <Input

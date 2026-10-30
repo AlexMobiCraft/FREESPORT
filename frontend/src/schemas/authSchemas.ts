@@ -11,6 +11,8 @@ import { validateINN, validateOGRN } from '@/utils/validators/b2b-validators';
 import { getPhoneFormatMessage, isValidPhone } from '@/utils/validators/phone';
 
 const PDP_CONSENT_REQUIRED_MESSAGE = 'Необходимо согласие на обработку персональных данных.';
+const COMPANY_NAME_REQUIRED_MESSAGE = 'Укажите название юридического лица или ИП';
+const COMPANY_NAME_TOO_LONG_MESSAGE = 'Название не должно превышать 200 символов';
 
 /**
  * Телефон: формат зависит от страны формы (см. `isPhoneValidForCountry`), поэтому само
@@ -78,7 +80,7 @@ export const registerSchema = z
       message: 'Выберите тип аккаунта',
     }),
     // Story 29.1: Условные B2B поля
-    company_name: z.string().optional(),
+    company_name: z.string().max(200, COMPANY_NAME_TOO_LONG_MESSAGE).optional(),
     tax_id: z.string().optional(),
     // Страна регистрации B2B — по ней (или коду субъекта РФ из ИНН) заявка
     // маршрутизируется на регионального менеджера. Показывается для B2B-ролей.
@@ -101,7 +103,7 @@ export const registerSchema = z
       return true;
     },
     {
-      message: 'Название компании обязательно для B2B регистрации',
+      message: COMPANY_NAME_REQUIRED_MESSAGE,
       path: ['company_name'],
     }
   )
@@ -165,10 +167,12 @@ export const b2bRegisterSchema = z
     confirmPassword: z.string().min(1, 'Подтверждение пароля обязательно'),
 
     // Реквизиты компании
+    // refine вместо trim(): строка из пробелов не проходит, а введённое значение
+    // уходит в запрос без изменений.
     company_name: z
       .string()
-      .min(1, 'Название компании обязательно')
-      .max(255, 'Название компании не должно превышать 255 символов'),
+      .refine(value => value.trim() !== '', COMPANY_NAME_REQUIRED_MESSAGE)
+      .max(200, COMPANY_NAME_TOO_LONG_MESSAGE),
     tax_id: z.string().min(1, 'ИНН обязателен').refine(validateINN, {
       message: 'ИНН должен содержать 10 цифр (юр. лицо) или 12 цифр (ИП)',
     }),

@@ -1202,3 +1202,12 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-catalog-marketing-filters.md`
   summary: H1 и хлебные крошки остаются «Каталог» на подборках, хотя title уже «Акции — каталог…».
   evidence: `generateMetadata` в `frontend/src/app/(blue)/catalog/page.tsx` меняет title для `is_promo`, `is_new`, `is_hit`, `is_sale`, а H1 в `CatalogPageClient.tsx` выбирается только по категории. Страницы подборок есть в sitemap со своим canonical.
+- source_spec: `_bmad-output/implementation-artifacts/spec-registration-legal-entity-field.md`
+  summary: Профиль B2B-клиента не сохраняется, если название длиннее 100 символов.
+  evidence: `frontend/src/components/business/ProfileForm/schema.ts:31` ограничивает `company_name` 100 символами, а регистрация принимает до 200. Значение приходит с сервера, и форма перестаёт проходить валидацию целиком. Было и раньше, но подсказка про документы подталкивает к полным наименованиям.
+- source_spec: `_bmad-output/implementation-artifacts/spec-registration-legal-entity-field.md`
+  summary: Инструкция менеджера не описывает случай, когда тренер без ИП указывает ФИО в поле юрлица.
+  evidence: `backend/templates/admin/instructions/verify_client.html:23-25` говорит только про организацию (10 цифр) и ИП (12 цифр) и называет поле «Название компании». Подсказка на `/register` теперь прямо разрешает ФИО.
+- source_spec: `_bmad-output/implementation-artifacts/spec-registration-legal-entity-field.md`
+  summary: Сохранение реквизитов в кабинете может падать на названии длиной 201–255 символов (severity medium, не подтверждено).
+  evidence: `backend/apps/users/views/personal_cabinet.py:317` копирует `legal_name` (`max_length=255`) в `User.company_name` (`max_length=200`). Подтвердит или снимет находку сохранение реквизитов с названием из 201 символа.

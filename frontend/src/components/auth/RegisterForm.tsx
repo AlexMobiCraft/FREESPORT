@@ -379,14 +379,15 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
       {/* Story 29.1 AC 8: Условные B2B поля - company_name */}
       {isB2BRole && (
         <Input
-          label="Название компании"
+          label="Юридическое лицо или ИП"
           type="text"
           {...register('company_name')}
           error={errors.company_name?.message}
           disabled={isSubmitting}
           autoComplete="organization"
-          placeholder="ООО «Спортмастер»"
-          required
+          placeholder="ООО «Ромашка»"
+          helper="Как в регистрационных документах, а не торговая марка. Например, ИП Иванов Иван Иванович. Тренер без ИП указывает ФИО."
+          aria-required
         />
       )}
 
@@ -400,7 +401,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           disabled={isSubmitting}
           placeholder="1234567890 или 123456789012"
           helper={taxIdHelper}
-          required
+          aria-required
         />
       )}
 
