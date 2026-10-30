@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from django.db import connection
 
 from apps.products.models import Brand, Category, ImportSession, OnecExcludedItem, PriceType, Product, ProductVariant
 from apps.products.services.onec_admission import (
@@ -318,17 +319,22 @@ class TestProductReturn:
         assert product.is_active is False
         assert processor.stats["restored_products"] == 1
 
-    def test_manually_disabled_product_is_not_enabled(self, processor, tree):
-        """`is_active=False` без `onec_deleted` — выключено руками в админке."""
+    def test_disabled_product_with_price_is_enabled(self, processor, tree, caplog):
+        """1С важнее флага сайта: допущенный товар с ценой включается."""
         product = _make_product(tree, "back-3", is_active=False, onec_deleted=False)
         _make_variant(product, "back-3#v1")
 
-        processor.process_product_from_goods(_goods("back-3", ["grp-gloves"]), skip_images=True)
+        with caplog.at_level(logging.INFO, logger="import_products"):
+            processor.process_product_from_goods(_goods("back-3", ["grp-gloves"]), skip_images=True)
 
         product.refresh_from_db()
-        assert product.is_active is False
+        assert product.is_active is True
         assert product.onec_deleted is False
         assert processor.stats["restored_products"] == 0
+        assert processor.stats["reenabled_products"] == 1
+        lines = [r.getMessage() for r in caplog.records if "Товар включён импортом 1С" in r.getMessage()]
+        assert len(lines) == 1
+        assert "back-3" in lines[0] and "ART-back-3" in lines[0] and "Товар back-3" in lines[0]
 
 
 class TestRecategorization:
@@ -478,6 +484,356 @@ class TestMarkedOffer:
         assert product.is_active is True
         assert _registry("off-8#v1") is None
         assert second.stats["restored_variants"] == 1
+
+
+# ============================================================================
+# Приоритет 1С: включение товара, выключенного на сайте
+# ============================================================================
+
+
+class TestReenableDisabledProduct:
+    """
+    `is_active=False`, `onec_deleted=False`: включает goods, offer или цена при активном
+    варианте с ценой. На проде goods, offers и цены идут разными сессиями.
+    """
+
+    @pytest.fixture
+    def price_type(self) -> PriceType:
+        return PriceType.objects.create(
+            onec_id="pt-retail", onec_name="Розничная", product_field="retail_price", is_active=True
+        )
+
+    def _price(self, onec_id: str, value: str = "777") -> dict[str, Any]:
+        return {"id": onec_id, "prices": [{"price_type_id": "pt-retail", "value": Decimal(value)}]}
+
+    def _disabled(self, tree: SimpleNamespace, onec_id: str, **variant_fields: Any) -> tuple[Product, ProductVariant]:
+        product = _make_product(tree, onec_id, is_active=False)
+        return product, _make_variant(product, f"{onec_id}#v1", **variant_fields)
+
+    def test_offer_of_existing_variant_enables_parent(self, tree):
+        product, _ = self._disabled(tree, "ren-offer")
+
+        session = _new_processor()
+        session.process_variant_from_offer(_offer("ren-offer#v1"), skip_images=True)
+
+        product.refresh_from_db()
+        assert product.is_active is True
+        assert session.stats["reenabled_products"] == 1
+
+    def test_goods_and_offer_without_price_leave_product_disabled(self, tree):
+        product, _ = self._disabled(tree, "ren-noprice", retail_price=Decimal("0"))
+
+        goods_session = _new_processor()
+        goods_session.process_product_from_goods(_goods("ren-noprice", ["grp-gloves"]), skip_images=True)
+        offers_session = _new_processor()
+        offers_session.process_variant_from_offer(_offer("ren-noprice#v1"), skip_images=True)
+
+        product.refresh_from_db()
+        assert product.is_active is False
+        assert goods_session.stats["reenabled_products"] == 0
+        assert offers_session.stats["reenabled_products"] == 0
+
+    def test_price_enables_product_after_goods_and_offers(self, tree, price_type, caplog):
+        product, _ = self._disabled(tree, "ren-price", retail_price=Decimal("0"))
+        _new_processor().process_product_from_goods(_goods("ren-price", ["grp-gloves"]), skip_images=True)
+        _new_processor().process_variant_from_offer(_offer("ren-price#v1"), skip_images=True)
+        assert Product.objects.get(pk=product.pk).is_active is False
+
+        prices_session = _new_processor()
+        with caplog.at_level(logging.INFO, logger="import_products"):
+            assert prices_session.update_variant_prices(self._price("ren-price#v1")) is True
+
+        product.refresh_from_db()
+        assert product.is_active is True
+        assert prices_session.stats["reenabled_products"] == 1
+        lines = [r.getMessage() for r in caplog.records if "Товар включён импортом 1С" in r.getMessage()]
+        assert len(lines) == 1
+        assert "ren-price" in lines[0] and "ART-ren-price" in lines[0]
+
+    def test_price_runs_outside_price_transaction(self, tree, price_type, monkeypatch):
+        """Товар нельзя брать под транзакцией цены: порядок блокировок — «товар → вариант»."""
+        self._disabled(tree, "ren-order", retail_price=Decimal("0"))
+        session = _new_processor()
+        original = session._enable_priced_product
+        # Глубина точек сохранения: сам тест уже идёт в транзакции `django_db`.
+        depth_before = len(connection.savepoint_ids)
+        depths: list[int] = []
+
+        def recording_enable(product_id: int) -> bool:
+            depths.append(len(connection.savepoint_ids))
+            return original(product_id)
+
+        monkeypatch.setattr(session, "_enable_priced_product", recording_enable)
+
+        assert session.update_variant_prices(self._price("ren-order#v1")) is True
+
+        assert depths == [depth_before]
+
+    def test_price_on_hidden_variant_does_not_count(self, tree, price_type):
+        product = _make_product(tree, "ren-hidden", is_active=False)
+        _make_variant(
+            product, "ren-hidden#v1", is_active=False, onec_deleted=True, retail_price=Decimal("0"), opt1_price=None
+        )
+        OnecExcludedItem.objects.create(onec_id="ren-hidden#v1", kind=KIND_OFFER, reason=REASON_OFFER_MARKED)
+
+        session = _new_processor()
+        assert session.update_variant_prices(self._price("ren-hidden#v1")) is True
+        goods_session = _new_processor()
+        goods_session.process_product_from_goods(_goods("ren-hidden", ["grp-gloves"]), skip_images=True)
+
+        product.refresh_from_db()
+        assert product.is_active is False
+        assert session.stats["reenabled_products"] == 0
+        assert goods_session.stats["reenabled_products"] == 0
+
+    def test_all_offers_marked_prices_are_written_product_stays_disabled(self, tree, price_type):
+        product = _make_product(tree, "ren-all")
+        first = _make_variant(product, "ren-all#v1", retail_price=Decimal("0"))
+        second = _make_variant(product, "ren-all#v2", retail_price=Decimal("0"))
+        offers_session = _new_processor()
+        offers_session.process_variant_from_offer(_offer("ren-all#v1", is_deleted=True), skip_images=True)
+        offers_session.process_variant_from_offer(_offer("ren-all#v2", is_deleted=True), skip_images=True)
+        assert Product.objects.get(pk=product.pk).is_active is False
+
+        session = _new_processor()
+        assert session.update_variant_prices(self._price("ren-all#v1")) is True
+        assert session.update_variant_prices(self._price("ren-all#v2")) is True
+
+        product.refresh_from_db()
+        first.refresh_from_db()
+        second.refresh_from_db()
+        assert first.retail_price == Decimal("777")
+        assert second.retail_price == Decimal("777")
+        assert product.is_active is False
+        assert first.is_active is False and first.onec_deleted is True
+        assert second.is_active is False and second.onec_deleted is True
+        assert session.stats["reenabled_products"] == 0
+
+    def test_unmarked_offer_with_stored_price_restores_variant_and_enables(self, tree):
+        product, variant = self._disabled(tree, "ren-back", is_active=False, onec_deleted=True)
+
+        session = _new_processor()
+        session.process_variant_from_offer(_offer("ren-back#v1"), skip_images=True)
+
+        product.refresh_from_db()
+        variant.refresh_from_db()
+        assert variant.is_active is True
+        assert variant.onec_deleted is False
+        assert product.is_active is True
+        assert session.stats["restored_variants"] == 1
+        assert session.stats["reenabled_products"] == 1
+
+    def test_unmarked_offer_without_price_waits_for_price(self, tree, price_type):
+        product, variant = self._disabled(
+            tree, "ren-wait", is_active=False, onec_deleted=True, retail_price=Decimal("0")
+        )
+
+        session = _new_processor()
+        session.process_variant_from_offer(_offer("ren-wait#v1"), skip_images=True)
+
+        variant.refresh_from_db()
+        assert variant.is_active is True
+        assert variant.onec_deleted is False
+        assert Product.objects.get(pk=product.pk).is_active is False
+        assert session.stats["reenabled_products"] == 0
+
+        prices_session = _new_processor()
+        assert prices_session.update_variant_prices(self._price("ren-wait#v1")) is True
+        assert Product.objects.get(pk=product.pk).is_active is True
+        assert prices_session.stats["reenabled_products"] == 1
+
+    def test_price_does_not_restore_hidden_variant(self, tree, price_type):
+        """Вернуть скрытый вариант может только offer без пометки, цена этого не делает."""
+        product, variant = self._disabled(
+            tree, "ren-nores", is_active=False, onec_deleted=True, retail_price=Decimal("0")
+        )
+
+        assert _new_processor().update_variant_prices(self._price("ren-nores#v1")) is True
+
+        variant.refresh_from_db()
+        product.refresh_from_db()
+        assert variant.is_active is False
+        assert variant.onec_deleted is True
+        assert product.is_active is False
+
+    def test_first_variant_enables_product_without_price(self, tree):
+        """`_create_new_variant` не меняется: новый вариант включает товар без проверки цены."""
+        product = _make_product(tree, "ren-new", is_active=False)
+
+        session = _new_processor()
+        session.process_variant_from_offer(_offer("ren-new#v1"), skip_images=True)
+
+        product.refresh_from_db()
+        assert product.is_active is True
+        assert ProductVariant.objects.get(onec_id="ren-new#v1").retail_price == Decimal("0")
+        assert session.stats["reenabled_products"] == 0
+
+    def test_variant_disabled_without_mark_is_enabled_with_parent(self, tree):
+        product, variant = self._disabled(tree, "ren-plain", is_active=False)
+
+        session = _new_processor()
+        session.process_variant_from_offer(_offer("ren-plain#v1"), skip_images=True)
+
+        variant.refresh_from_db()
+        product.refresh_from_db()
+        assert variant.is_active is True
+        assert product.is_active is True
+        assert session.stats["reenabled_products"] == 1
+
+    @pytest.mark.parametrize("field", ["opt1_price", "promo_price"])
+    def test_wholesale_or_promo_price_is_enough(self, tree, field):
+        product, _ = self._disabled(tree, f"ren-{field}", retail_price=Decimal("0"), **{field: Decimal("50")})
+
+        _new_processor().process_variant_from_offer(_offer(f"ren-{field}#v1"), skip_images=True)
+
+        assert Product.objects.get(pk=product.pk).is_active is True
+
+    def test_zero_stock_does_not_block(self, tree):
+        product, _ = self._disabled(tree, "ren-stock", stock_quantity=0)
+
+        _new_processor().process_variant_from_offer(_offer("ren-stock#v1"), skip_images=True)
+
+        assert Product.objects.get(pk=product.pk).is_active is True
+
+    def test_owner_of_variant_is_enabled_among_parent_duplicates(self, tree):
+        """Дубли `parent_onec_id`: `_get_product_by_parent_id` вернёт другого, включается владелец."""
+        one = _make_product(tree, "ren-dup-1", parent_onec_id="ren-dup", is_active=False)
+        two = _make_product(tree, "ren-dup-2", parent_onec_id="ren-dup", is_active=False)
+        session = _new_processor()
+        first = session._get_product_by_parent_id("ren-dup")
+        assert first is not None
+        owner = two if first.pk == one.pk else one
+        other = one if owner is two else two
+        _make_variant(owner, "ren-dup#v1")
+
+        session.process_variant_from_offer(_offer("ren-dup#v1"), skip_images=True)
+
+        owner.refresh_from_db()
+        other.refresh_from_db()
+        assert owner.is_active is True
+        assert other.is_active is False
+        assert session.stats["reenabled_products"] == 1
+
+    def test_goods_enables_every_duplicate_with_price(self, tree):
+        one = _make_product(tree, "ren-gdup-1", parent_onec_id="ren-gdup", is_active=False)
+        two = _make_product(tree, "ren-gdup-2", parent_onec_id="ren-gdup", is_active=False)
+        _make_variant(one, "ren-gdup-1#v1")
+        _make_variant(two, "ren-gdup-2#v1", retail_price=Decimal("0"))
+
+        session = _new_processor()
+        session.process_product_from_goods(_goods("ren-gdup", ["grp-gloves"]), skip_images=True)
+
+        one.refresh_from_db()
+        two.refresh_from_db()
+        assert one.is_active is True
+        assert two.is_active is False
+        assert session.stats["reenabled_products"] == 1
+
+    def test_goods_without_anchor_does_not_enable(self, tree, settings):
+        settings.ROOT_CATEGORY_NAME = "НЕТ ТАКОГО ЯКОРЯ"
+        product, _ = self._disabled(tree, "ren-noanchor")
+
+        session = _new_processor()
+        session.process_product_from_goods(_goods("ren-noanchor", ["grp-gloves"]), skip_images=True)
+
+        assert session._anchor_missing is True
+        assert Product.objects.get(pk=product.pk).is_active is False
+        assert session.stats["reenabled_products"] == 0
+
+    def test_zeroed_price_leaves_active_product_active(self, tree, price_type):
+        product = _make_product(tree, "ren-zero")
+        variant = _make_variant(product, "ren-zero#v1")
+
+        session = _new_processor()
+        assert session.update_variant_prices(self._price("ren-zero#v1", "0")) is True
+
+        variant.refresh_from_db()
+        product.refresh_from_db()
+        assert variant.retail_price == Decimal("0")
+        assert product.is_active is True
+        assert session.stats["reenabled_products"] == 0
+
+    @pytest.mark.parametrize("path", ["offer", "price"])
+    def test_product_hidden_by_import_is_not_enabled(self, tree, price_type, path):
+        product = _make_product(tree, "ren-imp", is_active=False, onec_deleted=True)
+        _make_variant(product, "ren-imp#v1")
+
+        session = _new_processor()
+        if path == "offer":
+            session.process_variant_from_offer(_offer("ren-imp#v1"), skip_images=True)
+        else:
+            session.update_variant_prices(self._price("ren-imp#v1"))
+
+        product.refresh_from_db()
+        assert product.is_active is False
+        assert product.onec_deleted is True
+        assert session.stats["reenabled_products"] == 0
+
+    def test_not_admitted_goods_hides_as_before(self, tree):
+        product, _ = self._disabled(tree, "ren-rej")
+
+        session = _new_processor()
+        session.process_product_from_goods(_goods("ren-rej", ["grp-trash"]), skip_images=True)
+
+        product.refresh_from_db()
+        assert product.is_active is False
+        assert product.onec_deleted is True
+        assert session.stats["hidden_products"] == 1
+        assert session.stats["reenabled_products"] == 0
+
+    def test_active_product_is_left_alone(self, tree, price_type, caplog):
+        product = _make_product(tree, "ren-act")
+        _make_variant(product, "ren-act#v1")
+        Product.objects.filter(pk=product.pk).update(updated_at="2020-01-01T00:00:00Z")
+        stamp = Product.objects.get(pk=product.pk).updated_at
+
+        session = _new_processor()
+        with caplog.at_level(logging.INFO, logger="import_products"):
+            session.process_variant_from_offer(_offer("ren-act#v1"), skip_images=True)
+            session.update_variant_prices(self._price("ren-act#v1"))
+
+        assert Product.objects.get(pk=product.pk).updated_at == stamp
+        assert session.stats["reenabled_products"] == 0
+        assert not any("Товар включён импортом 1С" in r.getMessage() for r in caplog.records)
+
+    def test_enabling_keeps_sync_status(self, tree):
+        product, _ = self._disabled(tree, "ren-sync")
+        Product.objects.filter(pk=product.pk).update(sync_status=Product.SyncStatus.FAILED)
+
+        _new_processor().process_variant_from_offer(_offer("ren-sync#v1"), skip_images=True)
+
+        assert Product.objects.get(pk=product.pk).sync_status == Product.SyncStatus.FAILED
+
+    def test_enabled_by_offer_then_all_marked_in_same_session_is_disabled_again(self, tree):
+        """Кэш сессии не держит устаревший `is_active`: `_reject_offer` видит включённый товар."""
+        product, _ = self._disabled(tree, "ren-cache")
+
+        session = _new_processor()
+        session.process_variant_from_offer(_offer("ren-cache#v1"), skip_images=True)
+        session.process_variant_from_offer(_offer("ren-cache#v1", is_deleted=True), skip_images=True)
+
+        assert Product.objects.get(pk=product.pk).is_active is False
+
+    def test_enabled_by_price_then_all_marked_in_same_session_is_disabled_again(self, tree, price_type):
+        product, _ = self._disabled(tree, "ren-cache2", retail_price=Decimal("0"))
+
+        session = _new_processor()
+        session.process_variant_from_offer(_offer("ren-cache2#v1"), skip_images=True)
+        assert session.update_variant_prices(self._price("ren-cache2#v1")) is True
+        session.process_variant_from_offer(_offer("ren-cache2#v1", is_deleted=True), skip_images=True)
+
+        assert Product.objects.get(pk=product.pk).is_active is False
+
+    def test_counter_reaches_session_report(self, tree):
+        self._disabled(tree, "ren-rep")
+        session = _new_processor()
+        session.process_variant_from_offer(_offer("ren-rep#v1"), skip_images=True)
+
+        session.finalize_session(ImportSession.ImportStatus.COMPLETED)
+
+        stored = ImportSession.objects.get(pk=session.session_id)
+        assert stored.report_details["reenabled_products"] == 1
+        assert "включено выключенных 1" in stored.report
 
 
 class TestOffersOfExcludedProduct:

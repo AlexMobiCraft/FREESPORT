@@ -1221,3 +1221,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-admin-client-role-and-product-flags.md`
   summary: Сохранение карточки клиента, открытой только для чтения флага «активен», после подтверждения заявки может снять флаг и записать `block_user` (severity medium, не подтверждено).
   evidence: Флаг становится правимым, когда `activation_locked` перестаёт действовать, а в POST устаревшей формы его нет (`apps/users/manager_admin.py`, `get_readonly_fields`). Дефект старше этой спеки. Подтвердит или снимет его тест: открыть карточку заявки, подтвердить заявку, отправить старую форму.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-reactivate-disabled-products.md`
+  summary: **`_create_new_variant` не убирает дефолтный вариант.** Когда 1С начинает присылать размеры товара, рядом с ними остаётся пустой вариант без `#`. На проде на 30.10.2026 таких товаров 78; ни у одного из них все варианты с `#` не помечены. Коньки попадут в это число, как только 1С пришлёт размеры: id 327 включится до прихода цены и получит лишний вариант.
+  evidence: `backend/apps/products/services/variant_import.py:1544` создаёт вариант, не проверяя дефолтный; `:1608` включает товар без проверки цены. Спека намеренно оставляет оба поведения. Нужно решение, убирать ли дефолтный вариант при первом варианте с `#` и что делать с его ценой и остатком.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-reactivate-disabled-products.md`
+  summary: `_reject_offer` может оставить товар активным без активных вариантов: он решает по `product.is_active` из кэша сессии и по первому дублю `parent_onec_id`, а не по владельцу варианта.
+  evidence: `backend/apps/products/services/variant_import.py:1729`. Кэш устаревает, если параллельная сессия цен включила товар; проверка идёт по `product` из `_get_product_by_parent_id`. На проде дублей `parent_onec_id` нет. Правка — решать по БД и по `existing_variant.product`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-reactivate-disabled-products.md`
+  summary: Счётчики упавшей сессии импорта, включая `reenabled_products`, не попадают в `report_details`, хотя изменения в БД остаются.
+  evidence: `report_details` пишет только `finalize_session`; в `import_products_from_1c.py:580-590` ветка ошибки его не сохраняет. Строка `admission_report_line` в `report` при этом остаётся. Сумма из Verification спеки может быть меньше фактического числа включений.

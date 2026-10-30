@@ -363,6 +363,8 @@ class VariantImportProcessor:
             "skipped_variants": 0,
             "hidden_variants": 0,
             "restored_variants": 0,
+            # Выключенные на сайте товары, которые импорт включил обратно (приоритет 1С).
+            "reenabled_products": 0,
         }
 
         # Story 13.2+ Debugging: Track specific updated items
@@ -559,6 +561,7 @@ class VariantImportProcessor:
         "restored_products",
         "restored_variants",
         "recategorized_products",
+        "reenabled_products",
     )
 
     def admission_report_line(self) -> str:
@@ -577,7 +580,8 @@ class VariantImportProcessor:
             f"не создано {stats['skipped_products']} товаров / {stats['skipped_variants']} вариантов, "
             f"скрыто {stats['hidden_products']} / {stats['hidden_variants']}, "
             f"возвращено {stats['restored_products']} / {stats['restored_variants']}, "
-            f"перенесено в категорию группы {stats['recategorized_products']}"
+            f"перенесено в категорию группы {stats['recategorized_products']}, "
+            f"включено выключенных {stats['reenabled_products']}"
         )
 
     def log_admission_summary(self) -> None:
@@ -918,9 +922,10 @@ class VariantImportProcessor:
     def _readmit_product(self, product: Any, goods_data: dict[str, Any]) -> None:
         """Допущенный товар: вернуть скрытое импортом, подтянуть отставшую категорию.
 
-        Товар, выключенный вручную (`is_active=False`, `onec_deleted=False`),
-        не включается. Категория переносится только если текущая лежит вне
-        поддерева якоря — полная синхронизация категорий вне объёма.
+        Товар, выключенный на сайте (`is_active=False`, `onec_deleted=False`),
+        включается по правилу `_enable_priced_product`: 1С важнее флага сайта.
+        Категория переносится только если текущая лежит вне поддерева якоря —
+        полная синхронизация категорий вне объёма.
         """
         fields_to_update: list[str] = []
 
@@ -937,6 +942,8 @@ class VariantImportProcessor:
                 product.article,
                 product.name,
             )
+        elif not product.is_active and self._enable_priced_product(product.pk):
+            product.is_active = True
 
         if self._category_filtering_active:
             current = product.category
@@ -1442,8 +1449,7 @@ class VariantImportProcessor:
 
             # Проверка существующего варианта
             if existing_variant:
-                restored = bool(existing_variant.onec_deleted)
-                if restored:
+                if existing_variant.onec_deleted:
                     # Возврат: вариант скрыт пометкой предложения, пометку сняли.
                     # Сам флаг is_active вернёт _update_existing_variant.
                     existing_variant.onec_deleted = False
@@ -1456,8 +1462,9 @@ class VariantImportProcessor:
                         offer_data.get("name") or product.name,
                     )
                 variant = self._update_existing_variant(existing_variant, offer_data, base_dir, skip_images, vat_rate)
-                if restored:
-                    self._activate_parent_product(product)
+                # Владелец — из самого варианта: `product` при дублях `parent_onec_id`
+                # лишь первый из них.
+                self._enable_priced_product(variant.product_id)
                 return variant
 
             # Создание нового варианта
@@ -1640,6 +1647,40 @@ class VariantImportProcessor:
         product.is_active = True
         product.sync_status = product.SyncStatus.IN_PROGRESS
         product.save(update_fields=["is_active", "sync_status"])
+
+    def _enable_priced_product(self, product_id: int) -> bool:
+        """Включить товар, выключенный на сайте, если по нему есть что продавать.
+
+        1С важнее флага сайта: `is_active=False` без `onec_deleted` снимается, когда
+        у товара есть активный вариант с положительной ценой. Цена скрытого варианта
+        не считается, а товар с `onec_deleted` возвращает только допуск в goods.xml.
+
+        Импорт только включает: обнуление цены активный товар не выключает.
+        """
+        from apps.products.models import Product, ProductVariant
+        from apps.products.serializers import priced_variant_q
+
+        priced_variants = ProductVariant.objects.filter(
+            priced_variant_q(), product_id=models.OuterRef("pk"), is_active=True, onec_deleted=False
+        )
+        enabled = Product.objects.filter(
+            models.Exists(priced_variants), pk=product_id, is_active=False, onec_deleted=False
+        ).update(is_active=True, updated_at=timezone.now())
+        if not enabled:
+            return False
+
+        product = Product.objects.values("onec_id", "parent_onec_id", "article", "name").get(pk=product_id)
+        # Объект в кэше сессии устарел, а `_reject_offer` решает по его `is_active`.
+        for parent_id in filter(None, (product["onec_id"], product["parent_onec_id"])):
+            self._product_cache.pop(parent_id, None)
+        self.stats["reenabled_products"] += 1
+        logger.info(
+            "Товар включён импортом 1С: onec_id=%s article=%s name=%s",
+            product["onec_id"],
+            product["article"],
+            product["name"],
+        )
+        return True
 
     def _is_product_excluded(self, parent_id: str) -> bool:
         """Товар исключён правилом допуска: по реестру или в этой сессии."""
@@ -1939,6 +1980,7 @@ class VariantImportProcessor:
             # исключительной (`promo.save_price_type`), поэтому между чтением и записью
             # цен ничего не меняется. Кэшировать справочник нельзя: устаревший объект
             # записал бы акционную цену в `retail_price` или вернул бы цену отключённой акции.
+            price_written = False
             with transaction.atomic():
                 promo.lock_promo_state(shared=True)
                 price_types = self._get_price_types()
@@ -1972,9 +2014,13 @@ class VariantImportProcessor:
                     variant.save(update_fields=fields_to_update)
                     self.stats["prices_updated"] += 1
                     self.updated_variants.append(str(variant.onec_id))
-                    return True
+                    price_written = True
 
-            return False
+            # Только после блока: UPDATE варианта уже прошёл, а общий порядок
+            # блокировок — «товар → вариант» (`promo.lock_variant`).
+            if price_written:
+                self._enable_priced_product(variant.product_id)
+            return price_written
 
         except Exception as e:
             self._log_error(f"Error updating variant prices: {e}", price_data)

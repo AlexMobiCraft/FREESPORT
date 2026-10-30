@@ -1049,6 +1049,7 @@ class Command(BaseCommand):
         self.stdout.write(f"   Товаров не создано:      {stats.get('skipped_products', 0)}")
         self.stdout.write(f"   Товаров скрыто:          {stats.get('hidden_products', 0)}")
         self.stdout.write(f"   Товаров возвращено:      {stats.get('restored_products', 0)}")
+        self.stdout.write(f"   Выключенных включено:    {stats.get('reenabled_products', 0)}")
         self.stdout.write(f"   Перенесено в категорию:  {stats.get('recategorized_products', 0)}")
         self.stdout.write(f"   Вариантов не создано:    {stats.get('skipped_variants', 0)}")
         self.stdout.write(f"   Вариантов скрыто:        {stats.get('hidden_variants', 0)}")

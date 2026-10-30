@@ -506,6 +506,16 @@ class ProductAdmin(admin.ModelAdmin):
         "unmark_as_premium",
     ]
 
+    def get_form(self, request: HttpRequest, obj: Any = None, change: bool = False, **kwargs: Any) -> Any:
+        """Подсказка у «Активный»: поля нет в разделе маркетинга и без права на изменение."""
+        form = super().get_form(request, obj, change=change, **kwargs)
+        if "is_active" in form.base_fields:
+            form.base_fields["is_active"].help_text = (
+                "Выключение держится до прихода данных из 1С. "
+                "Чтобы скрыть товар надолго, пометьте его на удаление в 1С."
+            )
+        return form
+
     @admin.action(description="✓ Отметить как хит продаж", permissions=["change"])
     def mark_as_hit(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: пометить как хит продаж"""
