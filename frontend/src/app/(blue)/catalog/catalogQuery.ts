@@ -79,6 +79,20 @@ export const parsePriceRange = (minParam: string | null, maxParam: string | null
 /** `in_stock` живёт в URL только выключенным: умолчание фильтра — «в наличии» */
 export const parseInStock = (value: string | null): boolean => value !== 'false';
 
+/** Чекбоксы подборок блока «Фильтры» в порядке показа */
+export const MARKETING_FILTERS = [
+  { key: 'is_promo', label: 'Акция' },
+  { key: 'is_new', label: 'Новинка' },
+  { key: 'is_hit', label: 'Лидеры продаж' },
+] as const;
+
+export type MarketingFilter = (typeof MARKETING_FILTERS)[number]['key'];
+
+/** Подборка одна: при нескольких флагах в адресе берётся первая по порядку чекбоксов */
+export const parseMarketingFilter = (
+  get: (key: MarketingFilter) => string | null
+): MarketingFilter | null => MARKETING_FILTERS.find(({ key }) => get(key) === 'true')?.key ?? null;
+
 /** Поиск уходит в запрос только от двух символов — та же граница, что у поля поиска */
 export const parseSearchFilter = (value: string | null): string => {
   const trimmed = (value ?? '').trim();
@@ -119,9 +133,9 @@ export const buildInitialProductFilters = (
     max_price: price.max,
   };
 
-  (['is_new', 'is_hit', 'is_sale', 'is_promo'] as const).forEach(badge => {
-    if (get(badge) === 'true') filters[badge] = true;
-  });
+  const marketingFilter = parseMarketingFilter(get);
+  if (marketingFilter) filters[marketingFilter] = true;
+  if (get('is_sale') === 'true') filters.is_sale = true;
 
   if (categoryId) filters.category_id = categoryId;
   if (parseInStock(get('in_stock'))) filters.in_stock = true;
