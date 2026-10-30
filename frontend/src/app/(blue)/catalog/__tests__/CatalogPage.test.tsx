@@ -1963,6 +1963,24 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
     });
   });
 
+  it('прокручивает страницу к началу при выборе и снятии подборки', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const user = userEvent.setup();
+    render(<CatalogPage />);
+
+    const promo = await screen.findByLabelText('Акция');
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    await user.click(promo);
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: 'smooth' });
+
+    await user.click(promo);
+    expect(scrollTo).toHaveBeenCalledTimes(2);
+
+    scrollTo.mockRestore();
+  });
+
   it('отмечает чекбокс подборки, пришедшей из адреса', async () => {
     resetSearchParams('is_hit=true');
 

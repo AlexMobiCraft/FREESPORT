@@ -1451,6 +1451,9 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
     setMarketingFilter(next);
     setIsSale(false);
     resetPage({ ...marketingParamUpdates(next), is_sale: null });
+    // Подборка заметно меняет длину выдачи: без прокрутки короткий список оставил бы
+    // пользователя в конце страницы, а не в начале новой выдачи
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOrderingChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
