@@ -1459,6 +1459,7 @@ ALL_CODES = [
     "link_1c_customer",
     "update_order",
     "assign_responsible_manager",
+    "change_user_role",
     "change_routing_rule",
     "create_staff",
     "block_staff",

@@ -26,6 +26,7 @@ STAFF_ACTIONS: dict[str, str] = {
     "link_1c_customer": "Привязка к контрагенту 1С",
     "update_order": "Изменение заказа",
     "assign_responsible_manager": "Назначение ответственного менеджера",
+    "change_user_role": "Смена роли клиента",
     "change_routing_rule": "Изменение правила региона",
     "create_staff": "Создание сотрудника",
     "block_staff": "Блокировка сотрудника",

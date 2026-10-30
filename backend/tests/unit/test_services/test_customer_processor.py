@@ -786,6 +786,19 @@ class TestCustomerRoleFromPriceType:
         assert user.role == "wholesale_level4"
         assert processor.last_role_outcome == "roles_updated_from_assigned"
 
+    def test_linked_retail_gets_role_from_1c(self, processor, customer_with_opt4):
+        """Клиента, пониженного до розницы в карточке /manager/, обмен возвращает по виду цен."""
+        from apps.common.models import AuditLog
+
+        existing = self._linked_account(customer_with_opt4["onec_id"], "retail", "linked-retail@example.com")
+
+        user = processor.process_customer(dict(customer_with_opt4))
+
+        assert user.pk == existing.pk
+        assert user.role == "wholesale_level4"
+        assert processor.last_role_outcome == "roles_updated_from_assigned"
+        assert AuditLog.objects.get(action="role_from_1c").changes["previous_role"] == "retail"
+
     def test_linked_account_gets_role_from_opt2(self, processor, customer_with_price_type):
         """AC2/AC4: соглашение «Опт 2» → роль wholesale_level2 (маппинг из справочника)."""
         self._ensure_price_type(OPT2_GUID, "Опт 2 (150-300 тыс.руб в квартал)", "wholesale_level2", "opt2_price")

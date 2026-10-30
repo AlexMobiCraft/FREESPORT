@@ -49,6 +49,7 @@ def test_staff_actions_are_exactly_the_list():
         "link_1c_customer",
         "update_order",
         "assign_responsible_manager",
+        "change_user_role",
         "change_routing_rule",
         "create_staff",
         "block_staff",
@@ -170,6 +171,12 @@ def test_page_constants():
             id="assign-by-rule-unknown-email",
         ),
         pytest.param(
+            "change_user_role",
+            {"email": "c@example.com", "old": "wholesale_level1", "new": "retail", "source": "card"},
+            ("Смена роли клиента", "Оптовик уровень 1 → Розничный покупатель"),
+            id="change_user_role",
+        ),
+        pytest.param(
             "change_routing_rule",
             {
                 "operation": "create",
@@ -241,6 +248,7 @@ def test_describe(action, changes, expected):
         ("link_1c_customer", ("Привязка к контрагенту 1С", "—")),
         ("update_order", ("Изменение заказа", "—")),
         ("assign_responsible_manager", ("Назначение ответственного менеджера", "— → —")),
+        ("change_user_role", ("Смена роли клиента", "— → —")),
         ("change_routing_rule", ("Изменение правила региона", "—")),
         ("create_staff", ("Создание сотрудника", "группа: —")),
         ("block_staff", ("Блокировка сотрудника", "—")),

@@ -12,7 +12,8 @@ Integration-тесты раздела менеджера `/manager/` — кли�
 - AC6 — разблокировка; AC7 — записи AuditLog; AC8 — ссылки и редиректы в разделе;
 - AC9 — права внутри раздела при одном `view_user` (долг VG1 стори 42.1);
 - AC10 — клиент ушёл к другому менеджеру после правки ИНН;
-- AC11 — число запросов списка не зависит от числа клиентов.
+- AC11 — число запросов списка не зависит от числа клиентов;
+- смена роли в карточке (FR-42-13): только верифицированный B2B, журнал, цены каталога.
 
 Тесты транзакционные (autouse `clear_db_before_test` в `tests/conftest.py`):
 правки групп внутри теста стирает `flush`, а следующий тест заново получает
@@ -25,7 +26,9 @@ import importlib
 import itertools
 import threading
 import time
+import uuid
 from contextlib import ExitStack, contextmanager
+from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, Iterator
 from unittest.mock import patch
@@ -45,6 +48,7 @@ from psycopg2.errorcodes import LOCK_NOT_AVAILABLE
 from rest_framework.test import APIClient
 
 from apps.common.models import AuditLog, ManagerRoutingRule
+from apps.products.models import Brand, Category, Product, ProductVariant
 from apps.users import admin as users_admin
 from apps.users.manager_admin import ManagerClientAdmin, PortalAccountFilter
 from apps.users.models import Address, Company, User
@@ -254,7 +258,11 @@ def form_payload(response) -> dict[str, Any]:
     data: dict[str, Any] = {}
     form = response.context["adminform"].form
     for name in form.fields:
-        put(data, name, form[name].value())
+        bound = form[name]
+        put(data, name, bound.value())
+        # Как браузер: скрытое начальное значение, при перерисовке — из прошлого POST.
+        if bound.field.show_hidden_initial:
+            data[bound.html_initial_name] = form.data.get(bound.html_initial_name, bound.value())
     for inline in response.context["inline_admin_formsets"]:
         formset = inline.formset
         management = formset.management_form
@@ -556,11 +564,11 @@ class TestClientCard:
             "company_name",
             "tax_id",
             "country",
+            "role",
             "is_active",
         }
         assert set(adminform.readonly_fields) == {
             "customer_code",
-            "role",
             "verification_status",
             "is_verified",
             "linked_to_1c",
@@ -946,6 +954,322 @@ class TestAuditLog:
         assert not audit_records(target).exists()
 
 
+class TestClientRole:
+    """FR-42-13 — смена роли в карточке: кто, у какого клиента, на что и что остаётся в журнале."""
+
+    @staticmethod
+    def post_role(client, target: User, role: str, **extra: Any):
+        data = form_payload(client.get(change_url(target)))
+        data.update({"role": role, "_save": "Сохранить", **extra})
+        return client.post(change_url(target), data)
+
+    def test_role_change_is_saved_and_logged(self, manager_client, manager):
+        target = make_client(manager, role="wholesale_level1")
+
+        response = self.post_role(manager_client, target, "wholesale_level3")
+
+        assert response.status_code == 302
+        target.refresh_from_db()
+        assert target.role == "wholesale_level3"
+        record = audit_records(target).get()
+        assert record.action == "change_user_role"
+        assert record.user == manager
+        assert record.details["changes"] == {
+            "email": target.email,
+            "old": "wholesale_level1",
+            "new": "wholesale_level3",
+            "source": "card",
+        }
+
+    def test_downgrade_to_retail_closes_role(self, manager_client, manager):
+        target = make_client(manager, role="wholesale_level2")
+
+        assert self.post_role(manager_client, target, "retail").status_code == 302
+
+        target.refresh_from_db()
+        assert target.role == "retail"
+        record = audit_records(target, "change_user_role").get()
+        assert record.details["changes"]["old"] == "wholesale_level2"
+        assert record.details["changes"]["new"] == "retail"
+        # Вернуть B2B в карточке нельзя: это делает владелец в /admin/ или обмен с 1С.
+        assert "role" not in manager_client.get(change_url(target)).context["adminform"].form.fields
+
+    def test_choices_have_no_service_roles(self, manager_client, manager):
+        response = manager_client.get(change_url(make_client(manager)))
+
+        assert [value for value, _ in response.context["adminform"].form.fields["role"].choices] == [
+            "retail",
+            "wholesale_level1",
+            "wholesale_level2",
+            "wholesale_level3",
+            "wholesale_level4",
+            "trainer",
+            "federation_rep",
+            "vip",
+            "special_price",
+        ]
+
+    @pytest.mark.parametrize("forged_role", ["admin", "unregistered"])
+    def test_forged_service_role_is_rejected(self, manager_client, manager, forged_role):
+        target = make_client(manager, role="wholesale_level1")
+
+        response = self.post_role(manager_client, target, forged_role)
+
+        assert response.status_code == 200
+        assert "role" in response.context["adminform"].form.errors
+        target.refresh_from_db()
+        assert target.role == "wholesale_level1"
+        assert not audit_records(target).exists()
+
+    @pytest.mark.parametrize("posted_role", ["wholesale_level3", "admin"])
+    @pytest.mark.parametrize(
+        "state",
+        [
+            pytest.param({"role": "retail", "verification_status": "unverified", "is_verified": False}, id="retail"),
+            pytest.param({"verification_status": "pending", "is_verified": False}, id="pending"),
+            pytest.param({"verification_status": "unverified", "is_verified": False}, id="rejected"),
+            pytest.param({"verification_status": "verified", "is_verified": False}, id="verified-status-without-flag"),
+            pytest.param(
+                {"role": User.ROLE_UNREGISTERED, "verification_status": "unverified", "is_verified": False},
+                id="1c-record",
+            ),
+        ],
+    )
+    def test_role_is_read_only_outside_verified_b2b(self, manager_client, manager, state, posted_role):
+        target = make_client(manager, **state)
+        role_before = target.role
+
+        adminform = manager_client.get(change_url(target)).context["adminform"]
+        assert "role" not in adminform.form.fields
+        assert "role" in adminform.readonly_fields
+
+        response = self.post_role(manager_client, target, posted_role, phone="+79001112266")
+
+        assert response.status_code == 302
+        target.refresh_from_db()
+        assert target.phone == "+79001112266"
+        assert target.role == role_before
+        assert not audit_records(target).exists()
+
+    def test_foreign_client_answers_404(self, manager_client, other_manager):
+        foreign = make_client(other_manager, role="wholesale_level1")
+
+        response = manager_client.post(change_url(foreign), {"role": "wholesale_level3", "_save": "Сохранить"})
+
+        assert response.status_code == 404
+        foreign.refresh_from_db()
+        assert foreign.role == "wholesale_level1"
+        assert not audit_records(foreign).exists()
+
+    def test_same_role_writes_nothing(self, manager_client, manager):
+        target = make_client(manager, role="wholesale_level1")
+
+        assert self.post_role(manager_client, target, "wholesale_level1").status_code == 302
+
+        assert not audit_records(target).exists()
+
+    def test_validation_error_keeps_role_input(self, manager_client, manager):
+        # is_valid() пишет выбранную роль в объект: по ней «Розница» убрала бы
+        # поле из перерисованной формы, и повторный POST упал бы без роли.
+        target = make_client(manager, role="wholesale_level1")
+        email = target.email
+
+        response = self.post_role(manager_client, target, "retail", email="не-почта")
+
+        assert response.status_code == 200
+        adminform = response.context["adminform"]
+        assert "email" in adminform.form.errors
+        assert "role" not in adminform.readonly_fields
+        content = response.content.decode()
+        assert 'name="role"' in content
+        assert 'name="initial-role" value="wholesale_level1"' in content
+        target.refresh_from_db()
+        assert target.role == "wholesale_level1"
+        assert not audit_records(target).exists()
+
+        retry = form_payload(response)
+        retry.update({"email": email, "_save": "Сохранить"})
+        assert retry["role"] == "retail"
+        assert manager_client.post(change_url(target), retry).status_code == 302
+        target.refresh_from_db()
+        assert target.role == "retail"
+        assert audit_records(target, "change_user_role").count() == 1
+
+    def test_old_role_is_read_under_lock(self, manager_client, manager):
+        # Импорт 1С сменил роль, пока форма была открыта: «было» — его значение,
+        # а не то, что менеджер видел в форме.
+        target = make_client(manager, role="wholesale_level1")
+        data = form_payload(manager_client.get(change_url(target)))
+        User.objects.filter(pk=target.pk).update(role="wholesale_level2")
+        data.update({"role": "wholesale_level3", "_save": "Сохранить"})
+
+        assert manager_client.post(change_url(target), data).status_code == 302
+
+        changes = audit_records(target, "change_user_role").get().details["changes"]
+        assert (changes["old"], changes["new"]) == ("wholesale_level2", "wholesale_level3")
+
+    def test_stale_card_keeps_role_changed_after_opening(self, manager_client, manager):
+        # Менеджер правит только телефон: старая роль из формы не откатывает импорт.
+        target = make_client(manager, role="wholesale_level1")
+        data = form_payload(manager_client.get(change_url(target)))
+        assert data["initial-role"] == "wholesale_level1"
+        User.objects.filter(pk=target.pk).update(role="wholesale_level2")
+        data.update({"phone": "+79001112277", "_save": "Сохранить"})
+
+        assert manager_client.post(change_url(target), data).status_code == 302
+
+        target.refresh_from_db()
+        assert target.phone == "+79001112277"
+        assert target.role == "wholesale_level2"
+        assert not audit_records(target, "change_user_role").exists()
+
+    def test_post_without_role_keeps_it(self, manager_client, manager):
+        target = make_client(manager, role="wholesale_level1")
+        data = form_payload(manager_client.get(change_url(target)))
+        del data["role"], data["initial-role"]
+        data.update({"phone": "+79001112288", "_save": "Сохранить"})
+
+        assert manager_client.post(change_url(target), data).status_code == 302
+
+        target.refresh_from_db()
+        assert target.phone == "+79001112288"
+        assert target.role == "wholesale_level1"
+        assert not audit_records(target, "change_user_role").exists()
+
+    def test_redrawn_form_without_role_shows_current_role(self, manager_client, manager):
+        # Ошибка в другом поле: select без значения показал бы первую опцию
+        # «Розница», и повторное сохранение понизило бы клиента.
+        target = make_client(manager, role="wholesale_level1")
+        data = form_payload(manager_client.get(change_url(target)))
+        email = data["email"]
+        del data["role"], data["initial-role"]
+        data.update({"email": "не-почта", "_save": "Сохранить"})
+
+        response = manager_client.post(change_url(target), data)
+
+        assert response.status_code == 200
+        assert '<option value="wholesale_level1" selected>' in response.content.decode()
+        retry = form_payload(response)
+        retry.update({"email": email, "_save": "Сохранить"})
+        assert manager_client.post(change_url(target), retry).status_code == 302
+        target.refresh_from_db()
+        assert target.role == "wholesale_level1"
+        assert not audit_records(target, "change_user_role").exists()
+
+    def test_empty_role_keeps_it(self, manager_client, manager):
+        target = make_client(manager, role="wholesale_level1")
+
+        assert self.post_role(manager_client, target, "").status_code == 302
+
+        target.refresh_from_db()
+        assert target.role == "wholesale_level1"
+        assert not audit_records(target, "change_user_role").exists()
+
+    def test_empty_role_in_stale_form_writes_nothing(self, manager_client, manager):
+        # initial-role отличается от строки, `role` попадает в changed_data, но смены нет.
+        target = make_client(manager, role="wholesale_level1")
+        data = form_payload(manager_client.get(change_url(target)))
+        User.objects.filter(pk=target.pk).update(role="wholesale_level2")
+        data.update({"role": "", "_save": "Сохранить"})
+
+        assert manager_client.post(change_url(target), data).status_code == 302
+
+        target.refresh_from_db()
+        assert target.role == "wholesale_level2"
+        assert not audit_records(target, "change_user_role").exists()
+
+    def test_client_turned_retail_after_form_opened_stays_retail(self, manager_client, manager):
+        target = make_client(manager, role="wholesale_level1")
+        data = form_payload(manager_client.get(change_url(target)))
+        User.objects.filter(pk=target.pk).update(role="retail")
+        data.update({"role": "wholesale_level3", "_save": "Сохранить"})
+
+        assert manager_client.post(change_url(target), data).status_code == 302
+
+        target.refresh_from_db()
+        assert target.role == "retail"
+        assert not audit_records(target).exists()
+
+    def test_role_change_holds_row_lock(self, manager_client, manager, prod_like_requests, locked_at_save):
+        target = make_client(manager, role="wholesale_level1")
+
+        assert self.post_role(manager_client, target, "wholesale_level3").status_code == 302
+
+        assert locked_at_save[target.pk] is True
+        assert audit_records(target, "change_user_role").count() == 1
+
+    @pytest.mark.parametrize(
+        "link",
+        [
+            pytest.param(lambda: {"onec_id": f"1C-{get_unique_suffix()}"}, id="onec_id"),
+            pytest.param(lambda: {"onec_guid": uuid.uuid4()}, id="onec_guid"),
+        ],
+    )
+    def test_1c_hint_is_shown_only_for_linked_client(self, manager_client, manager, link):
+        hint = "обмен может вернуть роль"
+
+        linked = manager_client.get(change_url(make_client(manager, **link())))
+        plain = manager_client.get(change_url(make_client(manager)))
+
+        assert hint in linked.context["adminform"].form.fields["role"].help_text
+        assert hint in linked.content.decode()
+        assert hint not in plain.content.decode()
+
+    @pytest.mark.parametrize(
+        "new_role, expected_price",
+        [("wholesale_level3", Decimal("700.00")), ("retail", Decimal("1000.00"))],
+    )
+    def test_catalog_shows_prices_of_new_role(self, manager_client, manager, new_role, expected_price):
+        suffix = get_unique_suffix()
+        product = Product.objects.create(
+            name=f"Товар-{suffix}",
+            slug=f"product-{suffix}",
+            category=Category.objects.create(name=f"Кат-{suffix}", slug=f"cat-{suffix}"),
+            brand=Brand.objects.create(name=f"Бренд-{suffix}", slug=f"brand-{suffix}"),
+            onec_id=f"1c-{suffix}",
+            is_active=True,
+        )
+        ProductVariant.objects.create(
+            product=product,
+            sku=f"SKU-{suffix}",
+            onec_id=f"var-{suffix}",
+            retail_price=Decimal("1000.00"),
+            opt1_price=Decimal("900.00"),
+            opt3_price=Decimal("700.00"),
+            stock_quantity=50,
+            is_active=True,
+        )
+        target = make_client(manager, role="wholesale_level1")
+
+        def catalog_price() -> Decimal:
+            api = APIClient()
+            api.force_authenticate(user=User.objects.get(pk=target.pk))
+            response = api.get(reverse("products:product-detail", kwargs={"slug": product.slug}))
+            assert response.status_code == 200
+            return Decimal(str(response.data["variants"][0]["current_price"]))
+
+        assert catalog_price() == Decimal("900.00")
+
+        assert self.post_role(manager_client, target, new_role).status_code == 302
+
+        assert catalog_price() == expected_price
+
+    def test_supervisor_changes_any_client_and_sees_journal(self, client, other_manager):
+        supervisor = make_staff_member(SUPERVISORS_GROUP, first_name="Ирина", last_name="Руководитель")
+        client.force_login(supervisor)
+        target = make_client(other_manager, role="wholesale_level1")
+
+        assert self.post_role(client, target, "trainer").status_code == 302
+
+        target.refresh_from_db()
+        assert target.role == "trainer"
+        assert audit_records(target, "change_user_role").get().user == supervisor
+        html = client.get("/supervisor/journal/").content.decode()
+        assert "Смена роли клиента" in html
+        assert "Оптовик уровень 1 → Тренер/Фитнес-клуб" in html
+        assert f"Ирина Руководитель ({supervisor.email})" in html
+
+
 class TestLinksStayInSection:
     """AC8 — ни одна ссылка и ни один редирект не ведут в /admin/."""
 
@@ -1032,6 +1356,7 @@ class TestViewOnlyPermissions:
             {
                 "first_name": "Подмена",
                 "phone": "+79001112233",
+                "role": "wholesale_level3",
                 f"{prefixes[Company]}-0-legal_name": "ООО Подмена",
                 f"{prefixes[Address]}-{form_index(data, prefixes[Address], address)}-city": "Подмена",
                 "_save": "Сохранить",
@@ -1057,6 +1382,12 @@ class TestViewOnlyPermissions:
         assert response.context["show_verify_b2b_button"] is False
         assert not response.context["has_change_permission"]
         assert verify_url(applicant) not in response.content.decode()
+
+    def test_role_has_no_input_without_change_permission(self, manager_client, manager):
+        response = manager_client.get(change_url(make_client(manager)))
+
+        assert response.status_code == 200
+        assert 'name="role"' not in response.content.decode()
 
     def test_verify_and_password_are_forbidden(self, manager_client, manager):
         applicant = make_client(manager, verification_status="pending", is_verified=False, is_active=False)
