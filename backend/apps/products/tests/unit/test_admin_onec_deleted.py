@@ -14,7 +14,9 @@ from django.test import RequestFactory
 from django.urls import reverse
 
 from apps.products.admin import OnecExcludedItemAdmin, ProductAdmin, ProductVariantAdmin
+from apps.products.factories import ProductFactory
 from apps.products.models import OnecExcludedItem, Product, ProductVariant
+from freesport.admin_site import marketing_site
 
 pytestmark = [pytest.mark.django_db, pytest.mark.unit]
 
@@ -40,6 +42,32 @@ def test_onec_deleted_is_column_filter_and_readonly(admin_class, model):
     assert "onec_deleted" in model_admin.readonly_fields
     fieldset_fields = [field for _, options in model_admin.fieldsets for field in options["fields"]]
     assert "onec_deleted" in fieldset_fields
+
+
+def test_is_active_explains_that_1c_overrides_it(request_as_superuser):
+    form = ProductAdmin(Product, AdminSite()).get_form(request_as_superuser)
+
+    assert "до прихода данных из 1С" in form.base_fields["is_active"].help_text
+    assert "пометьте его на удаление в 1С" in form.base_fields["is_active"].help_text
+
+
+def test_hint_is_rendered_in_product_card(client, superuser):
+    product = ProductFactory()
+    client.force_login(superuser)
+
+    response = client.get(reverse("admin:products_product_change", args=[product.pk]))
+
+    assert response.status_code == 200
+    assert "Выключение держится до прихода данных из 1С." in response.content.decode()
+
+
+def test_marketing_card_has_no_is_active_field(request_as_superuser):
+    """Раздел маркетинга — белый список без «Активный»: `get_form` наследуется и не падает."""
+    model_admin = marketing_site._registry[Product]
+
+    form = model_admin.get_form(request_as_superuser, ProductFactory(), change=True)
+
+    assert "is_active" not in form.base_fields
 
 
 def test_registry_admin_is_read_only(request_as_superuser):

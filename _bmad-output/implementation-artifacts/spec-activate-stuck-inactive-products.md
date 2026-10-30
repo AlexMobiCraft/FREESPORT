@@ -2,11 +2,13 @@
 title: 'Команда включения товаров, застрявших неактивными после импорта 1С'
 type: 'bugfix'
 created: '2026-10-07'
-status: 'ready-for-dev'
+status: 'cancelled'
 review_loop_iteration: 0
 context:
   - '{project-root}/backend/docs/testing-standards.md'
 ---
+
+> **Отменена 30.10.2026 решением владельца.** Команду `activate_stuck_products` не делали: 47 товаров включены SQL-запросом 07.10.2026. Правило «импорт не включает выключенное вручную» заменено приоритетом 1С, см. `spec-1c-reactivate-disabled-products.md`. Не брать в работу.
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
 
