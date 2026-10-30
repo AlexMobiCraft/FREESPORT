@@ -6,6 +6,10 @@
 интеграции и привилегий, на чужого клиента — 404. Действия и страницы
 подтверждения B2B, привязки к 1С и смены пароля — общие с `/admin/`.
 
+Роль правится в карточке только у верифицированного B2B-клиента (FR-42-13):
+первичное назначение — по-прежнему на странице подтверждения, а импорт 1С
+вправе вернуть роль по виду цен соглашения.
+
 Руководитель (стори 42.7) видит всех клиентов, колонку и фильтр
 «Ответственный менеджер» и назначает ответственного вручную в карточке.
 Фильтр «Заказы» (стори 42.8) — тоже только у руководителя: на него ведёт
@@ -36,6 +40,12 @@ from apps.users.admin import AddressInline, CompanyInline, Has1CCandidateFilter,
 from apps.users.models import User
 from apps.users.staff_roles import is_supervisor, manager_label, staff_accounts_q
 from freesport.admin_site import manager_site
+
+# Выбор роли в карточке: служебные роли не назначаются ни формой, ни подделанным POST.
+ASSIGNABLE_ROLE_CHOICES = [
+    (role, label) for role, label in User.ROLE_CHOICES if role not in ("admin", User.ROLE_UNREGISTERED)
+]
+ROLE_1C_HINT = "Клиент связан с 1С: обмен может вернуть роль по виду цен соглашения."
 
 
 def scope_clients(request: HttpRequest, queryset: QuerySet[User]) -> QuerySet[User]:
@@ -158,6 +168,27 @@ def client_has_orders() -> Exists:
     return Exists(Order.objects.filter(user=OuterRef("pk")))
 
 
+def role_is_editable(obj: User | None) -> bool:
+    """
+    Роль правится только у верифицированного B2B-клиента.
+
+    Розничному клиенту карточка B2B-роль не выдаёт, запись 1С и незавершённая
+    заявка получают её на странице подтверждения. `is_verified` проверяется
+    отдельно от статуса: без него цены остаются розничными и смена роли их не
+    изменит (`resolve_pricing_role`). Решение принимается
+    один раз на объект: `form.is_valid()` пишет выбранную роль в этот же
+    объект, и при ошибке в другом поле выбор «Розница» убрал бы поле из
+    перерисованной формы, а следующий POST упал бы на обязательном поле.
+    """
+    if obj is None:
+        return False
+    if not hasattr(obj, "_role_is_editable"):
+        obj._role_is_editable = (  # type: ignore[attr-defined]
+            obj.role in User.B2B_ROLES and not activation_locked(obj) and obj.is_verified
+        )
+    return bool(obj._role_is_editable)  # type: ignore[attr-defined]
+
+
 class ClientOrdersFilter(admin.SimpleListFilter):
     """«Заказы» в списке клиентов руководителя (стори 42.8): есть ли у клиента заказы."""
 
@@ -211,9 +242,9 @@ class ManagerClientAdmin(UserAdmin):
     )
     # Статус верификации меняют только страница подтверждения и действия (они
     # пишут AuditLog); код клиента вшит в номера заказов и сверяется с 1С.
+    # Роль здесь не указана: её правимость зависит от клиента (`role_is_editable`).
     readonly_fields: Any = (
         "customer_code",
-        "role",
         "verification_status",
         "is_verified",
         "linked_to_1c",
@@ -294,10 +325,28 @@ class ManagerClientAdmin(UserAdmin):
             for flag in ("can_add_related", "can_change_related", "can_delete_related", "can_view_related"):
                 if hasattr(widget, flag):
                     setattr(widget, flag, False)
+        # Поля нет при роли только для чтения и у сотрудника без права change.
+        role_field = form.base_fields.get("role")
+        if role_field is not None and obj is not None:
+            role_field.choices = ASSIGNABLE_ROLE_CHOICES
+            # «Изменено» — от роли, увиденной сотрудником, а не от свежей строки:
+            # иначе правка телефона в устаревшей карточке откатила бы роль импорта.
+            role_field.show_hidden_initial = True
+            # Поля могло не быть в открытой форме (карточка была только для
+            # чтения, заявку подтвердили позже). Пустое значение — текущая роль,
+            # и при сохранении, и в перерисовке: иначе select без выбранного
+            # значения показал бы «Розницу», и повторное сохранение понизило бы клиента.
+            role_field.required = False
+            role_field.empty_value = obj.role
+            role_field.bound_data = lambda data, initial: data or initial
+            if self.linked_to_1c(obj):
+                role_field.help_text = ROLE_1C_HINT
         return form
 
     def get_readonly_fields(self, request: HttpRequest, obj: User | None = None) -> list[str]:  # type: ignore[override]
         fields = list(self.readonly_fields)
+        if not role_is_editable(obj):
+            fields.append("role")
         # Флаг «активен» у заявки до подтверждения и у записи 1С — в обход
         # guard'а unblock_users: включённый у ожидающей заявки, он пережил бы
         # последующий отказ (R42.4-32). Им флаг меняют решение по заявке и
@@ -472,9 +521,15 @@ class ManagerClientAdmin(UserAdmin):
         manager_changed = "responsible_manager" in form.changed_data
         if manager_changed:
             obj.responsible_manager_manual = True
+        # Сотрудник роль не менял: остаётся та, что в строке, а не из устаревшей формы.
+        if "role" in form.fields and "role" not in form.changed_data:
+            obj.role = form.initial["role"]
         super().save_model(request, obj, form, change)  # type: ignore[arg-type]
         if change and (manager_changed or "responsible_manager_manual" in form.changed_data):
             self._log_responsible_assignment(request, obj, form.initial.get("responsible_manager"))
+        # Сравнение со строкой: при устаревшей форме выбор мог совпасть с ней.
+        if change and "role" in form.changed_data and obj.role != form.initial.get("role"):
+            self._log_role_change(request, obj, form.initial.get("role"))
         # Блокировка и разблокировка флагом в карточке — тоже действие для журнала.
         if change and "is_active" in form.changed_data:
             AuditLog.log_action(
@@ -491,6 +546,18 @@ class ManagerClientAdmin(UserAdmin):
                 ip_address=self._get_client_ip(request),
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),
             )
+
+    def _log_role_change(self, request: HttpRequest, obj: User, old_role: Any) -> None:
+        """Журнал смены роли в карточке: «было» — значение формы, прочитанное под блокировкой строки."""
+        AuditLog.log_action(
+            user=request.user,
+            action="change_user_role",
+            resource_type="User",
+            resource_id=obj.pk,
+            changes={"email": str(obj.email or ""), "old": old_role, "new": obj.role, "source": "card"},
+            ip_address=self._get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
 
     def _log_responsible_assignment(self, request: HttpRequest, obj: User, old_manager_id: Any) -> None:
         """

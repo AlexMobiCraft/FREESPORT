@@ -1211,3 +1211,13 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-registration-legal-entity-field.md`
   summary: Сохранение реквизитов в кабинете может падать на названии длиной 201–255 символов (severity medium, не подтверждено).
   evidence: `backend/apps/users/views/personal_cabinet.py:317` копирует `legal_name` (`max_length=255`) в `User.company_name` (`max_length=200`). Подтвердит или снимет находку сохранение реквизитов с названием из 201 символа.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-admin-client-role-and-product-flags.md`
+  summary: Смена роли не пересчитывает снимок цены в корзине: клиент, пониженный до розницы, оформит лежащие товары по прежней оптовой цене.
+  evidence: `CartItem.price_snapshot` фиксируется при добавлении (`apps/cart/views.py:142-157`), заказ берёт его как есть (`apps/orders/services/order_create.py:138`). Так же работает смена роли импортом 1С; решение 2026-10-26 запрещает пересчёт снимков, поэтому нужно решение владельца.
+- source_spec: `_bmad-output/implementation-artifacts/spec-admin-client-role-and-product-flags.md`
+  summary: Бонус тренера считается по роли на момент начисления, поэтому смена роли на «Тренер» или с неё меняет бонус по уже открытым заказам.
+  evidence: `is_eligible` читает `user.role` при переходе заказа в статус начисления (`apps/bonuses/services/accrual.py:158`), а не роль на момент оформления. Так же действует смена роли импортом 1С.
+- source_spec: `_bmad-output/implementation-artifacts/spec-admin-client-role-and-product-flags.md`
+  summary: Сохранение карточки клиента, открытой только для чтения флага «активен», после подтверждения заявки может снять флаг и записать `block_user` (severity medium, не подтверждено).
+  evidence: Флаг становится правимым, когда `activation_locked` перестаёт действовать, а в POST устаревшей формы его нет (`apps/users/manager_admin.py`, `get_readonly_fields`). Дефект старше этой спеки. Подтвердит или снимет его тест: открыть карточку заявки, подтвердить заявку, отправить старую форму.

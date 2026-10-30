@@ -342,6 +342,8 @@ def describe(record: AuditLog, users: KnownUsers) -> tuple[str, str]:
         parts = [_change(users.label_by_email(changes.get("old")), users.label_by_email(changes.get("new")))]
         if changes.get("manual") is False:
             parts.append("по правилу региона")
+    elif action == "change_user_role":
+        parts = [_change(_role(changes.get("old")), _role(changes.get("new")))]
     elif action == "change_routing_rule":
         operation = changes.get("operation")
         if isinstance(operation, str):
