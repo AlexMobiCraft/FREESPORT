@@ -54,7 +54,7 @@ describe('RegisterForm', () => {
 
   /**
    * После отключения розничной регистрации роль обязательна, а вместе с ней
-   * обязательны «Название компании» и «ИНН» — без них форма не отправляется.
+   * обязательны «Юридическое лицо или ИП» и «ИНН» — без них форма не отправляется.
    */
   const fillB2BFields = async (
     user: ReturnType<typeof userEvent.setup>,
@@ -66,7 +66,9 @@ describe('RegisterForm', () => {
     }: { role?: string; company?: string; taxId?: string; phone?: string } = {}
   ) => {
     await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), role);
-    await user.type(screen.getByLabelText(/название компании/i), company);
+    if (company) {
+      await user.type(screen.getByLabelText(/юридическое лицо или ип/i), company);
+    }
     await user.type(screen.getByLabelText(/^инн$/i), taxId);
     // Поле телефона само подставляет «+7», вводятся только цифры номера
     if (phone) {
@@ -996,13 +998,13 @@ describe('RegisterForm', () => {
       const roleSelect = screen.getByLabelText(/тип аккаунта/i);
 
       // Роль не выбрана — поле компании скрыто
-      expect(screen.queryByLabelText(/название компании/i)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/юридическое лицо или ип/i)).not.toBeInTheDocument();
 
       // Select wholesale (B2B role)
       await user.selectOptions(roleSelect, 'wholesale_level1');
 
       // company_name should now be visible
-      expect(screen.getByLabelText(/название компании/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/юридическое лицо или ип/i)).toBeInTheDocument();
     });
 
     // AC 8: tax_id field appears for all B2B roles (включая trainer)
@@ -1083,7 +1085,7 @@ describe('RegisterForm', () => {
 
       await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), 'wholesale_level1');
 
-      const companyInput = await screen.findByLabelText(/название компании/i);
+      const companyInput = await screen.findByLabelText(/юридическое лицо или ип/i);
       await user.type(companyInput, 'ООО Опт');
       await user.type(screen.getByLabelText(/инн/i), '1234567890');
       await user.selectOptions(screen.getByLabelText(/страна/i), 'Беларусь');
@@ -1139,7 +1141,7 @@ describe('RegisterForm', () => {
       await user.selectOptions(roleSelect, 'trainer');
 
       // Fill company_name и ИНН (появляются для B2B ролей)
-      const companyInput = await screen.findByLabelText(/название компании/i);
+      const companyInput = await screen.findByLabelText(/юридическое лицо или ип/i);
       await user.type(companyInput, 'Спортклуб');
       await user.type(screen.getByLabelText(/инн/i), '123456789012');
       await user.type(screen.getByLabelText(/телефон/i), '9001234567');
@@ -1181,7 +1183,7 @@ describe('RegisterForm', () => {
       await user.selectOptions(roleSelect, 'trainer');
 
       // company_name заполняем, чтобы отказ был вызван ровно отсутствием ИНН
-      const companyInput = await screen.findByLabelText(/название компании/i);
+      const companyInput = await screen.findByLabelText(/юридическое лицо или ип/i);
       await user.type(companyInput, 'Спортклуб');
 
       await user.type(nameInput, 'Тренер');
@@ -1210,7 +1212,7 @@ describe('RegisterForm', () => {
       const roleSelect = screen.getByLabelText(/тип аккаунта/i);
       await user.selectOptions(roleSelect, 'trainer');
 
-      const companyInput = await screen.findByLabelText(/название компании/i);
+      const companyInput = await screen.findByLabelText(/юридическое лицо или ип/i);
       await user.type(companyInput, 'Спортклуб');
       await user.type(screen.getByLabelText(/^инн$/i), '123456789012');
 
@@ -1229,6 +1231,135 @@ describe('RegisterForm', () => {
 
       expect(await screen.findByText('Выберите тип аккаунта', { selector: 'p' })).toBeInTheDocument();
       expect(mockRegister).not.toHaveBeenCalled();
+    });
+
+    // company_name уходит в 1С как наименование контрагента, поэтому поле просит
+    // юридическое название. Оргформа не проверяется: подходят АНО, ТОО и ФИО тренера.
+    describe('legal entity field', () => {
+      const COMPANY_LABEL = /юридическое лицо или ип/i;
+      const COMPANY_HELPER =
+        'Как в регистрационных документах, а не торговая марка. Например, ИП Иванов Иван Иванович. Тренер без ИП указывает ФИО.';
+      const COMPANY_REQUIRED = 'Укажите название юридического лица или ИП';
+      const COMPANY_TOO_LONG = 'Название не должно превышать 200 символов';
+
+      const fillPersonalFields = async (user: ReturnType<typeof userEvent.setup>) => {
+        await user.type(screen.getByLabelText(/имя/i), 'Тренер');
+        await user.type(screen.getByLabelText(/электронная почта/i), 'legal@example.com');
+        await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+        await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+        await acceptPdpConsent(user);
+      };
+
+      // Настоящий клик: fireEvent.submit обошёл бы браузерную проверку формы
+      const clickSubmit = (user: ReturnType<typeof userEvent.setup>) =>
+        user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      test.each(['trainer', 'wholesale_level1', 'federation_rep'])(
+        'should show label, example and helper for role %s',
+        async role => {
+          const user = userEvent.setup();
+          render(<RegisterForm />);
+
+          await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), role);
+
+          const input = screen.getByLabelText(COMPANY_LABEL);
+          expect(input).toHaveAttribute('name', 'company_name');
+          expect(input).toBeRequired();
+          expect(input).toHaveAttribute('placeholder', 'ООО «Ромашка»');
+          expect(input).toHaveAccessibleDescription(COMPANY_HELPER);
+        }
+      );
+
+      test.each([
+        ['empty', ''],
+        ['whitespace-only', '   '],
+      ])('should block submit with %s value and replace helper with error', async (_, company) => {
+        const user = userEvent.setup();
+        const mockRegister = vi.mocked(authService.register);
+        render(<RegisterForm />);
+
+        await fillB2BFields(user, { company });
+        await fillPersonalFields(user);
+        await clickSubmit(user);
+
+        expect(await screen.findByText(COMPANY_REQUIRED)).toBeInTheDocument();
+        expect(screen.getByLabelText(COMPANY_LABEL)).toHaveAccessibleDescription(COMPANY_REQUIRED);
+        expect(screen.queryByText(COMPANY_HELPER)).not.toBeInTheDocument();
+        expect(mockRegister).not.toHaveBeenCalled();
+      });
+
+      test('should show company and tax id errors when both fields are empty', async () => {
+        const user = userEvent.setup();
+        const mockRegister = vi.mocked(authService.register);
+        render(<RegisterForm />);
+
+        await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), 'trainer');
+        await user.type(screen.getByLabelText(/телефон/i), '9001234567');
+        await fillPersonalFields(user);
+        await clickSubmit(user);
+
+        expect(await screen.findByText(COMPANY_REQUIRED)).toBeInTheDocument();
+        expect(screen.getByText('ИНН обязателен для B2B регистрации')).toBeInTheDocument();
+        expect(mockRegister).not.toHaveBeenCalled();
+      });
+
+      test('should block submit with a 201 character name', async () => {
+        const user = userEvent.setup();
+        const mockRegister = vi.mocked(authService.register);
+        render(<RegisterForm />);
+
+        await fillB2BFields(user, { company: '' });
+        await user.click(screen.getByLabelText(COMPANY_LABEL));
+        await user.paste('я'.repeat(201));
+        await fillPersonalFields(user);
+        await clickSubmit(user);
+
+        expect(await screen.findByText(COMPANY_TOO_LONG)).toBeInTheDocument();
+        expect(mockRegister).not.toHaveBeenCalled();
+      });
+
+      test.each(['Беларусь', 'Казахстан'])(
+        'should keep helper visible for %s',
+        async country => {
+          const user = userEvent.setup();
+          render(<RegisterForm />);
+
+          await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), 'wholesale_level1');
+          await user.selectOptions(screen.getByLabelText(/страна/i), country);
+
+          expect(screen.getByText(COMPANY_HELPER)).toBeInTheDocument();
+        }
+      );
+
+      test('should send a name without a legal form as entered', async () => {
+        const user = userEvent.setup();
+        const mockRegister = vi.mocked(authService.register);
+        mockRegister.mockResolvedValue({
+          access: 'mock-token',
+          refresh: 'mock-refresh',
+          user: {
+            id: 4,
+            email: 'legal@example.com',
+            first_name: 'Тренер',
+            last_name: '',
+            phone: '',
+            role: 'trainer',
+            company_name: 'Иванов Иван Иванович',
+            is_verified: false,
+          },
+        });
+        render(<RegisterForm />);
+
+        await fillB2BFields(user, { company: 'Иванов Иван Иванович', taxId: '123456789012' });
+        await fillPersonalFields(user);
+        await clickSubmit(user);
+
+        await waitFor(() => {
+          expect(mockRegister).toHaveBeenCalledWith(
+            expect.objectContaining({ company_name: 'Иванов Иван Иванович' })
+          );
+        });
+      });
     });
 
     // AC 8: Validation for required B2B fields (covered by submit test above + Zod schema tests)

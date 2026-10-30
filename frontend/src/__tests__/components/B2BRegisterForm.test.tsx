@@ -38,7 +38,7 @@ describe('B2BRegisterForm', () => {
       expect(screen.getByLabelText(/фамилия/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/электронная почта/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/телефон/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/название компании/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/юридическое лицо или ип/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^инн$/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^огрн$/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/юридический адрес/i)).toBeInTheDocument();
@@ -96,7 +96,7 @@ describe('B2BRegisterForm', () => {
       await user.type(screen.getByLabelText(/фамилия/i), 'Петров');
       await user.type(screen.getByLabelText(/электронная почта/i), 'b2b@example.com');
       await user.type(screen.getByLabelText(/телефон/i), '9991234567');
-      await user.type(screen.getByLabelText(/название компании/i), 'ООО Тест');
+      await user.type(screen.getByLabelText(/юридическое лицо или ип/i), 'ООО Тест');
       await user.type(screen.getByLabelText(/^инн$/i), '1234567890');
       await user.type(screen.getByLabelText(/^огрн$/i), '1234567890123');
       await user.type(

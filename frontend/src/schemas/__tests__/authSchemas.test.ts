@@ -124,7 +124,7 @@ describe('loginSchema', () => {
 
 describe('registerSchema', () => {
   // Розничная регистрация отключена: роль обязательна, вместе с ней —
-  // название компании и ИНН. Базовый валидный набор для всех кейсов ниже.
+  // название юрлица и ИНН. Базовый валидный набор для всех кейсов ниже.
   const validRegisterBase = {
     first_name: 'Иван',
     email: 'ivan@example.com',
@@ -171,6 +171,28 @@ describe('registerSchema', () => {
           }),
         ])
       );
+    }
+  });
+
+  test('should limit company_name to 200 characters', () => {
+    const atLimit = registerSchema.safeParse({
+      ...validRegisterBase,
+      company_name: 'я'.repeat(200),
+    });
+    const overLimit = registerSchema.safeParse({
+      ...validRegisterBase,
+      company_name: 'я'.repeat(201),
+    });
+
+    expect(atLimit.success).toBe(true);
+    expect(overLimit.success).toBe(false);
+    if (!overLimit.success) {
+      expect(overLimit.error.issues).toEqual([
+        expect.objectContaining({
+          path: ['company_name'],
+          message: 'Название не должно превышать 200 символов',
+        }),
+      ]);
     }
   });
 
@@ -479,6 +501,54 @@ describe('b2bRegisterSchema', () => {
         ])
       );
     }
+  });
+
+  describe('company_name', () => {
+    const validB2BBase = {
+      first_name: 'Иван',
+      last_name: 'Петров',
+      email: 'b2b.company@example.com',
+      phone: '+79991234567',
+      password: 'SecurePass123',
+      confirmPassword: 'SecurePass123',
+      tax_id: '1234567890',
+      ogrn: '1234567890123',
+      legal_address: 'г. Москва, ул. Тестовая, 1',
+      role: 'wholesale_level1',
+      pdp_consent: true,
+    };
+
+    const companyMessages = (company_name: string) => {
+      const result = b2bRegisterSchema.safeParse({ ...validB2BBase, company_name });
+      return result.success
+        ? []
+        : result.error.issues
+            .filter(issue => issue.path[0] === 'company_name')
+            .map(issue => issue.message);
+    };
+
+    test.each(['', '   '])('should reject blank value %j', company_name => {
+      expect(companyMessages(company_name)).toEqual(['Укажите название юридического лица или ИП']);
+    });
+
+    test('should limit the name to 200 characters', () => {
+      expect(companyMessages('я'.repeat(200))).toEqual([]);
+      expect(companyMessages('я'.repeat(201))).toEqual([
+        'Название не должно превышать 200 символов',
+      ]);
+    });
+
+    test('should accept any legal form and keep the value as entered', () => {
+      const result = b2bRegisterSchema.safeParse({
+        ...validB2BBase,
+        company_name: ' ТОО «Ромашка» ',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.company_name).toBe(' ТОО «Ромашка» ');
+      }
+    });
   });
 });
 

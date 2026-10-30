@@ -49,13 +49,18 @@ describe('B2BRegisterForm consent checkboxes', () => {
       name: MARKETING_CONSENT_NAME,
     });
 
-  const fillValidB2BForm = async (user: ReturnType<typeof userEvent.setup>) => {
+  const fillValidB2BForm = async (
+    user: ReturnType<typeof userEvent.setup>,
+    company = 'ООО Спорт'
+  ) => {
     await user.type(screen.getByLabelText(/имя/i), 'Иван');
     await user.type(screen.getByLabelText(/фамилия/i), 'Петров');
     await user.type(screen.getByLabelText(/электронная почта/i), 'b2b@example.com');
     // Поле само подставляет «+7» при фокусе, вводятся только цифры номера
     await user.type(screen.getByLabelText(/телефон/i), '9991234567');
-    await user.type(screen.getByLabelText(/название компании/i), 'ООО Спорт');
+    if (company) {
+      await user.type(screen.getByLabelText(/юридическое лицо или ип/i), company);
+    }
     await user.type(screen.getByLabelText(/инн/i), '1234567890');
     await user.type(screen.getByLabelText(/огрн/i), '1234567890123');
     await user.type(screen.getByLabelText(/юридический адрес/i), 'г. Москва, ул. Тестовая, 1');
@@ -666,6 +671,72 @@ describe('B2BRegisterForm consent checkboxes', () => {
     await user.selectOptions(screen.getByLabelText(/страна/i), 'Казахстан');
 
     expect(screen.getByLabelText(/телефон/i)).toHaveValue('+79991234567');
+  });
+
+  describe('legal entity field', () => {
+    const COMPANY_LABEL = /юридическое лицо или ип/i;
+    const COMPANY_HELPER =
+      'Как в регистрационных документах, а не торговая марка. Например, ИП Иванов Иван Иванович.';
+    const COMPANY_REQUIRED = 'Укажите название юридического лица или ИП';
+
+    test('should show label, example and helper', () => {
+      render(<B2BRegisterForm />);
+
+      const input = screen.getByLabelText(COMPANY_LABEL);
+      expect(input).toHaveAttribute('name', 'company_name');
+      expect(input).toBeRequired();
+      expect(input).toHaveAttribute('placeholder', 'ООО «Ромашка»');
+      // ОГРН здесь обязателен, поэтому физлицо сюда не попадает: без фразы про тренера
+      expect(input).toHaveAccessibleDescription(COMPANY_HELPER);
+    });
+
+    test.each([
+      ['empty', ''],
+      ['whitespace-only', '   '],
+    ])('should block submit with %s value and replace helper with error', async (_, company) => {
+      const user = userEvent.setup();
+      const mockRegisterB2B = vi.mocked(authService.registerB2B);
+      render(<B2BRegisterForm />);
+
+      await fillValidB2BForm(user, company);
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+      expect(await screen.findByText(COMPANY_REQUIRED)).toBeInTheDocument();
+      expect(screen.getByLabelText(COMPANY_LABEL)).toHaveAccessibleDescription(COMPANY_REQUIRED);
+      expect(screen.queryByText(COMPANY_HELPER)).not.toBeInTheDocument();
+      expect(mockRegisterB2B).not.toHaveBeenCalled();
+    });
+
+    test('should send the entered name as company_name', async () => {
+      const user = userEvent.setup();
+      const mockRegisterB2B = vi.mocked(authService.registerB2B);
+      vi.mocked(authService.refreshToken).mockResolvedValue({ access: 'access-token' });
+      mockRegisterB2B.mockResolvedValue({
+        access: '',
+        refresh: '',
+        user: {
+          id: 11,
+          email: 'b2b@example.com',
+          first_name: 'Иван',
+          last_name: 'Петров',
+          phone: '+79991234567',
+          role: 'wholesale_level1',
+          is_verified: false,
+        },
+      });
+      render(<B2BRegisterForm />);
+
+      await fillValidB2BForm(user, 'ТОО «Ромашка»');
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+      await waitFor(() => {
+        expect(mockRegisterB2B).toHaveBeenCalledWith(
+          expect.objectContaining({ company_name: 'ТОО «Ромашка»' })
+        );
+      });
+    });
   });
 
   test('should not hang on cyclic backend validation payloads', async () => {
