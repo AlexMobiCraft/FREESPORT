@@ -54,6 +54,16 @@ describe('buildInitialProductFilters', () => {
     }
   );
 
+  it('из нескольких подборок берёт первую по порядку чекбоксов, is_sale не трогает', () => {
+    const filters = buildInitialProductFilters(
+      reader('is_hit=true&is_new=true&is_sale=true'),
+      null
+    );
+
+    expect(filters).toMatchObject({ is_new: true, is_sale: true });
+    expect(filters).not.toHaveProperty('is_hit');
+  });
+
   it('мусор в параметрах заменяет умолчаниями тех же парсеров', () => {
     const filters = buildInitialProductFilters(
       reader('page=abc&ordering=price&min_price=9000&max_price=1000&search=a'),

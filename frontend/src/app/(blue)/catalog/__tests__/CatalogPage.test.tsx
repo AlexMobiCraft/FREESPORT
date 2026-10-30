@@ -1887,9 +1887,9 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
     expect(productsService.getAll).toHaveBeenCalledTimes(1);
   });
 
-  it('сохраняет активный бейдж при сбросе фильтров', async () => {
+  it('сохраняет is_sale при сбросе фильтров: чекбокса у него нет', async () => {
     const user = userEvent.setup();
-    resetSearchParams('is_new=true&brand=nike&ordering=-name');
+    resetSearchParams('is_sale=true&brand=nike&ordering=-name');
 
     render(<CatalogPage />);
 
@@ -1900,13 +1900,216 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
 
     await user.click(screen.getByRole('button', { name: 'Сбросить' }));
 
-    expect(lastNavigationUrl()).toBe('/catalog?is_new=true');
+    expect(lastNavigationUrl()).toBe('/catalog?is_sale=true');
     await waitFor(() => {
       expect(productsService.getAll).toHaveBeenCalledWith(
-        expect.objectContaining({ is_new: true, ordering: 'name' })
+        expect.objectContaining({ is_sale: true, ordering: 'name' })
       );
     });
     expect((productsService.getAll as Mock).mock.calls.at(-1)?.[0]).not.toHaveProperty('brand');
+  });
+
+  // --- Чекбоксы подборок ---------------------------------------------------
+
+  it('показывает пустые чекбоксы подборок между ценой и торговой маркой', async () => {
+    render(<CatalogPage />);
+
+    const promo = await screen.findByLabelText('Акция');
+    const isNew = screen.getByLabelText('Новинка');
+    const hit = screen.getByLabelText('Лидеры продаж');
+
+    [promo, isNew, hit].forEach(checkbox => expect(checkbox).not.toBeChecked());
+
+    const price = screen.getByText('Цена');
+    const brands = screen.getByRole('button', { name: 'Торговая марка' });
+    expect(price.compareDocumentPosition(promo)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(promo.compareDocumentPosition(isNew)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(isNew.compareDocumentPosition(hit)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(hit.compareDocumentPosition(brands)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('оставляет выбранной одну подборку и снимает её повторным нажатием', async () => {
+    const user = userEvent.setup();
+    render(<CatalogPage />);
+
+    const promo = await screen.findByLabelText('Акция');
+    const isNew = screen.getByLabelText('Новинка');
+
+    await user.click(promo);
+    expect(promo).toBeChecked();
+    expect(lastNavigationUrl()).toBe('/catalog?is_promo=true');
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenLastCalledWith(
+        expect.objectContaining({ is_promo: true })
+      );
+    });
+
+    await user.click(isNew);
+    expect(promo).not.toBeChecked();
+    expect(isNew).toBeChecked();
+    expect(lastNavigationUrl()).toBe('/catalog?is_new=true');
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenLastCalledWith(
+        expect.objectContaining({ is_new: true })
+      );
+    });
+    expect((productsService.getAll as Mock).mock.calls.at(-1)?.[0].is_promo).toBeUndefined();
+
+    await user.click(isNew);
+    expect(isNew).not.toBeChecked();
+    expect(lastNavigationUrl()).toBe('/catalog');
+    await waitFor(() => {
+      expect((productsService.getAll as Mock).mock.calls.at(-1)?.[0].is_new).toBeUndefined();
+    });
+  });
+
+  it('отмечает чекбокс подборки, пришедшей из адреса', async () => {
+    resetSearchParams('is_hit=true');
+
+    render(<CatalogPage />);
+
+    expect(await screen.findByLabelText('Лидеры продаж')).toBeChecked();
+    expect(screen.getByLabelText('Акция')).not.toBeChecked();
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(
+        expect.objectContaining({ is_hit: true })
+      );
+    });
+    expect(lastNavigation()).toBeNull();
+  });
+
+  it('оставляет из нескольких подборок адреса первую по порядку чекбоксов', async () => {
+    resetSearchParams('is_hit=true&is_new=true');
+
+    render(<CatalogPage />);
+
+    expect(await screen.findByLabelText('Новинка')).toBeChecked();
+    expect(screen.getByLabelText('Лидеры продаж')).not.toBeChecked();
+    await waitFor(() => {
+      expect(lastNavigation()).toEqual({ type: 'replace', url: '/catalog?is_new=true' });
+    });
+    (productsService.getAll as Mock).mock.calls.forEach(([filters]) => {
+      expect(filters.is_new).toBe(true);
+      expect(filters.is_hit).toBeUndefined();
+    });
+  });
+
+  it('убирает из адреса значения подборок, кроме true, и не трогает is_sale', async () => {
+    resetSearchParams('is_new=false&is_hit=1&is_sale=true');
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(lastNavigation()).toEqual({ type: 'replace', url: '/catalog?is_sale=true' });
+    });
+    expect(screen.getByLabelText('Новинка')).not.toBeChecked();
+    expect(screen.getByLabelText('Лидеры продаж')).not.toBeChecked();
+  });
+
+  it('выбор подборки сохраняет остальные фильтры адреса', async () => {
+    const user = userEvent.setup();
+    resetSearchParams('brand=nike&ordering=-name&in_stock=false');
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ brand: '1' }));
+    });
+
+    await user.click(await screen.findByLabelText('Акция'));
+
+    expect(lastNavigationUrl()).toBe(
+      '/catalog?brand=nike&ordering=-name&in_stock=false&is_promo=true'
+    );
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenLastCalledWith(
+        expect.objectContaining({ brand: '1', ordering: '-name', is_promo: true })
+      );
+    });
+    expect((productsService.getAll as Mock).mock.calls.at(-1)?.[0]).not.toHaveProperty('in_stock');
+  });
+
+  it('выбор подборки сбрасывает страницу одним запросом, не дожидаясь commit адреса', async () => {
+    const user = userEvent.setup();
+    resetSearchParams('page=3');
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 3 }));
+    });
+    (productsService.getAll as Mock).mockClear();
+    setDeferNavigation(true);
+
+    await user.click(await screen.findByLabelText('Акция'));
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(
+        expect.objectContaining({ is_promo: true, page: 1 })
+      );
+    });
+    expect(productsService.getAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('выбор подборки снимает is_sale одним запросом, не дожидаясь commit адреса', async () => {
+    const user = userEvent.setup();
+    resetSearchParams('is_sale=true');
+    render(<CatalogPage />);
+
+    // С бейджем запрос уходит до загрузки дерева и повторяется после неё: ждём оба справочника
+    await screen.findByText('Спорт');
+    await screen.findByLabelText('Nike');
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(
+        expect.objectContaining({ is_sale: true })
+      );
+    });
+    (productsService.getAll as Mock).mockClear();
+    setDeferNavigation(true);
+
+    await user.click(await screen.findByLabelText('Акция'));
+
+    expect(lastNavigationUrl()).toBe('/catalog?is_promo=true');
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(
+        expect.objectContaining({ is_promo: true })
+      );
+    });
+    expect(productsService.getAll).toHaveBeenCalledTimes(1);
+    expect((productsService.getAll as Mock).mock.calls[0][0].is_sale).toBeUndefined();
+  });
+
+  it('синхронизирует подборку при «назад» на URL без неё', async () => {
+    resetSearchParams('is_promo=true');
+    const { rerender } = render(<CatalogPage />);
+
+    const promo = await screen.findByLabelText('Акция');
+    expect(promo).toBeChecked();
+
+    resetSearchParams();
+    rerender(<CatalogPage />);
+
+    await waitFor(() => expect(promo).not.toBeChecked());
+    await waitFor(() => {
+      expect((productsService.getAll as Mock).mock.calls.at(-1)?.[0].is_promo).toBeUndefined();
+    });
+  });
+
+  it('снимает подборку при сбросе фильтров', async () => {
+    const user = userEvent.setup();
+    resetSearchParams('is_new=true&brand=nike');
+    render(<CatalogPage />);
+
+    const isNew = await screen.findByLabelText('Новинка');
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ brand: '1' }));
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Сбросить' }));
+
+    expect(isNew).not.toBeChecked();
+    expect(lastNavigationUrl()).toBe('/catalog');
+    await waitFor(() => {
+      expect((productsService.getAll as Mock).mock.calls.at(-1)?.[0].is_new).toBeUndefined();
+    });
   });
 
   it('не показывает кнопку «Применить»', async () => {
@@ -2421,6 +2624,9 @@ describe('CatalogPage — первая страница выдачи с серв
     'ordering=-name&min_price=1000&max_price=9000',
     'in_stock=false',
     'search=мяч',
+    'is_new=true',
+    'is_sale=true&is_promo=true',
+    'is_hit=true&is_new=true',
   ])('ключ сервера совпадает с первым запросом клиента на ?%s', async query => {
     resetSearchParams(query);
 

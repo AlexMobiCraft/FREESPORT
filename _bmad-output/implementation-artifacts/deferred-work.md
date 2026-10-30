@@ -1190,3 +1190,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-product-card-select-button.md`
   summary: `docs/architecture/coding-standards.md` приводит как эталон `ProductCard` с `onAddToCart` и кнопкой «В корзину» — пример противоречит текущему API компонента.
   evidence: `docs/architecture/coding-standards.md:276-289` и `:436` — `onAddToCart: (productId: number) => void`, `<button onClick={handleAddToCart}>В корзину</button>`.
+
+## Deferred from: spec-catalog-marketing-filters (2026-10-30)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-catalog-marketing-filters.md`
+  summary: Активная категория пропадает из дерева сайдбара, когда в ней нет товаров по текущим фильтрам, хотя фильтр остаётся активным.
+  evidence: `CategoryTree` в `frontend/src/app/(blue)/catalog/CatalogPageClient.tsx` фильтрует узлы только по `visibleIds`, а `visible-categories` игнорирует `category_id`. У брендов защита есть (`selectedBrandIds.has`), у категорий нет. Воспроизводилось и раньше через фильтр бренда, чекбоксы подборок делают случай чаще.
+- source_spec: `_bmad-output/implementation-artifacts/spec-catalog-marketing-filters.md`
+  summary: На `/catalog?is_sale=true` выдача сужена без видимого признака, а «Сбросить» этот фильтр не снимает.
+  evidence: У `is_sale` нет чекбокса, `handleResetFilters` оставляет параметр намеренно, адрес входит в sitemap (`frontend/src/app/sitemap.ts`). Решение нужно владельцу: добавить четвёртый чекбокс «Скидки» или снимать параметр сбросом.
+- source_spec: `_bmad-output/implementation-artifacts/spec-catalog-marketing-filters.md`
+  summary: H1 и хлебные крошки остаются «Каталог» на подборках, хотя title уже «Акции — каталог…».
+  evidence: `generateMetadata` в `frontend/src/app/(blue)/catalog/page.tsx` меняет title для `is_promo`, `is_new`, `is_hit`, `is_sale`, а H1 в `CatalogPageClient.tsx` выбирается только по категории. Страницы подборок есть в sitemap со своим canonical.

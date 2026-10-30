@@ -28,16 +28,19 @@ import { useToast } from '@/components/ui/Toast';
 import {
   DEFAULT_ORDERING,
   DEFAULT_PRICE_RANGE,
+  MARKETING_FILTERS,
   PAGE_SIZE,
   PRICE_MAX,
   PRICE_MIN,
   parseInStock,
+  parseMarketingFilter,
   parseOrdering,
   parsePageNumber,
   parsePriceRange,
   parseSearchFilter,
   productFiltersKey,
   type CatalogInitialProducts,
+  type MarketingFilter,
   type PriceRange,
 } from './catalogQuery';
 
@@ -84,6 +87,10 @@ const parseBrandSlugs = (value: string | null): string[] =>
     .split(',')
     .map(slug => slug.trim())
     .filter(Boolean);
+
+/** Запись подборки в URL одним набором ключей: выбор одной снимает остальные */
+const marketingParamUpdates = (selected: MarketingFilter | null): Record<string, string | null> =>
+  Object.fromEntries(MARKETING_FILTERS.map(({ key }) => [key, key === selected ? 'true' : null]));
 
 /**
  * Есть ли у браузера сохранённая сессия. Серверная выдача каталога получена
@@ -428,19 +435,24 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
   // схлопнулась бы после гидратации и сдвинула выдачу
   const [isBreakpointResolved, setIsBreakpointResolved] = useState(false);
 
-  // Badge-фильтры из URL (is_new, is_hit, is_sale, is_promo)
+  // Подборка из чекбоксов блока «Фильтры» зеркалится в URL той же схемой, что и «В наличии»
+  const [marketingFilter, setMarketingFilter] = useState(() =>
+    parseMarketingFilter(key => searchParams?.get(key) ?? null)
+  );
+
+  // is_sale чекбокса не имеет и приходит только из URL, но снимается вместе с выбором подборки
+  const [isSale, setIsSale] = useState(isSaleParam === 'true');
+
   const activeBadge = useMemo(
     () => ({
-      is_new: isNewParam === 'true' ? true : undefined,
-      is_hit: isHitParam === 'true' ? true : undefined,
-      is_sale: isSaleParam === 'true' ? true : undefined,
-      is_promo: isPromoParam === 'true' ? true : undefined,
+      is_new: marketingFilter === 'is_new' ? true : undefined,
+      is_hit: marketingFilter === 'is_hit' ? true : undefined,
+      is_sale: isSale ? true : undefined,
+      is_promo: marketingFilter === 'is_promo' ? true : undefined,
     }),
-    [isNewParam, isHitParam, isSaleParam, isPromoParam]
+    [marketingFilter, isSale]
   );
-  const hasBadgeFilter = Boolean(
-    activeBadge.is_new || activeBadge.is_hit || activeBadge.is_sale || activeBadge.is_promo
-  );
+  const hasBadgeFilter = Boolean(marketingFilter || isSale);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
   // Видимость категорий в sidebar: null = показывать всё (fallback / initial)
@@ -571,14 +583,28 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
   // Разобранные параметры URL — единый источник для инициализации состояния,
   // синхронизации по «назад»/«вперёд» и канонизации адресной строки. Три
   // независимых разбора неизбежно разъехались бы между собой.
+  const marketingParams = useMemo<Record<MarketingFilter, string | null>>(
+    () => ({ is_promo: isPromoParam, is_new: isNewParam, is_hit: isHitParam }),
+    [isPromoParam, isNewParam, isHitParam]
+  );
   const urlFilters = useMemo(
     () => ({
       ordering: parseOrdering(orderingParam),
       price: parsePriceRange(minPriceParam, maxPriceParam),
       inStock: parseInStock(inStockParam),
       brandSlugs: parseBrandSlugs(brandSlugParam),
+      marketing: parseMarketingFilter(key => marketingParams[key]),
+      isSale: isSaleParam === 'true',
     }),
-    [orderingParam, minPriceParam, maxPriceParam, inStockParam, brandSlugParam]
+    [
+      orderingParam,
+      minPriceParam,
+      maxPriceParam,
+      inStockParam,
+      brandSlugParam,
+      marketingParams,
+      isSaleParam,
+    ]
   );
 
   // Категория в URL — slug, в состоянии — id. Пока дерево не загружено,
@@ -964,6 +990,8 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
       urlFilters.price.min !== priceRange.min ||
       urlFilters.price.max !== priceRange.max ||
       urlFilters.inStock !== inStock ||
+      urlFilters.marketing !== marketingFilter ||
+      urlFilters.isSale !== isSale ||
       urlActiveCategoryId !== activeCategoryId ||
       (urlBrandIds !== null && !brandStateMatchesUrl);
 
@@ -978,6 +1006,8 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
     priceRange.min,
     priceRange.max,
     inStock,
+    marketingFilter,
+    isSale,
     urlActiveCategoryId,
     activeCategoryId,
     urlBrandIds,
@@ -1038,6 +1068,8 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
         : urlFilters.price
     );
     setInStock(prev => (prev === urlFilters.inStock ? prev : urlFilters.inStock));
+    setMarketingFilter(urlFilters.marketing);
+    setIsSale(urlFilters.isSale);
 
     // Канонизация ждёт, пока станут разрешимы ВСЕ пришедшие в ссылке slug'и:
     // иначе смешанная мусорная ссылка чистится двумя replace — сначала по
@@ -1086,6 +1118,13 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
       canonical.in_stock = canonicalInStock;
     }
 
+    // Подборка одна: лишние флаги и значения, кроме 'true', в адресе не остаются
+    Object.entries(marketingParamUpdates(urlFilters.marketing)).forEach(([key, value]) => {
+      if (marketingParams[key as MarketingFilter] !== value) {
+        canonical[key] = value;
+      }
+    });
+
     // Бренды канонизируются по УСПЕШНО загруженному справочнику. Проверять
     // brands.length нельзя: успешно загруженный пустой справочник — такое же
     // основание считать slug мусорным, как и непустой, а при таком гарде
@@ -1128,6 +1167,7 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
     inStockParam,
     brandSlugParam,
     categorySlugParam,
+    marketingParams,
     urlFilters,
     brands,
     isBrandsLoading,
@@ -1404,6 +1444,15 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
     resetPage({ brand: slugs.length > 0 ? slugs.join(',') : null });
   };
 
+  // Повторное нажатие на выбранный чекбокс снимает фильтр. is_sale чекбокса не имеет:
+  // оставшись в адресе, он сужал бы выдачу новой подборки невидимым условием.
+  const handleMarketingFilterToggle = (key: MarketingFilter) => {
+    const next = marketingFilter === key ? null : key;
+    setMarketingFilter(next);
+    setIsSale(false);
+    resetPage({ ...marketingParamUpdates(next), is_sale: null });
+  };
+
   const handleOrderingChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = parseOrdering(event.target.value);
     setOrdering(value);
@@ -1421,6 +1470,7 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
     setPriceRange(DEFAULT_PRICE_RANGE);
     setOrdering(DEFAULT_ORDERING);
     setInStock(true); // Сбрасываем фильтр "В наличии" в true
+    setMarketingFilter(null);
     setSearchQuery(''); // Сбрасываем поисковый запрос
 
     // Сбрасываем категорию в «Все»
@@ -1428,9 +1478,9 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
     setActiveCategoryLabel('');
     setExpandedKeys(new Set()); // Очищаем развёрнутые подкатегории
 
-    // Один push со всеми ключами фильтров сайдбара. Бейджи is_new/is_hit/is_sale/is_promo
-    // намеренно переживают сброс: они приходят внешним контекстом (переход с
-    // главной) и в сайдбаре как фильтр не показаны.
+    // Один push со всеми ключами фильтров сайдбара. Бейдж is_sale намеренно
+    // переживает сброс: он приходит внешним контекстом (ссылка на подборку)
+    // и в сайдбаре как фильтр не показан.
     resetPage({
       category: null,
       brand: null,
@@ -1439,6 +1489,7 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
       max_price: null,
       in_stock: null,
       search: null,
+      ...marketingParamUpdates(null),
     });
   };
 
@@ -1671,6 +1722,18 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
                 value={priceDraft}
                 onChange={handlePriceRangeChange}
               />
+
+              <div className="flex flex-col gap-1" role="group" aria-label="Подборки товаров">
+                {MARKETING_FILTERS.map(({ key, label }) => (
+                  <div key={key}>
+                    <Checkbox
+                      label={label}
+                      checked={marketingFilter === key}
+                      onChange={() => handleMarketingFilterToggle(key)}
+                    />
+                  </div>
+                ))}
+              </div>
 
               <div className="space-y-2 text-sm text-gray-600">
                 <button
