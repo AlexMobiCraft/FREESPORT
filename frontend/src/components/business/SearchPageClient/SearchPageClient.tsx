@@ -113,10 +113,8 @@ export const SearchPageClient: React.FC<SearchPageClientProps> = ({
       : new URLSearchParams();
     params.set('page', page.toString());
 
-    router.push(`/search?${params.toString()}`, { scroll: true });
-
-    // Прокручиваем страницу вверх
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Прокрутку к началу делает сам Pagination: мгновенная прокрутка Next оборвала бы плавную
+    router.push(`/search?${params.toString()}`, { scroll: false });
   };
 
   /**

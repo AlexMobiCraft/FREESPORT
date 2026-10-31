@@ -320,15 +320,18 @@ describe('SearchPageClient', () => {
         expect(screen.getByTestId('pagination')).toBeInTheDocument();
       });
 
+      const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
       const nextButton = screen.getByText('Next');
       await user.click(nextButton);
 
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith(
-          expect.stringContaining('page=2'),
-          expect.any(Object)
-        );
+        expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('page=2'), {
+          scroll: false,
+        });
       });
+      // Прокрутку к началу делает сам Pagination (здесь он подменён моком)
+      expect(scrollTo).not.toHaveBeenCalled();
+      scrollTo.mockRestore();
     });
 
     it('displays current page', async () => {

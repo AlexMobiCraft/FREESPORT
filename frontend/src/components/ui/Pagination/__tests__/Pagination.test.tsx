@@ -3,13 +3,44 @@
  * Testing all variants, states, and edge cases
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Pagination } from '../Pagination';
 
 describe('Pagination', () => {
   const mockOnPageChange = vi.fn();
+
+  /** Подменяет matchMedia: reduce === true включает prefers-reduced-motion */
+  const mockReducedMotion = (reduce: boolean) => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: reduce && query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      onchange: null,
+    })) as unknown as typeof window.matchMedia;
+  };
+
+  const renderRow = (currentPage: number, totalPages: number) =>
+    render(
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={mockOnPageChange} />
+    );
+
+  /** Ряд плиток без стрелок: номера и многоточие через пробел */
+  const getRowCells = () =>
+    Array.from(document.querySelectorAll('li'))
+      .map(item => item.textContent?.trim() ?? '')
+      .filter(text => text !== '')
+      .join(' ');
+
+  beforeEach(() => {
+    window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
+    mockReducedMotion(false);
+  });
 
   afterEach(() => {
     mockOnPageChange.mockClear();
@@ -71,21 +102,29 @@ describe('Pagination', () => {
       const activePage = screen.getByRole('button', { name: 'Страница 2' });
       expect(activePage).toHaveClass('bg-primary', 'text-text-inverse');
     });
+
+    it('should style inactive tiles and keep text-sm typography', () => {
+      render(<Pagination currentPage={2} totalPages={5} onPageChange={mockOnPageChange} />);
+
+      const inactive = screen.getByRole('button', { name: 'Страница 3' });
+      expect(inactive).toHaveClass('bg-primary-subtle', 'text-primary', 'text-sm', 'font-medium');
+      expect(screen.getByRole('button', { name: 'Страница 2' })).toHaveClass('text-sm');
+    });
   });
 
-  describe('Disabled States', () => {
-    it('should disable previous button on first page', () => {
+  describe('Edge arrows and first/last buttons', () => {
+    it('should not render previous button on first page', () => {
       render(<Pagination currentPage={1} totalPages={5} onPageChange={mockOnPageChange} />);
 
-      const prevButton = screen.getByRole('button', { name: 'Предыдущая страница' });
-      expect(prevButton).toBeDisabled();
+      expect(screen.queryByRole('button', { name: 'Предыдущая страница' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Следующая страница' })).toBeInTheDocument();
     });
 
-    it('should disable next button on last page', () => {
+    it('should not render next button on last page', () => {
       render(<Pagination currentPage={5} totalPages={5} onPageChange={mockOnPageChange} />);
 
-      const nextButton = screen.getByRole('button', { name: 'Следующая страница' });
-      expect(nextButton).toBeDisabled();
+      expect(screen.queryByRole('button', { name: 'Следующая страница' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Предыдущая страница' })).toBeInTheDocument();
     });
 
     it('should disable first button on first page', () => {
@@ -154,58 +193,152 @@ describe('Pagination', () => {
       expect(mockOnPageChange).not.toHaveBeenCalled();
     });
 
-    it('should not call onPageChange when clicking disabled buttons', async () => {
+    it('should not call onPageChange when clicking disabled first button', async () => {
       const user = userEvent.setup();
-      render(<Pagination currentPage={1} totalPages={5} onPageChange={mockOnPageChange} />);
+      render(
+        <Pagination currentPage={1} totalPages={10} onPageChange={mockOnPageChange} showFirstLast />
+      );
 
-      const prevButton = screen.getByRole('button', { name: 'Предыдущая страница' });
-      await user.click(prevButton);
+      await user.click(screen.getByRole('button', { name: 'Первая страница' }));
 
       expect(mockOnPageChange).not.toHaveBeenCalled();
+      expect(window.scrollTo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Scroll to top', () => {
+    it('should scroll smoothly to top once when selecting a page', async () => {
+      const user = userEvent.setup();
+      renderRow(1, 5);
+
+      await user.click(screen.getByRole('button', { name: 'Страница 3' }));
+
+      expect(mockOnPageChange).toHaveBeenCalledWith(3);
+      expect(window.scrollTo).toHaveBeenCalledTimes(1);
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+    });
+
+    it('should scroll to top when clicking an arrow', async () => {
+      const user = userEvent.setup();
+      renderRow(2, 5);
+
+      await user.click(screen.getByRole('button', { name: 'Следующая страница' }));
+
+      expect(mockOnPageChange).toHaveBeenCalledWith(3);
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+    });
+
+    it('should neither change page nor scroll when clicking current page', async () => {
+      const user = userEvent.setup();
+      renderRow(2, 5);
+
+      await user.click(screen.getByRole('button', { name: 'Страница 2' }));
+
+      expect(mockOnPageChange).not.toHaveBeenCalled();
+      expect(window.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('should scroll without animation when prefers-reduced-motion is set', async () => {
+      mockReducedMotion(true);
+      const user = userEvent.setup();
+      renderRow(1, 5);
+
+      await user.click(screen.getByRole('button', { name: 'Страница 3' }));
+
+      expect(window.scrollTo).toHaveBeenCalledTimes(1);
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+    });
+  });
+
+  describe('Keyboard focus on edge pages', () => {
+    it('should move focus to the last page tile when Enter is pressed on next arrow', async () => {
+      const user = userEvent.setup();
+      const { rerender } = renderRow(19, 20);
+
+      const next = screen.getByRole('button', { name: 'Следующая страница' });
+      const lastTile = screen.getByRole('button', { name: 'Страница 20' });
+      const focusSpy = vi.spyOn(lastTile, 'focus');
+      next.focus();
+      await user.keyboard('{Enter}');
+
+      expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
+      expect(mockOnPageChange).toHaveBeenCalledWith(20);
+      expect(lastTile).toHaveFocus();
+
+      // Родитель принял страницу: стрелка исчезла, фокус остался на той же плитке
+      rerender(<Pagination currentPage={20} totalPages={20} onPageChange={mockOnPageChange} />);
+      expect(screen.queryByRole('button', { name: 'Следующая страница' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Страница 20' })).toBe(lastTile);
+      expect(lastTile).toHaveFocus();
+    });
+
+    it('should move focus to the first page tile when Enter is pressed on previous arrow', async () => {
+      const user = userEvent.setup();
+      renderRow(2, 20);
+
+      const prev = screen.getByRole('button', { name: 'Предыдущая страница' });
+      const firstTile = screen.getByRole('button', { name: 'Страница 1' });
+      const focusSpy = vi.spyOn(firstTile, 'focus');
+      prev.focus();
+      await user.keyboard('{Enter}');
+
+      expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
+      expect(mockOnPageChange).toHaveBeenCalledWith(1);
+    });
+
+    it('should not move focus when the arrow is clicked with a mouse', async () => {
+      const user = userEvent.setup();
+      renderRow(19, 20);
+
+      const lastTile = screen.getByRole('button', { name: 'Страница 20' });
+      const focusSpy = vi.spyOn(lastTile, 'focus');
+      await user.click(screen.getByRole('button', { name: 'Следующая страница' }));
+
+      expect(focusSpy).not.toHaveBeenCalled();
+      expect(mockOnPageChange).toHaveBeenCalledWith(20);
+    });
+
+    it('should not move focus when the target page is neither first nor last', () => {
+      renderRow(5, 20);
+
+      const target = screen.getByRole('button', { name: 'Страница 6' });
+      const focusSpy = vi.spyOn(target, 'focus');
+      fireEvent.click(screen.getByRole('button', { name: 'Следующая страница' }));
+
+      expect(focusSpy).not.toHaveBeenCalled();
+      expect(mockOnPageChange).toHaveBeenCalledWith(6);
     });
   });
 
   describe('Ellipsis Logic', () => {
-    it('should show ellipsis when total pages > maxVisiblePages', () => {
-      render(<Pagination currentPage={1} totalPages={20} onPageChange={mockOnPageChange} />);
+    it.each([
+      // [currentPage, totalPages, ожидаемый ряд ячеек между стрелками]
+      [1, 20, '1 2 3 4 5 … 10 20'],
+      [1, 138, '1 2 3 4 5 … 69 138'],
+      [70, 138, '1 … 68 69 70 71 72 … 138'],
+      [138, 138, '1 … 69 … 134 135 136 137 138'],
+      [5, 138, '1 2 3 4 5 6 7 … 138'],
+      [4, 138, '1 2 3 4 5 … 69 138'],
+      [1, 7, '1 2 3 4 5 6 7'],
+      [1, 5, '1 2 3 4 5'],
+      [1, 8, '1 2 3 4 5 … 8'],
+      [1, 11, '1 2 3 4 5 6 … 11'],
+      [1, 13, '1 2 3 4 5 6 7 … 13'],
+      [1, 15, '1 2 3 4 5 … 8 15'],
+      [20, 20, '1 … 10 … 16 17 18 19 20'],
+      [19, 20, '1 … 10 … 16 17 18 19 20'],
+    ])('page %i of %i renders "%s"', (currentPage, totalPages, expected) => {
+      renderRow(currentPage, totalPages);
 
-      const ellipsis = screen.getAllByText('…');
-      expect(ellipsis.length).toBeGreaterThan(0);
+      expect(getRowCells()).toBe(expected);
     });
 
-    it('should show all pages when total pages <= maxVisiblePages', () => {
+    it('should not render ellipsis when total pages <= maxVisiblePages', () => {
       render(<Pagination currentPage={1} totalPages={5} onPageChange={mockOnPageChange} />);
 
-      const ellipsis = screen.queryByText('…');
-      expect(ellipsis).not.toBeInTheDocument();
-
-      // Проверяем что все 5 страниц видны
+      expect(screen.queryByText('…')).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Страница 1' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Страница 5' })).toBeInTheDocument();
-    });
-
-    it('should show ellipsis at end when current page is near start', () => {
-      render(<Pagination currentPage={2} totalPages={20} onPageChange={mockOnPageChange} />);
-
-      // Должен быть ellipsis в конце
-      const ellipsis = screen.getAllByText('…');
-      expect(ellipsis.length).toBeGreaterThan(0);
-    });
-
-    it('should show ellipsis at start when current page is near end', () => {
-      render(<Pagination currentPage={19} totalPages={20} onPageChange={mockOnPageChange} />);
-
-      // Должен быть ellipsis в начале
-      const ellipsis = screen.getAllByText('…');
-      expect(ellipsis.length).toBeGreaterThan(0);
-    });
-
-    it('should show ellipsis on both sides when current page is in middle', () => {
-      render(<Pagination currentPage={10} totalPages={20} onPageChange={mockOnPageChange} />);
-
-      // Должен быть ellipsis с обеих сторон
-      const ellipsis = screen.getAllByText('…');
-      expect(ellipsis.length).toBeGreaterThan(0);
     });
   });
 

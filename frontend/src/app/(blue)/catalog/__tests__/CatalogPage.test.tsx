@@ -1033,7 +1033,7 @@ describe('CatalogPage — сохранение страницы пагинаци
 
     render(<CatalogPage />);
 
-    await user.click(await screen.findByRole('button', { name: '3' }));
+    await user.click(await screen.findByRole('button', { name: 'Страница 3' }));
 
     expect(lastNavigationUrl()).toBe('/catalog?page=3');
     await waitFor(() => {
@@ -1046,11 +1046,11 @@ describe('CatalogPage — сохранение страницы пагинаци
 
     render(<CatalogPage />);
 
-    await screen.findByRole('button', { name: '3' });
+    await screen.findByRole('button', { name: 'Страница 3' });
     (productsService.getAll as Mock).mockClear();
     (categoriesService.getTree as Mock).mockClear();
 
-    await user.click(screen.getByRole('button', { name: '3' }));
+    await user.click(screen.getByRole('button', { name: 'Страница 3' }));
 
     await waitFor(() => {
       expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 3 }));
@@ -1060,13 +1060,26 @@ describe('CatalogPage — сохранение страницы пагинаци
     expect(categoriesService.getTree).not.toHaveBeenCalled();
   });
 
+  it('прокручивает к началу страницы один раз при клике по плитке', async () => {
+    const user = userEvent.setup();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    render(<CatalogPage />);
+
+    await user.click(await screen.findByRole('button', { name: 'Страница 3' }));
+
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+    scrollTo.mockRestore();
+  });
+
   it('убирает page из URL при возврате на первую страницу', async () => {
     const user = userEvent.setup();
     resetSearchParams('page=3');
 
     render(<CatalogPage />);
 
-    await user.click(await screen.findByRole('button', { name: '1' }));
+    await user.click(await screen.findByRole('button', { name: 'Страница 1' }));
 
     expect(lastNavigationUrl()).toBe('/catalog');
   });
@@ -1076,9 +1089,9 @@ describe('CatalogPage — сохранение страницы пагинаци
 
     render(<CatalogPage />);
 
-    const active = await screen.findByRole('button', { name: '2' });
+    const active = await screen.findByRole('button', { name: 'Страница 2' });
     expect(active).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('button', { name: '3' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('button', { name: 'Страница 3' })).not.toHaveAttribute('aria-current');
   });
 
   it('сохраняет остальные параметры URL при смене страницы', async () => {
@@ -1087,7 +1100,7 @@ describe('CatalogPage — сохранение страницы пагинаци
 
     render(<CatalogPage />);
 
-    await user.click(await screen.findByRole('button', { name: '3' }));
+    await user.click(await screen.findByRole('button', { name: 'Страница 3' }));
 
     const url = lastNavigationUrl() ?? '';
     expect(url).toContain('search=nike');
@@ -1135,7 +1148,7 @@ describe('CatalogPage — сохранение страницы пагинаци
     });
 
     (productsService.getAll as Mock).mockClear();
-    await user.click(await screen.findByRole('button', { name: '2' }));
+    await user.click(await screen.findByRole('button', { name: 'Страница 2' }));
 
     await waitFor(() => {
       expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
@@ -1161,7 +1174,7 @@ describe('CatalogPage — сохранение страницы пагинаци
     });
 
     (productsService.getAll as Mock).mockClear();
-    await user.click(await screen.findByRole('button', { name: '2' }));
+    await user.click(await screen.findByRole('button', { name: 'Страница 2' }));
 
     await waitFor(() => {
       expect(productsService.getAll).toHaveBeenLastCalledWith(
@@ -1281,7 +1294,7 @@ describe('CatalogPage — сохранение страницы пагинаци
 
     render(<CatalogPage />);
 
-    const pageThree = await screen.findByRole('button', { name: '3' });
+    const pageThree = await screen.findByRole('button', { name: 'Страница 3' });
     await act(async () => {
       pageThree.click();
     });
@@ -1314,7 +1327,7 @@ describe('CatalogPage — сохранение страницы пагинаци
       // Один hop: реакция Promise.all уже отработала, продолжение catch стоит
       // следующим в очереди — клик вклинивается ровно перед ним
       await Promise.resolve();
-      screen.getByRole('button', { name: '2' }).click();
+      screen.getByRole('button', { name: 'Страница 2' }).click();
 
       await waitFor(() => {
         expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
@@ -1324,7 +1337,7 @@ describe('CatalogPage — сохранение страницы пагинаци
     }
 
     // Устаревший 404 не откатывает ни состояние, ни URL
-    expect(screen.getByRole('button', { name: '2' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Страница 2' })).toHaveAttribute('aria-current', 'page');
     expect(productsService.getAll).not.toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
     expect(mockReplace).not.toHaveBeenCalled();
     expect(lastNavigationUrl()).toBe('/catalog?page=2');
@@ -1392,7 +1405,7 @@ describe('CatalogPage — сохранение страницы пагинаци
     }
 
     expect(productsService.getAll).not.toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
-    expect(screen.getByRole('button', { name: '2' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Страница 2' })).toHaveAttribute('aria-current', 'page');
   });
 });
 
