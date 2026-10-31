@@ -249,6 +249,23 @@ CELERY_RESULT_BACKEND = config(
     default=CELERY_BROKER_URL,
 )
 
+# Таймауты брокера и бэкенда результатов (Redis — один и тот же).
+# По умолчанию Celery подключает бэкенд результатов ещё до публикации и
+# повторяет 20 раз, а `redis_socket_timeout` равен 120 с, поэтому недоступный
+# или зависший Redis держал `.delay` в запросе оформления заказа дольше
+# таймаута gunicorn (60 с). Замер в образе бэкенда (Celery 5.4.0, kombu 5.5.4,
+# redis 5.0.1), время одного `.delay`: соединение отклонено 19 с → 0,2 с,
+# имя не разрешается 70 с → 7 с, соединение принято без ответа >170 с → 9 с.
+# Настройки общие для всех задач проекта, включая `self.retry` и запись
+# результатов в воркере: при коротком сбое Redis они сдадутся раньше, зато не
+# повесят запрос. Таймауты кэша `django-redis` здесь не меняются.
+_CELERY_REDIS_RETRY = {"max_retries": 1, "interval_start": 0, "interval_step": 0.2, "interval_max": 0.2}
+CELERY_BROKER_TRANSPORT_OPTIONS = {"socket_connect_timeout": 2, "socket_timeout": 3}
+CELERY_REDIS_SOCKET_CONNECT_TIMEOUT = 2
+CELERY_REDIS_SOCKET_TIMEOUT = 3
+CELERY_TASK_PUBLISH_RETRY_POLICY = _CELERY_REDIS_RETRY
+CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {"retry_policy": _CELERY_REDIS_RETRY}
+
 # Celery Beat Schedule (Story 29.4 - мониторинг pending верификаций)
 CELERY_BEAT_SCHEDULE = {
     "monitor-pending-verification-queue": {

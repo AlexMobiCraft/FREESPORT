@@ -93,8 +93,20 @@ class SupervisorRoutingRuleAdmin(ManagerRoutingRuleAdmin):
                 self._log(request, rule_id, "delete", rule, _changed_fields(state, None))
 
 
+NEW_ORDERS_FLAG_HINT = (
+    "Выключение действует только на общий список получателей. Ответственный менеджер "
+    "клиента получает письмо о каждом новом заказе своего клиента независимо от флага."
+)
+
+
 class SupervisorNotificationRecipientAdmin(NotificationRecipientAdmin):
     view_on_site = False
+
+    def formfield_for_dbfield(self, db_field: Any, request: HttpRequest, **kwargs: Any) -> Any:
+        # Подсказка в форме, а не `help_text` модели: он дал бы AlterField и миграцию.
+        if db_field.name == "notify_new_orders":
+            kwargs["help_text"] = NEW_ORDERS_FLAG_HINT
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 supervisor_site.register(ManagerRoutingRule, SupervisorRoutingRuleAdmin)

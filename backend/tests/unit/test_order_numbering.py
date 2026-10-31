@@ -141,7 +141,7 @@ class TestOrderNumberingService:
 @pytest.mark.unit
 @pytest.mark.django_db(transaction=True)
 class TestEmailSignalIsMasterGuard:
-    def test_email_tasks_not_queued_for_suborders(self):
+    def test_email_tasks_not_queued_for_suborders(self, django_capture_on_commit_callbacks):
         """Сигнал должен ставить email-задачи только для master-заказов."""
         user = UserFactory.create(customer_code="11111")
 
@@ -175,7 +175,11 @@ class TestEmailSignalIsMasterGuard:
         with patch("apps.orders.tasks.send_order_confirmation_to_customer") as mock_customer, patch(
             "apps.orders.tasks.send_order_notification_email"
         ) as mock_admin:
-            suborder.save()
+            # Сохраняем внутри транзакции и выполняем колбэки on_commit: без
+            # коммита «не вызвано» проходило бы впустую, даже если сигнал ставит задачи
+            with django_capture_on_commit_callbacks(execute=True):
+                with transaction.atomic():
+                    suborder.save()
             mock_customer.delay.assert_not_called()
             mock_admin.delay.assert_not_called()
 

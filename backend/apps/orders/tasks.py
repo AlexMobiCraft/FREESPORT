@@ -17,7 +17,7 @@ from django.urls import reverse
 
 from apps.common.models import NotificationRecipient
 from apps.orders.models import Order, OrderItem
-from apps.users.staff_roles import split_by_manager_section
+from apps.users.staff_roles import responsible_manager_candidates, split_by_manager_section
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +158,50 @@ def _build_order_email_text(order):
     return message.strip()
 
 
+def _responsible_manager_email(order: Order) -> str | None:
+    """Email ответственного менеджера клиента заказа или `None`, если письмо ему слать нельзя.
+
+    Источник — `User.responsible_manager`: он уже учитывает правило региона и ручное
+    назначение. Менеджер годится, только если проходит `responsible_manager_candidates()`
+    (активный сотрудник из групп «Менеджеры»/«Руководители») и у него есть email:
+    иначе раздел `/manager/` не откроет ему заказ, и ссылка из письма была бы мёртвой.
+    """
+    if order.user_id is None:
+        return None
+
+    manager_id = order.user.responsible_manager_id
+    if manager_id is not None:
+        manager_email = responsible_manager_candidates().filter(pk=manager_id).values_list("email", flat=True).first()
+        if manager_email:
+            return str(manager_email)
+
+    logger.warning(
+        f"У заказа {order.order_number} нет подходящего ответственного менеджера клиента: "
+        f"письмо уйдёт только общему списку получателей"
+    )
+    return None
+
+
+def _collect_new_order_recipients(order: Order) -> list[str]:
+    """Получатели письма о новом заказе: общий список и ответственный менеджер без дублей.
+
+    Флаг `notify_new_orders` управляет только общим списком; менеджер клиента
+    добавляется независимо от него. Дубли убираются по `email.lower()`, порядок
+    сохраняется: сначала общий список, затем менеджер.
+    """
+    emails = list(
+        NotificationRecipient.objects.filter(is_active=True, notify_new_orders=True).values_list("email", flat=True)
+    )
+    manager_email = _responsible_manager_email(order)
+    if manager_email:
+        emails.append(manager_email)
+
+    unique: dict[str, str] = {}
+    for email in emails:
+        unique.setdefault(email.lower(), email)
+    return list(unique.values())
+
+
 @shared_task(
     bind=True,
     max_retries=3,
@@ -169,7 +213,8 @@ def send_order_notification_email(self: Any, order_id: int) -> bool:
     """
     Отправить email-уведомление о новом заказе.
 
-    Отправляет уведомление всем получателям с флагом notify_new_orders=True.
+    Получатели: все активные с флагом notify_new_orders=True и ответственный менеджер
+    клиента (независимо от флага, если он может войти в раздел `/manager/`).
 
     Args:
         order_id: ID заказа
@@ -186,11 +231,8 @@ def send_order_notification_email(self: Any, order_id: int) -> bool:
         )
         return False
 
-    # Получаем активных получателей с флагом notify_new_orders
-    recipients = NotificationRecipient.objects.filter(
-        is_active=True,
-        notify_new_orders=True,
-    ).values_list("email", flat=True)
+    # Общий список + ответственный менеджер клиента (независимо от флага)
+    recipients = _collect_new_order_recipients(order)
 
     if not recipients:
         logger.info(
