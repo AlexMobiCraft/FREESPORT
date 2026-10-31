@@ -11,6 +11,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { Pagination } from '@/components/ui/Pagination';
 import { SearchAutocomplete } from '@/components/business/SearchAutocomplete';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Grid2x2, List, ChevronDown } from 'lucide-react';
@@ -67,7 +68,6 @@ const PRICE_STEP = 500;
 // перетаскивания: без паузы каждый шаг создавал бы запись в истории браузера и
 // отдельный запрос товаров. UI ползунка при этом двигается сразу (см. priceDraft).
 const PRICE_COMMIT_DELAY_MS = 300;
-const MAX_VISIBLE_PAGES = 5;
 
 // Константы анимации фильтров (F2, F5, F6)
 const FILTER_ANIMATION_DURATION = 'duration-[180ms]';
@@ -1506,18 +1506,6 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
     updateSearchParams({ page: nextPage === 1 ? null : String(nextPage) });
   };
 
-  const visiblePages = useMemo(() => {
-    if (totalPages <= MAX_VISIBLE_PAGES) {
-      return Array.from({ length: totalPages }, (_, index) => index + 1);
-    }
-
-    const half = Math.floor(MAX_VISIBLE_PAGES / 2);
-    const maxStart = totalPages - MAX_VISIBLE_PAGES + 1;
-    const startPage = Math.max(1, Math.min(page - half, maxStart));
-
-    return Array.from({ length: MAX_VISIBLE_PAGES }, (_, index) => startPage + index);
-  }, [page, totalPages]);
-
   const renderProducts = () => {
     if (isProductsLoading) {
       return (
@@ -1878,42 +1866,11 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
 
             {renderProducts()}
 
-            <div className="flex justify-center">
-              <nav className="flex items-center gap-2 text-sm">
-                <button
-                  className="h-10 w-10 rounded-[6px] border border-neutral-300 text-neutral-500 hover:border-primary hover:text-primary disabled:opacity-40 transition-colors"
-                  onClick={() => handlePageChange(page - 1)}
-                  disabled={page <= 1}
-                  aria-label="Предыдущая страница"
-                >
-                  ←
-                </button>
-
-                {visiblePages.map(pageNumber => (
-                  <button
-                    key={pageNumber}
-                    onClick={() => handlePageChange(pageNumber)}
-                    aria-current={pageNumber === page ? 'page' : undefined}
-                    className={
-                      pageNumber === page
-                        ? 'h-10 w-10 rounded-[6px] bg-primary text-white hover:bg-primary-hover'
-                        : 'h-10 w-10 rounded-[6px] border border-neutral-300 text-neutral-600 hover:border-primary hover:text-primary'
-                    }
-                  >
-                    {pageNumber}
-                  </button>
-                ))}
-
-                <button
-                  className="h-10 w-10 rounded-[6px] border border-neutral-300 text-neutral-500 hover:border-primary hover:text-primary disabled:opacity-40 transition-colors"
-                  onClick={() => handlePageChange(page + 1)}
-                  disabled={page >= totalPages}
-                  aria-label="Следующая страница"
-                >
-                  →
-                </button>
-              </nav>
-            </div>
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
           </section>
         </div>
       </div>

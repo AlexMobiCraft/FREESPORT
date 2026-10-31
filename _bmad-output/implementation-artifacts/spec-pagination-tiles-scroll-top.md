@@ -2,7 +2,8 @@
 title: 'Пагинация плитками по макету и переход к началу страницы'
 type: 'feature'
 created: '2026-10-31'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: '6dcdcf50f88f69e1f4a3635d51bb6d0dc9b9d2e3'
 route: 'dispatch'
 review_loop_iteration: 0
 context: []
@@ -55,10 +56,10 @@ context: []
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `frontend/src/components/ui/Pagination/Pagination.tsx` -- новый ряд номеров, плитки, скрытие стрелок на краях, `flex flex-wrap items-center justify-center gap-2` на `ul`, прокрутка в `handlePageChange` с учётом `prefers-reduced-motion`, перевод фокуса со стрелки на плитку (см. Design Notes) -- прокрутка в одном месте для всех потребителей
-- [ ] `frontend/src/app/(blue)/catalog/CatalogPageClient.tsx` -- заменить свою разметку и `visiblePages` на `Pagination`, удалить `MAX_VISIBLE_PAGES` -- один компонент вместо двух, иначе неиспользуемая константа роняет `--max-warnings=0`
-- [ ] `frontend/src/components/business/SearchPageClient/SearchPageClient.tsx` -- убрать `window.scrollTo`, в `router.push` поставить `scroll: false` -- иначе две прокрутки и рывок от Next
-- [ ] Тесты: `frontend/src/components/ui/Pagination/__tests__/Pagination.test.tsx`, `frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx`, `frontend/src/components/business/SearchPageClient/__tests__/SearchPageClient.test.tsx` -- обновить под матрицу и новые имена кнопок; проверить класс `text-sm`. Ряд проверять точным составом ячеек: нынешние тесты многоточия ждут только `length > 0` и пройдут на неверном ряду. В тесте поиска вместо `expect.any(Object)` проверить `{ scroll: false }`. Добавить в каталог тест: клик по плитке вызывает `window.scrollTo({ top: 0, behavior: 'smooth' })` один раз. Добавить в `Pagination`: Enter на стрелке перед крайней страницей переводит фокус на плитку цели с `preventScroll: true`, клик мышью фокус не переводит, при `prefers-reduced-motion: reduce` прокрутка идёт с `behavior: 'auto'` -- покрытие матрицы и AC
+- [x] `frontend/src/components/ui/Pagination/Pagination.tsx` -- новый ряд номеров, плитки, скрытие стрелок на краях, `flex flex-wrap items-center justify-center gap-2` на `ul`, прокрутка в `handlePageChange` с учётом `prefers-reduced-motion`, перевод фокуса со стрелки на плитку (см. Design Notes) -- прокрутка в одном месте для всех потребителей
+- [x] `frontend/src/app/(blue)/catalog/CatalogPageClient.tsx` -- заменить свою разметку и `visiblePages` на `Pagination`, удалить `MAX_VISIBLE_PAGES` -- один компонент вместо двух, иначе неиспользуемая константа роняет `--max-warnings=0`
+- [x] `frontend/src/components/business/SearchPageClient/SearchPageClient.tsx` -- убрать `window.scrollTo`, в `router.push` поставить `scroll: false` -- иначе две прокрутки и рывок от Next
+- [x] Тесты: `frontend/src/components/ui/Pagination/__tests__/Pagination.test.tsx`, `frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx`, `frontend/src/components/business/SearchPageClient/__tests__/SearchPageClient.test.tsx` -- обновить под матрицу и новые имена кнопок; проверить класс `text-sm`. Ряд проверять точным составом ячеек: нынешние тесты многоточия ждут только `length > 0` и пройдут на неверном ряду. В тесте поиска вместо `expect.any(Object)` проверить `{ scroll: false }`. Добавить в каталог тест: клик по плитке вызывает `window.scrollTo({ top: 0, behavior: 'smooth' })` один раз. Добавить в `Pagination`: Enter на стрелке перед крайней страницей переводит фокус на плитку цели с `preventScroll: true`, клик мышью фокус не переводит, при `prefers-reduced-motion: reduce` прокрутка идёт с `behavior: 'auto'` -- покрытие матрицы и AC
 
 **Acceptance Criteria:**
 - Given каталог из 20 страниц, when открыта первая страница, then ряд — плитки `1 2 3 4 5`, многоточие без плитки, плитки `10 20` и плитка со стрелкой вперёд.
@@ -71,6 +72,13 @@ context: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+Ревью 2026-10-31: Blind Hunter и Edge Case Hunter, 1 круг, loopback не потребовался.
+
+- **patch (2):** `window.matchMedia?.()` в `handlePageChange` (страховка окружений без `matchMedia`); тест фокуса проверяет реальный `document.activeElement` и после перерисовки с `currentPage=20`.
+- **reject (решения замороженной части спеки):** скрытие стрелок и сдвиг ряда; многоточие только на первый разрыв начальной ветки; прокрутка в общем компоненте для заказов и бонусов; `Pagination` снимается на время загрузки в поиске; `showFirstLast` без переноса фокуса (не используется).
+- **reject (шум):** NaN в `currentPage`, чётные и малые `maxVisiblePages`, `aria-label="Pagination"`, липкий hover, утечка спаев (тот же приём в соседнем тесте каталога), форматирование (`format:check` зелёный), e2e и сторис со старыми именами (в репозитории не найдены).
+- **defer:** нет.
 
 ## Design Notes
 
@@ -93,3 +101,43 @@ context: []
 **Manual checks (if no CLI):**
 - Каталог в браузере: вид ряда на первой, средней и последней странице, ширины 360 и 375 px, прокрутка наверх после клика. С клавиатуры: Tab до стрелки вперёд на предпоследней странице, Enter, фокус виден на последней плитке.
 - Поиск, заказы, бонусы: прокрутка наверх после клика, в поиске ряд на 375 px не больше двух строк. Здесь `Pagination` на время загрузки снимается, проверить, что подъём не обрывается рывком.
+
+## Suggested Review Order
+
+**Ряд номеров и плитки (точка входа)**
+
+- Ряд как множество номеров: ветки начала, конца и середины, разрыв в одну страницу заполняется номером.
+  [`Pagination.tsx:50`](../../frontend/src/components/ui/Pagination/Pagination.tsx#L50)
+
+- Единый вид плитки: `text-sm` вместо `text-body-s`, чтобы `twMerge` не выбросил класс.
+  [`Pagination.tsx:32`](../../frontend/src/components/ui/Pagination/Pagination.tsx#L32)
+
+**Прокрутка к началу и фокус**
+
+- Прокрутка в одном месте для всех потребителей, с учётом `prefers-reduced-motion`.
+  [`Pagination.tsx:119`](../../frontend/src/components/ui/Pagination/Pagination.tsx#L119)
+
+- Стрелка исчезает на краю: фокус переводится на плитку цели с `preventScroll`.
+  [`Pagination.tsx:135`](../../frontend/src/components/ui/Pagination/Pagination.tsx#L135)
+
+**Потребители**
+
+- Каталог переведён на общий компонент вместо своей разметки.
+  [`CatalogPageClient.tsx:1869`](../../frontend/src/app/(blue)/catalog/CatalogPageClient.tsx#L1869)
+
+- Поиск: `scroll: false`, прокрутку делает `Pagination`, иначе рывок Next оборвёт плавную.
+  [`SearchPageClient.tsx:117`](../../frontend/src/components/business/SearchPageClient/SearchPageClient.tsx#L117)
+
+**Тесты**
+
+- Точный состав ячеек ряда по матрице спеки.
+  [`Pagination.test.tsx:313`](../../frontend/src/components/ui/Pagination/__tests__/Pagination.test.tsx#L313)
+
+- Прокрутка: плавная, `auto` при уменьшении движения, не при клике по текущей.
+  [`Pagination.test.tsx:209`](../../frontend/src/components/ui/Pagination/__tests__/Pagination.test.tsx#L209)
+
+- Перенос фокуса на плитку крайней страницы с клавиатуры, не мышью.
+  [`Pagination.test.tsx:253`](../../frontend/src/components/ui/Pagination/__tests__/Pagination.test.tsx#L253)
+
+- Каталог: один вызов `scrollTo` на клик по плитке.
+  [`CatalogPage.test.tsx:1063`](../../frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx#L1063)
