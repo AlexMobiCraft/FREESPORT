@@ -1233,3 +1233,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1c-reactivate-disabled-products.md`
   summary: Счётчики упавшей сессии импорта, включая `reenabled_products`, не попадают в `report_details`, хотя изменения в БД остаются.
   evidence: `report_details` пишет только `finalize_session`; в `import_products_from_1c.py:580-590` ветка ошибки его не сохраняет. Строка `admission_report_line` в `report` при этом остаётся. Сумма из Verification спеки может быть меньше фактического числа включений.
+
+## Отложено из обсуждения spec-pagination-tiles-scroll-top.md с владельцем (2026-10-31)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-pagination-tiles-scroll-top.md`
+  summary: **`cn()` выбрасывает типографские классы дизайн-системы или цвет рядом с ними.** `twMerge` не знает про `text-body-s`, `text-title-m`, `text-caption` и похожие классы, считает их цветом текста и оставляет только последний из конфликтующих. Элемент теряет размер и начертание либо цвет. Не исправлено сразу, потому что правка в одном файле меняет вид 16 файлов, включая карточку товара, корзину и хлебные крошки: нужен отдельный просмотр сайта владельцем.
+  evidence: найдено 29 вызовов `cn` в 16 файлах, например `frontend/src/components/business/ProductCard/ProductCard.tsx:530`, `frontend/src/components/cart/CartSummary.tsx:91`, `frontend/src/components/ui/Breadcrumb/Breadcrumb.tsx:43`, `frontend/src/components/business/OrdersList/OrdersList.tsx:86`. Вариант исправления: `extendTailwindMerge` в `frontend/src/utils/cn.ts` с группой `font-size` для этих классов. Спека пагинации обходит дефект через `text-sm font-medium`.
