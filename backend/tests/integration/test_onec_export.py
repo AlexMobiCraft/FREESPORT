@@ -22,6 +22,7 @@ import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
+from django.db import transaction
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -733,22 +734,30 @@ class TestOrdersFilenameConstant:
 class TestAsyncEmailInSignal:
     """Tests for async email dispatch in post_save signal."""
 
-    def test_signal_dispatches_celery_tasks(self, customer_user, product_variant):
+    def test_signal_dispatches_celery_tasks(self, customer_user, product_variant, django_capture_on_commit_callbacks):
         """
         MEDIUM: post_save must dispatch Celery tasks, not send email synchronously.
+
+        Задачи ставятся через on_commit: до выхода из транзакции их нет, после — по одной.
         """
         with patch("apps.orders.tasks.send_order_confirmation_to_customer.delay") as mock_customer_delay, patch(
             "apps.orders.tasks.send_order_notification_email.delay"
         ) as mock_admin_delay:
-            order = Order.objects.create(
-                user=customer_user,
-                order_number="FS-ASYNC-001",
-                total_amount=1000,
-                sent_to_1c=False,
-                delivery_address="ул. Тестовая, 1",
-                delivery_method="pickup",
-                payment_method="card",
-            )
+            with django_capture_on_commit_callbacks(execute=True):
+                with transaction.atomic():
+                    order = Order.objects.create(
+                        user=customer_user,
+                        order_number="FS-ASYNC-001",
+                        total_amount=1000,
+                        sent_to_1c=False,
+                        delivery_address="ул. Тестовая, 1",
+                        delivery_method="pickup",
+                        payment_method="card",
+                    )
+
+                    # До коммита задачи не поставлены
+                    mock_customer_delay.assert_not_called()
+                    mock_admin_delay.assert_not_called()
 
             # Verify Celery tasks were dispatched (not synchronous send_mail)
             mock_customer_delay.assert_called_once_with(order.id)

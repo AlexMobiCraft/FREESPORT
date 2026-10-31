@@ -218,10 +218,9 @@ class TestOrderAPI:
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_checkout_queues_exactly_one_email_task_for_master(self, db):
-        """При checkout с субзаказами email-задачи ставятся только для master (1 раз каждая)."""
+    def _checkout_one_item(self):
+        """Корзина с одной позицией и данные для POST оформления заказа."""
         self.client.force_authenticate(user=self.user)
-
         cart = Cart.objects.create(user=self.user)
         CartItem.objects.create(
             cart=cart,
@@ -229,22 +228,46 @@ class TestOrderAPI:
             quantity=1,
             price_snapshot=self.variant.retail_price,
         )
-
         order_data = {
             "delivery_address": "г. Москва, ул. Тестовая, д. 1",
             "delivery_method": "courier",
             "payment_method": "card",
         }
+        return reverse("orders:order-list"), order_data
 
-        url = reverse("orders:order-list")
+    def test_checkout_queues_exactly_one_email_task_for_master(self, db, django_capture_on_commit_callbacks):
+        """При checkout с субзаказами email-задачи ставятся только для master (1 раз каждая)."""
+        url, order_data = self._checkout_one_item()
+
+        # ATOMIC_REQUESTS=True: колбэки on_commit срабатывают при коммите запроса
+        # (а в тесте с обёрнутой БД — только при выходе из захвата), поэтому
+        # захват оборачивает сам POST.
         with patch("apps.orders.tasks.send_order_confirmation_to_customer") as mock_customer, patch(
             "apps.orders.tasks.send_order_notification_email"
         ) as mock_admin:
-            response = self.client.post(url, order_data)
+            with django_capture_on_commit_callbacks(execute=True):
+                response = self.client.post(url, order_data)
 
         assert response.status_code == status.HTTP_201_CREATED
         assert mock_customer.delay.call_count == 1
         assert mock_admin.delay.call_count == 1
+
+    def test_checkout_survives_broker_failure(self, db, django_capture_on_commit_callbacks, caplog):
+        """Сбой брокера после фиксации не ломает оформление заказа; номер заказа попадает в лог."""
+        url, order_data = self._checkout_one_item()
+
+        with patch("apps.orders.tasks.send_order_confirmation_to_customer") as mock_customer, patch(
+            "apps.orders.tasks.send_order_notification_email"
+        ) as mock_admin, caplog.at_level("ERROR", logger="apps.orders.signals"):
+            mock_customer.delay.side_effect = ConnectionError("redis недоступен")
+            with django_capture_on_commit_callbacks(execute=True):
+                response = self.client.post(url, order_data)
+
+        assert response.status_code == status.HTTP_201_CREATED
+        order = Order.objects.get(order_number=response.data["order_number"])
+        # Первая задача упала, вторая всё равно поставлена
+        assert mock_admin.delay.call_count == 1
+        assert order.order_number in caplog.text
 
     def test_create_order_guest_with_session_cart_is_rejected(self, db):
         """Гостевой checkout через session-корзину запрещён новой схемой нумерации."""

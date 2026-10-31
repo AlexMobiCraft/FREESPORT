@@ -66,7 +66,7 @@ optimized_for_llm: true
   - Аутентификация по умолчанию — JWT с проверкой Redis-blacklist (+ session auth).
   - `DEFAULT_PERMISSION_CLASSES` = `AllowAny` — осознанное решение для публичных endpoints. **Защищённые view ОБЯЗАНЫ явно указывать** `permission_classes = [IsAuthenticated]`. Не полагаться на default.
 - **B2B verification**: оптовые цены (`opt1/2/3_price`) и B2B-функции доступны **только верифицированным** пользователям с ролью wholesale/trainer/federation_rep. Неверифицированный B2B видит retail-цены. Проверять флаг верификации в сериализаторах/permissions.
-- **Master/sub-order email**: customer- и admin-уведомления ставятся в очередь **только для `is_master=True`** (guard в `apps/orders/signals.py`). Items для отображения берутся из `sub_orders` через `_get_order_display_items` — не из прямых `OrderItem` мастера.
+- **Master/sub-order email**: customer- и admin-уведомления ставятся в очередь **только для `is_master=True`** (guard в `apps/orders/signals.py`) и **только после коммита** (`transaction.on_commit(robust=True)`); письмо о заказе получают общий список `NotificationRecipient` и ответственный менеджер клиента независимо от флага `notify_new_orders`. Items для отображения берутся из `sub_orders` через `_get_order_display_items` — не из прямых `OrderItem` мастера.
 - **Критические операции** (генерация номера заказа, decrement остатков, создание `Order` + `OrderItem` snapshot) — обязательно в `transaction.atomic()` с `select_for_update()`. Не разносить по двум вызовам.
 - **Celery-задачи идемпотентны** — могут ретраиться при сбоях 1С/сети. Не предполагать «выполнится ровно один раз».
 

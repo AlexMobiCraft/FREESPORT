@@ -25,7 +25,7 @@
 
 ## Неочевидное в коде
 
-- `orders/` — Email-уведомления (customer + admin) ставятся в очередь **только для `is_master=True`** (`signals.py` guard); items для отображения агрегируются из `sub_orders` через helper `_get_order_display_items`.
+- `orders/` — Email-уведомления (customer + admin) ставятся в очередь **только для `is_master=True`** (`signals.py` guard) и **только после коммита** (`transaction.on_commit(robust=True)`, номер заказа — в тексте лога); письмо о заказе получают общий список `NotificationRecipient` и ответственный менеджер клиента (`User.responsible_manager`) независимо от флага `notify_new_orders`; items для отображения агрегируются из `sub_orders` через helper `_get_order_display_items`.
 - `data/import_1c/` — РЕАЛЬНЫЕ XML-выгрузки из 1С, используются в тестах импорта (см. раздел «Интеграция с 1С»).
 
 ## Команды разработки
