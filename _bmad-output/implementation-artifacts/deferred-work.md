@@ -1239,3 +1239,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-pagination-tiles-scroll-top.md`
   summary: **`cn()` выбрасывает типографские классы дизайн-системы или цвет рядом с ними.** `twMerge` не знает про `text-body-s`, `text-title-m`, `text-caption` и похожие классы, считает их цветом текста и оставляет только последний из конфликтующих. Элемент теряет размер и начертание либо цвет. Не исправлено сразу, потому что правка в одном файле меняет вид 16 файлов, включая карточку товара, корзину и хлебные крошки: нужен отдельный просмотр сайта владельцем.
   evidence: найдено 29 вызовов `cn` в 16 файлах, например `frontend/src/components/business/ProductCard/ProductCard.tsx:530`, `frontend/src/components/cart/CartSummary.tsx:91`, `frontend/src/components/ui/Breadcrumb/Breadcrumb.tsx:43`, `frontend/src/components/business/OrdersList/OrdersList.tsx:86`. Вариант исправления: `extendTailwindMerge` в `frontend/src/utils/cn.ts` с группой `font-size` для этих классов. Спека пагинации обходит дефект через `text-sm font-medium`.
+
+## Отложено из ревью spec-product-card-api-price.md (2026-11-01)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-product-card-api-price.md`
+  summary: **Страница товара до выбора варианта показывает тренеру и представителю федерации розницу.** Плитка теперь берёт `current_price`, и суммы на двух экранах расходятся.
+  evidence: `frontend/src/utils/pricing.ts:124-145` (`getProductDisplayPrice`) без акции идёт в `getPriceForRole`, а `price.trainer` / `price.federation` сериализаторы не отдают.
+- source_spec: `_bmad-output/implementation-artifacts/spec-product-card-api-price.md`
+  summary: **Карточки вне `ProductCard` показывают голую розницу оптовому клиенту.** Это тот же разрыв с корзиной.
+  evidence: `ElectricProductCard` (`HitsSection.tsx:323`, `ElectricProductSection.tsx:271`, `electric/catalog/page.tsx:603`), `RecommendationsRow.tsx:147`, `SearchAutocomplete.tsx:115`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-product-card-api-price.md`
+  summary: **Скидка на плитке может зачеркнуть розницу рядом с такой же ценой.** Зачёркивать стоит только при `retail_price > currentPrice`.
+  evidence: `frontend/src/components/business/ProductCard/ProductCard.tsx` (`hasDiscount`): условие не сравнивает розницу с показанной ценой; при `discount_percent > 0` и цене, равной рознице, суммы совпадают.

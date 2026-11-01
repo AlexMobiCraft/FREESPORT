@@ -256,7 +256,7 @@ describe('ProductCard', () => {
       expect(screen.getByText('700 ₽')).toBeInTheDocument();
     });
 
-    it('falls back to level 3 price when opt4 is missing', () => {
+    it('falls back to retail, not level 3, when opt4 is missing', () => {
       const productWithoutOpt4 = { ...mockProduct, opt4_price: undefined };
       render(
         <ProductCard
@@ -267,7 +267,60 @@ describe('ProductCard', () => {
         />
       );
 
-      expect(screen.getByText('800 ₽')).toBeInTheDocument();
+      expect(screen.getByText('1 200 ₽')).toBeInTheDocument();
+      expect(screen.queryByText('800 ₽')).not.toBeInTheDocument();
+    });
+
+    // Без акции сумму тоже даёт current_price: та же цена уйдёт в корзину и заказ
+    it.each(['wholesale_level2', 'wholesale_level3', 'wholesale_level4'] as const)(
+      'shows the API price of %s without its own price, not a lower level',
+      role => {
+        const product = {
+          ...mockProduct,
+          opt2_price: undefined,
+          opt3_price: undefined,
+          opt4_price: undefined,
+          promo_price: null,
+          current_price: '1200.00',
+          regular_price: '1200.00',
+        };
+        render(<ProductCard product={product} layout="grid" userRole={role} />);
+
+        expect(screen.getByText('1 200 ₽')).toBeInTheDocument();
+        expect(screen.queryByText('1 000 ₽')).not.toBeInTheDocument();
+      }
+    );
+
+    it.each(['trainer', 'federation_rep'] as const)(
+      'shows the API price of %s without a promo, not retail',
+      role => {
+        const product = {
+          ...mockProduct,
+          promo_price: null,
+          current_price: '700.00',
+          regular_price: '700.00',
+        };
+        render(<ProductCard product={product} layout="grid" userRole={role} />);
+
+        expect(screen.getByText('700 ₽')).toBeInTheDocument();
+        expect(screen.queryByText('1 200 ₽')).not.toBeInTheDocument();
+      }
+    );
+
+    it('guest sees retail, not the price left from the previous session', () => {
+      // Секции главной не перезапрашивают товары при выходе: в ответе осталась цена опта
+      const product = { ...mockProduct, promo_price: null, current_price: '900.00' };
+      render(<ProductCard product={product} layout="grid" userRole="guest" />);
+
+      expect(screen.getByText('1 200 ₽')).toBeInTheDocument();
+      expect(screen.queryByText('900 ₽')).not.toBeInTheDocument();
+    });
+
+    it('falls back to the role price when API current_price is zero', () => {
+      const product = { ...mockProduct, current_price: '0.00' };
+      render(<ProductCard product={product} layout="grid" userRole="wholesale_level1" />);
+
+      expect(screen.getByText('1 000 ₽')).toBeInTheDocument();
     });
 
     it('falls back to retail price when wholesale price not available', () => {
@@ -480,9 +533,8 @@ describe('ProductCard', () => {
       expect(container.querySelector('.line-through')).not.toBeInTheDocument();
     });
 
-    // Неприменённая акция: сумму к оплате даёт current_price из API, а не цепочка цен карточки.
-    // Список не отдаёт trainer_price / federation_price, а цепочка опт N → опт N-1 расходится
-    // с backend, который без своей цены уровня берёт розницу
+    // Неприменённая акция: сумму к оплате даёт current_price из API.
+    // Список не отдаёт trainer_price / federation_price, а без своей цены уровня backend берёт розницу
     it.each(['trainer', 'federation_rep'] as const)(
       'unapplied promo shows the API price of %s, not retail',
       role => {
@@ -502,7 +554,7 @@ describe('ProductCard', () => {
     );
 
     it('unapplied promo shows the API price of a level without its own price', () => {
-      // opt3 пуст: backend берёт розницу 1200, а цепочка карточки дала бы opt2 = 900
+      // opt3 пуст: backend берёт розницу 1200, а не opt2 = 900
       const product = {
         ...mockProduct,
         opt3_price: undefined,
@@ -537,8 +589,8 @@ describe('ProductCard', () => {
       expect(container.querySelector('.line-through')).not.toBeInTheDocument();
     });
 
-    it('null promo_price keeps role pricing', () => {
-      const product = { ...mockProduct, promo_price: null, current_price: '1200.00' };
+    it('null promo_price shows the API price without promo marks', () => {
+      const product = { ...mockProduct, promo_price: null, current_price: '1000.00' };
       render(<ProductCard product={product} layout="grid" userRole="wholesale_level1" />);
 
       expect(screen.queryByTestId('promo-price')).not.toBeInTheDocument();

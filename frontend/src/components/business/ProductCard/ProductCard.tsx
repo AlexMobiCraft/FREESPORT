@@ -107,7 +107,8 @@ export interface ProductCardProps {
 }
 
 /**
- * Определяет цену товара на основе роли пользователя
+ * Цена по роли для ответа без `current_price`. Повторяет правило backend: цена уровня,
+ * иначе розница, — на младшие опты не откатывается.
  */
 function getProductPrice(product: Product, userRole: UserRole): number {
   switch (userRole) {
@@ -116,36 +117,24 @@ function getProductPrice(product: Product, userRole: UserRole): number {
     case 'wholesale_level1':
       return product.opt1_price || product.retail_price;
     case 'wholesale_level2':
-      return product.opt2_price || product.opt1_price || product.retail_price;
+      return product.opt2_price || product.retail_price;
     case 'wholesale_level3':
-      return product.opt3_price || product.opt2_price || product.opt1_price || product.retail_price;
+      return product.opt3_price || product.retail_price;
     case 'wholesale_level4':
-      return (
-        product.opt4_price ||
-        product.opt3_price ||
-        product.opt2_price ||
-        product.opt1_price ||
-        product.retail_price
-      );
+      return product.opt4_price || product.retail_price;
     case 'trainer':
       return (
         (product as Product & { trainer_price?: number }).trainer_price || product.retail_price
       );
     case 'federation_rep':
       return (
-        (product as Product & { federation_price?: number; trainer_price?: number })
-          .federation_price ||
-        (product as Product & { trainer_price?: number }).trainer_price ||
+        (product as Product & { federation_price?: number }).federation_price ||
         product.retail_price
       );
     case 'vip':
     case 'special_price':
       // API сырых цен этих ролей не отдаёт: цена роли без акции приходит в regular_price
-      return (
-        parseFloat(product.regular_price ?? '') ||
-        parseFloat(product.current_price ?? '') ||
-        product.retail_price
-      );
+      return parseFloat(product.regular_price ?? '') || product.retail_price;
     default:
       return product.retail_price;
   }
@@ -214,14 +203,14 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
     ) : (
       <ProductBadge product={product.is_promo ? { ...product, is_promo: false } : product} />
     );
-    // У товара с акцией сумму к оплате считает backend: даже если акция не применена, берём
-    // current_price — список не отдаёт trainer_price / federation_price, а цепочка уровней опта
-    // в getProductPrice расходится с backend, который без цены уровня берёт розницу
-    const apiCurrentPrice = parseFloat(product.current_price ?? '');
-    const hasPromoPrice = parseFloat(product.promo_price ?? '') > 0;
+    // Цену считает backend: current_price — цена первого варианта по тем же правилам, что в
+    // корзине и заказе. Список не отдаёт trainer_price / federation_price, без него их не собрать.
+    // Гостю current_price не верим: секции главной не перезапрашивают товары при выходе, и в ответе
+    // осталась бы цена прошлой сессии
+    const apiCurrentPrice = userRole === 'guest' ? NaN : parseFloat(product.current_price ?? '');
     const currentPrice = promoPricing
       ? promoPricing.price
-      : hasPromoPrice && apiCurrentPrice > 0
+      : apiCurrentPrice > 0
         ? apiCurrentPrice
         : getProductPrice(product, userRole);
     // Зачёркнутая розница по скидке — только когда акции нет
