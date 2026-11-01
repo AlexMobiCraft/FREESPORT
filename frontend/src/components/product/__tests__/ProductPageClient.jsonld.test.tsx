@@ -187,4 +187,37 @@ describe('ProductPageClient JSON-LD', () => {
       expect(JSON.parse(script.textContent ?? '').offers.price).toBe(700);
     });
   });
+
+  describe('цена в offers у тренера и федерации без акции', () => {
+    // Ответ не отдаёт trainer_price и federation_price: price.trainer пуст, розница 1200,
+    // а клиент платит 900 — столько же должна называть разметка
+    const roleProduct: ProductDetailWithVariants = {
+      ...product,
+      price: { retail: 1200, currency: 'RUB' },
+      current_price: '900.00',
+      regular_price: '900.00',
+      promo_price: null,
+      variants: [],
+    };
+
+    it.each(['trainer', 'federation_rep'] as const)('SSR отдаёт цену роли для %s', role => {
+      const html = renderToStaticMarkup(<ProductPageClient product={roleProduct} userRole={role} />);
+      const open = '<script type="application/ld+json">';
+      const bodyStart = html.indexOf(open) + open.length;
+      const parsed = JSON.parse(html.slice(bodyStart, html.indexOf('</script>', bodyStart)));
+
+      expect(html).toMatch(/900\s*₽/);
+      expect(parsed.offers.price).toBe(900);
+    });
+
+    it.each(['trainer', 'federation_rep'] as const)(
+      'после монтирования цена роли сохраняется для %s',
+      role => {
+        const { container } = render(<ProductPageClient product={roleProduct} userRole={role} />);
+        const script = container.querySelector('script[type="application/ld+json"]')!;
+
+        expect(JSON.parse(script.textContent ?? '').offers.price).toBe(900);
+      }
+    );
+  });
 });

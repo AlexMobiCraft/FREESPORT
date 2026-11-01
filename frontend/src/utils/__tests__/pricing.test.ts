@@ -235,6 +235,61 @@ describe('getProductDisplayPrice', () => {
     expect(getProductDisplayPrice(product, 'wholesale_level1', variant)).toBe(700);
   });
 
+  describe('тренер и федерация: ответ не отдаёт их поля цен', () => {
+    // price.trainer и price.federation пусты — адаптер берёт их из полей, которых в ответе нет
+    const roleProduct = {
+      price: { retail: 1200, currency: 'RUB' },
+      current_price: '900.00',
+      regular_price: '900.00',
+      promo_price: null,
+    };
+
+    it.each(['trainer', 'federation_rep'] as const)(
+      'без варианта и акции — current_price, а не розница для %s',
+      role => {
+        expect(getProductDisplayPrice(roleProduct, role, null)).toBe(900);
+      }
+    );
+
+    it.each(['trainer', 'federation_rep'] as const)('current_price с акцией для %s', role => {
+      const promo = { ...roleProduct, current_price: '700.00', promo_price: '700.00' };
+      expect(getProductDisplayPrice(promo, role)).toBe(700);
+    });
+
+    it.each(['trainer', 'federation_rep'] as const)(
+      'без current_price — поле роли, затем розница для %s',
+      role => {
+        const noApiPrice = { ...roleProduct, current_price: '' };
+        expect(getProductDisplayPrice(noApiPrice, role)).toBe(1200);
+
+        const withField = {
+          ...noApiPrice,
+          price: { retail: 1200, trainer: 1000, federation: 950, currency: 'RUB' },
+        };
+        expect(getProductDisplayPrice(withField, role)).toBe(role === 'trainer' ? 1000 : 950);
+      }
+    );
+
+    it('current_price = 0.00 не принимается за цену', () => {
+      const zero = { ...roleProduct, current_price: '0.00' };
+      expect(getProductDisplayPrice(zero, 'trainer')).toBe(1200);
+    });
+
+    it('B2B, которого backend понизил до розницы, видит current_price, а не поле роли', () => {
+      // Неверифицированный оптовик: поле opt1 в ответе есть, но платит он розницу
+      const demoted = {
+        ...roleProduct,
+        price: { retail: 1200, wholesale: { level1: 700 }, currency: 'RUB' },
+        current_price: '1200.00',
+      };
+      expect(getProductDisplayPrice(demoted, 'wholesale_level1', null)).toBe(1200);
+    });
+
+    it('гостю current_price не верим — розница', () => {
+      expect(getProductDisplayPrice(roleProduct, 'guest', null)).toBe(1200);
+    });
+  });
+
   describe('VIP и «Спец цена»: цену отдаёт API итогом', () => {
     const roleProduct = {
       price: { retail: 1200, currency: 'RUB' },

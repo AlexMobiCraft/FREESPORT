@@ -7,12 +7,6 @@
   summary: **Интеграционный тест импорта видов цен «VIP цены» и «СПЕЦЦЕНА» на реальной выгрузке.** В `data/import_1c/priceLists/` этих видов цен нет, а синтетические XML для тестов импорта запрещены (AGENTS.md), поэтому спека покрывает импорт юнит-тестами на словарях. Тест писать после того, как владелец включит оба вида цен в белый список БУС («Выгрузка информации о товарах» → «Цены») и будет снята свежая выгрузка.
   evidence: реальный `priceLists_1_1_*.xml` содержит только МРЦ, РРЦ, «Опт 1–4», «Тренерская», «Товары 1С». Образец теста — `backend/tests/integration/test_import_opt4_prices.py`; проверять строки матрицы спеки про импорт: запись цен, `PriceType.user_role`, снятие спеццены, две цены `special_price` в одном предложении.
 
-## Отложено из ревью spec-d14-2-jsonld-wholesale-price.md (2026-10-25)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-d14-2-jsonld-wholesale-price.md`
-  summary: Тренер и представитель федерации видят розницу на странице товара и в JSON-LD, пока вариант не выбран: у товара без вариантов и у товара с опциями до автовыбора.
-  evidence: `ProductListSerializer.Meta.fields` (`backend/apps/products/serializers.py:553-567`) не отдаёт `trainer_price` и `federation_price`, поэтому `productsService.ts:139-140` заполняет `price.trainer` и `price.federation` значением `undefined`, а `getPriceForRole` откатывается на `retail`. Бэкенд при этом считает этим ролям их цену (`get_price_for_user`), так что `product.current_price` с ней совпадает. Экран так работал и до D14-2. Варианты исправления: добавить поля в сериализатор (с OpenAPI и типами) или брать `product.current_price` как цену по роли. Второй вариант меняет то, что видит покупатель, на это нужно решение владельца.
-
 ## Deferred from: code review of spec-1c-promo-price-type.md (2026-10-25, четырнадцатый прогон через Codex, PR #347 R53–R79)
 
 - **D14-1, повтор D13-1/D12-1/D9-1: расширение каскада бренда или категории после последнего поиска владельцев.** Источники blind-hunter и edge-case-hunter, `maybe-false`, возможная средняя тяжесть. Нового подтверждения нет; протокол не менять до воспроизведения двухсоединительным тестом переноса товара между последним поиском и Collector (решение владельца 2026-10-23). [`backend/apps/products/models.py:133-160`]
