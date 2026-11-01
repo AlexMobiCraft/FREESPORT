@@ -6,9 +6,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-roles-vip-special-price.md`
   summary: **Интеграционный тест импорта видов цен «VIP цены» и «СПЕЦЦЕНА» на реальной выгрузке.** В `data/import_1c/priceLists/` этих видов цен нет, а синтетические XML для тестов импорта запрещены (AGENTS.md), поэтому спека покрывает импорт юнит-тестами на словарях. Тест писать после того, как владелец включит оба вида цен в белый список БУС («Выгрузка информации о товарах» → «Цены») и будет снята свежая выгрузка.
   evidence: реальный `priceLists_1_1_*.xml` содержит только МРЦ, РРЦ, «Опт 1–4», «Тренерская», «Товары 1С». Образец теста — `backend/tests/integration/test_import_opt4_prices.py`; проверять строки матрицы спеки про импорт: запись цен, `PriceType.user_role`, снятие спеццены, две цены `special_price` в одном предложении.
-- source_spec: `_bmad-output/implementation-artifacts/spec-roles-vip-special-price.md`
-  summary: **Карточка товара откатывает опт 2–4 на младшие опты, а бэкенд — сразу на розницу.** Если у варианта нет `opt3_price`, клиент «Опт 3» на плитке видит опт 2 (или опт 1), а в корзине и заказе платит розницу. Расхождение старое, спека его не трогает.
-  evidence: `frontend/src/components/business/ProductCard/ProductCard.tsx:113-145` (`getProductPrice`: `opt3_price || opt2_price || opt1_price || retail_price`) против `backend/apps/products/models.py:1501` (`getattr(self, price_field) or self.retail_price`). Плитка берёт `getProductPrice` только без акции. Вариант исправления: брать `current_price` из API, как спека делает для `vip` и `special_price`.
 
 ## Отложено из ревью spec-d14-2-jsonld-wholesale-price.md (2026-10-25)
 

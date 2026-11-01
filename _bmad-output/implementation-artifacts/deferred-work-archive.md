@@ -2,6 +2,13 @@
 
 Закрытые и неактуальные пункты, перенесённые из `deferred-work.md`. Каждый пункт сверен с кодом `develop` на дату переноса; причина указана строкой «Перенесено». Разделы сохраняют исходные заголовки и порядок.
 
+## Отложено из обсуждения spec-roles-vip-special-price.md с владельцем (2026-10-26)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-roles-vip-special-price.md`
+  summary: **Карточка товара откатывает опт 2–4 на младшие опты, а бэкенд — сразу на розницу.** Если у варианта нет `opt3_price`, клиент «Опт 3» на плитке видит опт 2 (или опт 1), а в корзине и заказе платит розницу. Расхождение старое, спека его не трогает.
+  evidence: `frontend/src/components/business/ProductCard/ProductCard.tsx:113-145` (`getProductPrice`: `opt3_price || opt2_price || opt1_price || retail_price`) против `backend/apps/products/models.py:1501` (`getattr(self, price_field) or self.retail_price`). Плитка берёт `getProductPrice` только без акции. Вариант исправления: брать `current_price` из API, как спека делает для `vip` и `special_price`.
+  **Перенесено 2026-11-01:** Закрыто спекой `spec-product-card-api-price.md` (PR #380, слит 2026-11-01, коммит `3f14d284`): плитка берёт `current_price` из API (гостю — розницу), запасной расчёт `getProductPrice` в `ProductCard.tsx` повторяет `pricing_policy.py` и не спускается на младшие опты; тесты в `ProductCard.test.tsx`.
+
 ## Deferred from: code review of spec-1c-promo-price-type.md (2026-10-25, четырнадцатый прогон через Codex, PR #347 R53–R79)
 
 - **D14-2, повтор D13-2/D11-1: JSON-LD оптовика без акции сообщает розницу.** Источники blind-hunter и edge-case-hunter, средняя тяжесть. При `offerVariant === null` и без акции `offerPrice` берёт `product.price?.retail`, а `ProductInfo` показывает `getPriceForRole`; ветка из baseline `78c7dde`, закрывать вместе с D11-1. [`frontend/src/components/product/ProductPageClient.tsx:59-65`] **Закрыто 2026-10-25** спекой [`spec-d14-2-jsonld-wholesale-price.md`](spec-d14-2-jsonld-wholesale-price.md): экран и JSON-LD берут сумму из одной `getProductDisplayPrice`, регрессии на оба пути.
