@@ -114,8 +114,9 @@ export function getPriceForRole(price: ProductPrice, userRole: UserRole): number
  *
  * Один источник для экрана (`ProductInfo`) и разметки JSON-LD (`ProductPageClient`):
  * поисковикам уходит та же сумма, что на экране, в том числе до выбора варианта.
- * Клиент платит меньшую из цен — своей и акционной (`current_price`); без варианта и без
- * акции — цена по роли.
+ * Клиент платит меньшую из цен — своей и акционной. Без варианта берётся `current_price`
+ * товара (цена первого варианта, посчитанная backend); нет его или клиент — гость:
+ * акционная цена, иначе цена по роли из полей товара.
  *
  * @param product - Товар из ответа API
  * @param userRole - Роль пользователя
@@ -128,12 +129,20 @@ export function getProductDisplayPrice(
 ): number {
   if (variant && variant.current_price) return parseFloat(variant.current_price);
 
-  // VIP и «Спец цена»: цена роли в ProductPrice не лежит, итог — в current_price товара
-  // (с учётом акции), без него — цена роли без акции
+  // Цену роли считает backend: current_price — цена первого варианта по тем же правилам, что в
+  // корзине и заказе (роль, откат на розницу, меньшая из цены и акционной). Неверифицированный
+  // B2B backend понижает до розницы, и страница показывает её же, а не цену роли. В ProductPrice
+  // у тренера и федерации полей нет — ответ их не отдаёт, а у VIP и «Спец цены» нет и самих
+  // полей. Гостю ответ не верим, как плитке: его цена — розница или акция (ветки ниже)
+  if (userRole !== 'guest') {
+    const currentPrice = parseFloat(product.current_price || '');
+    if (currentPrice > 0) return currentPrice;
+  }
+
+  // VIP и «Спец цена» без current_price: цена роли без акции
   if (isApiPricedRole(userRole)) {
-    const apiPrice =
-      parseFloat(product.current_price || '') || parseFloat(product.regular_price || '');
-    if (apiPrice > 0) return apiPrice;
+    const regularPrice = parseFloat(product.regular_price || '');
+    if (regularPrice > 0) return regularPrice;
   }
 
   // Поля акции — выбранного варианта, без него — товара (они по первому варианту из ответа)

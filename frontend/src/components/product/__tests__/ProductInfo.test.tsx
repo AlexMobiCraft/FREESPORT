@@ -80,6 +80,23 @@ describe('ProductInfo', () => {
     expect(priceDiv).toHaveTextContent('9 990 ₽');
   });
 
+  it.each(['trainer', 'federation_rep'] as const)(
+    'берёт цену %s из current_price, когда ответ не отдаёт поля цен роли',
+    role => {
+      // Форма реального ответа: price.trainer и price.federation пусты, цену роли считает backend
+      const apiProduct: ProductDetail = {
+        ...mockProduct,
+        price: { retail: 12990, currency: 'RUB' },
+        current_price: '9990.00',
+        regular_price: '9990.00',
+        promo_price: null,
+      };
+      const { container } = render(<ProductInfo product={apiProduct} userRole={role} />);
+      const priceDiv = container.querySelector('.text-4xl.font-bold');
+      expect(priceDiv).toHaveTextContent('9 990 ₽');
+    }
+  );
+
   it('отображает статус "В наличии" для товара в наличии', () => {
     render(<ProductInfo product={mockProduct} />);
     expect(screen.getByText('В наличии')).toBeInTheDocument();
