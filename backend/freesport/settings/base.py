@@ -289,7 +289,17 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.products.tasks.cleanup_stale_exchange_dirs",
         "schedule": 60 * 60 * 6,  # Каждые 6 часов, порог уборки — 24 ч
     },
+    # Алерт о заказах, которые 1С не забирает (стори 1c-orders-pull-schedule-and-stuck-alert).
+    # Регистрировать только здесь: см. комментарий выше про приоритет над celery.py.
+    "alert-orders-stuck-in-1c": {
+        "task": "apps.orders.tasks.alert_orders_stuck_in_1c",
+        "schedule": 60 * 10,  # Каждые 10 минут
+    },
 }
+
+# Алерт о зависших в 1С заказах: сколько заказ может ждать забора, как часто напоминать.
+ORDERS_STUCK_ALERT_THRESHOLD_MINUTES = 30
+ORDERS_STUCK_ALERT_REPEAT_HOURS = 6
 
 # Баннеры
 MARKETING_BANNER_LIMIT = 5  # FR12: Максимальное количество маркетинговых баннеров

@@ -581,6 +581,7 @@ class NotificationRecipientAdmin(admin.ModelAdmin):
         "notify_pending_queue",
         "notify_low_stock",
         "notify_daily_summary",
+        "notify_exchange_alerts",
         "created_at",
     ]
     list_filter = [
@@ -602,6 +603,7 @@ class NotificationRecipientAdmin(admin.ModelAdmin):
         "notify_pending_queue",
         "notify_low_stock",
         "notify_daily_summary",
+        "notify_exchange_alerts",
     ]
     readonly_fields = [
         "created_at",
@@ -644,6 +646,12 @@ class NotificationRecipientAdmin(admin.ModelAdmin):
                     "notify_low_stock",
                     "notify_daily_summary",
                 )
+            },
+        ),
+        (
+            "Уведомления об обмене с 1С",
+            {
+                "fields": ("notify_exchange_alerts",),
             },
         ),
         (
