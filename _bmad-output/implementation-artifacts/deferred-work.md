@@ -1242,3 +1242,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-product-card-api-price.md`
   summary: **Скидка на плитке может зачеркнуть розницу рядом с такой же ценой.** Зачёркивать стоит только при `retail_price > currentPrice`.
   evidence: `frontend/src/components/business/ProductCard/ProductCard.tsx` (`hasDiscount`): условие не сравнивает розницу с показанной ценой; при `discount_percent > 0` и цене, равной рознице, суммы совпадают.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-orders-pull-schedule-and-stuck-alert.md`
+  summary: Алерт `alert_orders_stuck_in_1c` без блокировки от параллельных запусков и без защиты от сбоя/порчи кэша.
+  evidence: состояние живёт в Redis-кэше; два параллельных запуска дадут два письма, падение `cache.set` после `send_mail` даёт дубль при ретрае, повреждённое значение валит задачу до истечения TTL; при пустом списке получателей `logger.error` пишется каждые 10 минут.

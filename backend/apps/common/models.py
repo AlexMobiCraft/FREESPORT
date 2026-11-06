@@ -1035,6 +1035,11 @@ class NotificationRecipient(TimeStampedModel):
         default=False,
         help_text="Ежедневные сводные отчёты",
     )
+    notify_exchange_alerts = models.BooleanField(
+        _("Сбои обмена с 1С"),
+        default=False,
+        help_text="Уведомления о заказах, которые 1С не забирает дольше порога",
+    )
 
     class Meta:
         verbose_name = _("Получатель уведомлений")

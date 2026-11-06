@@ -6,14 +6,17 @@ Celery tasks для отправки email-уведомлений о заказ�
 """
 
 import logging
+from datetime import datetime, timedelta
 from smtplib import SMTPException
 from typing import Any
 
 from celery import shared_task
 from django.conf import settings
+from django.core.cache import cache
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.common.models import NotificationRecipient
 from apps.orders.models import Order, OrderItem
@@ -398,3 +401,120 @@ def send_order_cancelled_notification_email(self: Any, order_id: int) -> bool:
             },
         )
         raise self.retry(exc=exc)
+
+
+# Ключ кэша: какие заказы уже попали в письмо и когда оно ушло.
+_STUCK_ALERT_CACHE_KEY = "orders:stuck_in_1c_alert_state"
+_STUCK_ALERT_STATE_TTL = 7 * 24 * 60 * 60
+_STUCK_ALERT_MAX_LISTED = 50
+
+
+def _stuck_alert_recipients() -> list[str]:
+    """Получатели алерта: активные с флагом `notify_exchange_alerts`, иначе `settings.ADMINS`."""
+    emails = list(
+        NotificationRecipient.objects.filter(is_active=True, notify_exchange_alerts=True).values_list(
+            "email", flat=True
+        )
+    )
+    if not emails:
+        emails = [email for _name, email in getattr(settings, "ADMINS", []) if email]
+    unique: dict[str, str] = {}
+    for email in emails:
+        unique.setdefault(email.lower(), email)
+    return list(unique.values())
+
+
+def _format_age(delta: timedelta) -> str:
+    """Возраст заказа в виде «1 ч 05 мин» или «45 мин»."""
+    minutes = max(int(delta.total_seconds() // 60), 0)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours} ч {minutes:02d} мин"
+    return f"{minutes} мин"
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(SMTPException, ConnectionError),
+    retry_backoff=True,
+    retry_backoff_max=600,  # 10 минут максимум
+)
+def alert_orders_stuck_in_1c(self: Any) -> dict[str, Any]:
+    """Письмо администратору, если 1С не забирает субзаказы дольше порога.
+
+    Зависшим считается субзаказ (`is_master=False`) с `sent_to_1c=False`,
+    `export_skipped=False`, созданный раньше `ORDERS_STUCK_ALERT_THRESHOLD_MINUTES`.
+    Письмо уходит, когда в наборе появился новый заказ или с прошлого письма прошло
+    `ORDERS_STUCK_ALERT_REPEAT_HOURS`. Состояние лежит в кэше и пишется только после
+    успешной отправки, поэтому сбой SMTP повторяет задачу, а не теряет алерт.
+    """
+    now = timezone.now()
+    threshold_minutes = settings.ORDERS_STUCK_ALERT_THRESHOLD_MINUTES
+    repeat = timedelta(hours=settings.ORDERS_STUCK_ALERT_REPEAT_HOURS)
+
+    stuck = list(
+        Order.objects.filter(
+            is_master=False,
+            parent_order__isnull=False,
+            sent_to_1c=False,
+            export_skipped=False,
+            created_at__lte=now - timedelta(minutes=threshold_minutes),
+        )
+        .order_by("created_at")
+        .values_list("id", "order_number", "created_at")
+    )
+
+    if not stuck:
+        cache.delete(_STUCK_ALERT_CACHE_KEY)
+        return {"stuck": 0, "sent": False}
+
+    ids = sorted(row[0] for row in stuck)
+    state = cache.get(_STUCK_ALERT_CACHE_KEY) or {}
+    known_ids = set(state.get("ids", []))
+    sent_at = state.get("sent_at")
+    last_sent = datetime.fromisoformat(sent_at) if sent_at else None
+
+    has_new = bool(set(ids) - known_ids)
+    reminder_due = last_sent is None or now - last_sent >= repeat
+
+    if not has_new and not reminder_due:
+        if known_ids != set(ids):
+            # Часть заказов забрали: запоминаем остаток, чтобы не считать их новыми.
+            cache.set(_STUCK_ALERT_CACHE_KEY, {"ids": ids, "sent_at": sent_at}, _STUCK_ALERT_STATE_TTL)
+        return {"stuck": len(ids), "sent": False}
+
+    recipients = _stuck_alert_recipients()
+    if not recipients:
+        logger.error(
+            "Заказы не забраны 1С, но получателей алерта нет: отметьте «Сбои обмена с 1С» "
+            "в получателях уведомлений или задайте ADMIN_EMAILS",
+            extra={"stuck_count": len(ids), "action": "stuck_orders_alert_no_recipients"},
+        )
+        return {"stuck": len(ids), "sent": False}
+
+    lines = [
+        f"{number} — {_format_age(now - created_at)}" for _id, number, created_at in stuck[:_STUCK_ALERT_MAX_LISTED]
+    ]
+    if len(stuck) > _STUCK_ALERT_MAX_LISTED:
+        lines.append(f"…и ещё {len(stuck) - _STUCK_ALERT_MAX_LISTED}")
+    message = (
+        f"1С не забрала заказы с сайта дольше {threshold_minutes} мин: {len(stuck)} шт.\n\n"
+        + "\n".join(lines)
+        + "\n\nПроверьте обмен с 1С: настройку БУС «По расписанию» для загрузки заказов, "
+        "доступность базы 1С и запросы mode=query в логе nginx."
+    )
+
+    send_mail(
+        subject=f"[OPTISPORT] 1С не забирает заказы: {len(stuck)} шт.",
+        message=message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=recipients,
+        fail_silently=False,
+    )
+    cache.set(_STUCK_ALERT_CACHE_KEY, {"ids": ids, "sent_at": now.isoformat()}, _STUCK_ALERT_STATE_TTL)
+    logger.info(
+        "Алерт о зависших в 1С заказах отправлен",
+        extra={"stuck_count": len(ids), "recipients": recipients, "action": "stuck_orders_alert_sent"},
+    )
+    return {"stuck": len(ids), "sent": True}

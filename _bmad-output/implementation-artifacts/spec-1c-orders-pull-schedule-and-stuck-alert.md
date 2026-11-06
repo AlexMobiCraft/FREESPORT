@@ -2,7 +2,8 @@
 title: 'Заказы сайта → 1С: вторая настройка БУС по расписанию, регламент и алерт о зависших заказах'
 type: 'feature'
 created: '2026-11-06'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: 'ab2d9aae'
 route: 'dispatch'
 review_loop_iteration: 0
 context: ['{project-root}/.windsurf/rules/gitnexus.md']
@@ -53,10 +54,10 @@ context: ['{project-root}/.windsurf/rules/gitnexus.md']
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `backend/apps/common/models.py`, `backend/apps/common/migrations/0025_*.py`, `backend/apps/common/admin.py` -- флаг `notify_exchange_alerts`, миграция, поле в админке -- адресат алерта настраивается без деплоя
-- [ ] `backend/apps/orders/tasks.py`, `backend/freesport/settings/base.py` -- задача `alert_orders_stuck_in_1c` по матрице, пороги в settings, запись в beat раз в 600 с -- обнаружение любой причины, по которой 1С не забирает заказы
-- [ ] `backend/tests/unit/test_orders_stuck_alert.py` -- тесты: все строки матрицы, регистрация в beat, флаг в админке -- гарантия поведения
-- [ ] `docs/integrations/1c/orders-pull-schedule-setup.md` -- регламент: причина, схема из двух настроек, таблица значений настройки Б, расписание (Время начала 00:00:00, окончания 23:59:59, «Повторять через» 300 сек), шаги, проверка по nginx и БД, откат, предупреждение про «Подключить к БУС» -- настройку делает администратор 1С
+- [x] `backend/apps/common/models.py`, `backend/apps/common/migrations/0025_*.py`, `backend/apps/common/admin.py` -- флаг `notify_exchange_alerts`, миграция, поле в админке -- адресат алерта настраивается без деплоя
+- [x] `backend/apps/orders/tasks.py`, `backend/freesport/settings/base.py` -- задача `alert_orders_stuck_in_1c` по матрице, пороги в settings, запись в beat раз в 600 с -- обнаружение любой причины, по которой 1С не забирает заказы
+- [x] `backend/tests/unit/test_orders_stuck_alert.py` -- тесты: все строки матрицы, регистрация в beat, флаг в админке -- гарантия поведения
+- [x] `docs/integrations/1c/orders-pull-schedule-setup.md` -- регламент: причина, схема из двух настроек, таблица значений настройки Б, расписание (Время начала 00:00:00, окончания 23:59:59, «Повторять через» 300 сек), шаги, проверка по nginx и БД, откат, предупреждение про «Подключить к БУС» -- настройку делает администратор 1С
 
 **Acceptance Criteria:**
 - Given субзаказ без отправки старше 30 минут, when отработала задача, then администратору ушло одно письмо с номером и возрастом заказа.
