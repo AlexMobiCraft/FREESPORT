@@ -1246,3 +1246,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1c-orders-pull-schedule-and-stuck-alert.md`
   summary: Алерт `alert_orders_stuck_in_1c` без блокировки от параллельных запусков и без защиты от сбоя/порчи кэша.
   evidence: состояние живёт в Redis-кэше; два параллельных запуска дадут два письма, падение `cache.set` после `send_mail` даёт дубль при ретрае, повреждённое значение валит задачу до истечения TTL; при пустом списке получателей `logger.error` пишется каждые 10 минут.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-order-processing-after-1c-export.md`
+  summary: Разовая идемпотентная management-команда `promote_exported_orders` (с `--dry-run`): перевести уже выгруженные субзаказы `pending` + `sent_to_1c=True` в `processing` и пересчитать мастеров.
+  evidence: выделено из спеки перевода статуса при выгрузке (решение владельца 08.11.2026): команда необратимо меняет данные прода и может начислить бонусы при `accrual_status=processing`, поэтому запускается вручную после выкладки основного изменения; использует общий сервис `apps/orders/services/order_export_status.py` из основной спеки.
