@@ -181,17 +181,30 @@ class OrderViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if order.status not in ["pending", "confirmed"]:
-            order_identifier = f" {pk}" if pk is not None else ""
-            return Response(
-                {"error": (f"Заказ{order_identifier} не может быть отменен " f"в текущем статусе")},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         with transaction.atomic():
-            order.status = "cancelled"
-            order.save()
-            order.sub_orders.update(status="cancelled")
+            # Порядок блокировок тот же, что у подтверждения выгрузки в 1С и импорта
+            # статусов: сначала субзаказы, затем мастер. Обратный порядок давал
+            # взаимную блокировку с частичной выгрузкой.
+            list(
+                Order.objects.select_for_update()
+                .filter(parent_order_id=order.pk)
+                .order_by("pk")
+                .values_list("pk", flat=True)
+            )
+            # Статус проверяется под блокировкой: экземпляр get_object мог быть
+            # прочитан до коммита выгрузки, которая перевела заказ «В обработку».
+            master = Order.objects.select_for_update().get(pk=order.pk)
+            if master.status not in ["pending", "confirmed"]:
+                order_identifier = f" {pk}" if pk is not None else ""
+                return Response(
+                    {"error": (f"Заказ{order_identifier} не может быть отменен " f"в текущем статусе")},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            master.status = "cancelled"
+            # update_fields: не перезаписывать sent_to_1c и другие поля, которые
+            # параллельно меняет обмен с 1С.
+            master.save(update_fields=["status", "updated_at"])
+            master.sub_orders.update(status="cancelled")
 
-        serializer = self.get_serializer(order)
+        serializer = self.get_serializer(self.get_queryset().get(pk=master.pk))
         return Response(serializer.data)

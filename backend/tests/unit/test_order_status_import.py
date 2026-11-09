@@ -1592,7 +1592,8 @@ class TestRound6ReviewFollowups:
             # select_for_update должен быть вызван
             mock_objects.select_for_update.assert_called_once()
             mock_select_for_update.filter.assert_called_once()
-            mock_filter.order_by.assert_called_once_with("pk")
+            # Порядок блокировок: субзаказы (is_master=False) раньше мастеров, как у отмены
+            mock_filter.order_by.assert_called_once_with("is_master", "pk")
             mock_order_by.only.assert_called_once()
 
     def test_find_order_uses_num_prefix_for_cache_lookup(self):

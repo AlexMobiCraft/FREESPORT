@@ -20,7 +20,7 @@ from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
 from django.core.exceptions import ValidationError
-from django.db.models import Count, Min, Q, QuerySet
+from django.db.models import Count, Exists, Min, OuterRef, Q, QuerySet
 from django.forms import ModelForm
 from django.http import Http404, HttpRequest, HttpResponse
 from django.urls import reverse
@@ -95,6 +95,41 @@ def scope_orders(request: HttpRequest, queryset: QuerySet[Order]) -> QuerySet[Or
     return queryset.filter(clients, is_master=True)
 
 
+def awaiting_1c_export(queryset: QuerySet[Order]) -> QuerySet[Order]:
+    """
+    Мастер-заказы, у которых есть субзаказ для следующей выгрузки в 1С.
+
+    Условие повторяет выборку `ICExchangeView.handle_query`: субзаказ ещё не
+    отправлен и не пропущен выгрузкой (`export_skipped`). Статус не важен —
+    обмен забирает субзаказ в любом статусе. Поэтому сюда не попадают ранее
+    выгруженные заказы, которые остались «Новыми», и мастер, чей единственный
+    невыгруженный субзаказ пропущен: в 1С он не уйдёт. Частично выгруженный
+    мастер попадает — его оставшийся субзаказ ждёт обмена.
+    """
+    waiting_sub_orders = Order.objects.filter(
+        parent_order=OuterRef("pk"),
+        is_master=False,
+        sent_to_1c=False,
+        export_skipped=False,
+    )
+    return queryset.filter(Exists(waiting_sub_orders))
+
+
+class AwaitingExportFilter(admin.SimpleListFilter):
+    """«Отправка в 1С»: список по ссылке счётчика «Ждут отправки в 1С» главной раздела."""
+
+    title = "Отправка в 1С"
+    parameter_name = "export_1c"
+
+    def lookups(self, request: HttpRequest, model_admin: admin.ModelAdmin) -> list[tuple[str, str]]:
+        return [("waiting", "Ждут отправки")]
+
+    def queryset(self, request: HttpRequest, queryset: QuerySet[Order]) -> QuerySet[Order]:
+        if self.value() == "waiting":
+            return awaiting_1c_export(queryset)
+        return queryset
+
+
 def days_ru(n: int) -> str:
     """Число дней с согласованным словом: 1 день, 2 дня, 5 дней, 11 дней, 21 день."""
     tail = abs(n) % 100
@@ -121,7 +156,7 @@ def waiting_age(oldest: datetime) -> str:
 
 def manager_queue(request: HttpRequest, site: AdminSite) -> list[dict[str, Any]]:
     """
-    Очередь главной раздела: заявки на верификацию и новые заказы своих клиентов.
+    Очередь главной раздела: заявки на верификацию и заказы своих клиентов, ждущие отправки в 1С.
 
     Каждый счётчик — один агрегирующий запрос (NFR-42-04). Выборки совпадают
     со списками по ссылкам: список клиентов по умолчанию скрывает записи
@@ -154,12 +189,13 @@ def manager_queue(request: HttpRequest, site: AdminSite) -> list[dict[str, Any]]
         )
 
     if orders_admin.has_view_or_change_permission(request):
-        new_orders = scope_orders(request, Order.objects.all()).filter(status="pending").count()
+        awaiting = awaiting_1c_export(scope_orders(request, Order.objects.all())).count()
         queue.append(
             {
-                "text": f"Новые заказы: {new_orders}",
-                "count": new_orders,
-                "url": reverse(f"{site.name}:orders_order_changelist") + "?status__exact=pending",
+                "text": f"Ждут отправки в 1С: {awaiting}",
+                "count": awaiting,
+                "url": reverse(f"{site.name}:orders_order_changelist")
+                + f"?{AwaitingExportFilter.parameter_name}=waiting",
             }
         )
 
@@ -275,7 +311,7 @@ class ManagerOrderAdmin(OrderAdmin):
         "created_at",
     ]
     list_display_links = ["order_number_ui"]
-    list_filter = ["status", "payment_status", "delivery_method"]
+    list_filter = ["status", "payment_status", "delivery_method", AwaitingExportFilter]
     search_fields = ["order_number", "user__email", "customer_email", "tracking_number", "user__company_name"]
     actions = ["export_orders_csv"]
     inlines = [SubOrderInline]

@@ -1250,3 +1250,13 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-order-processing-after-1c-export.md`
   summary: Разовая идемпотентная management-команда `promote_exported_orders` (с `--dry-run`): перевести уже выгруженные субзаказы `pending` + `sent_to_1c=True` в `processing` и пересчитать мастеров.
   evidence: выделено из спеки перевода статуса при выгрузке (решение владельца 08.11.2026): команда необратимо меняет данные прода и может начислить бонусы при `accrual_status=processing`, поэтому запускается вручную после выкладки основного изменения; использует общий сервис `apps/orders/services/order_export_status.py` из основной спеки.
+
+## Deferred from: code review of spec-order-processing-after-1c-export.md (2026-11-09)
+
+- Параллельные подтверждения разных субзаказов одного мастера могут оставить `master.sent_to_1c=False`: существующая проверка остальных субзаказов выполняется без блокировки мастера. `backend/apps/integrations/onec_exchange/views.py:494-499`.
+- Отмена частично выгруженного заказа не передаётся в 1С; существующее ограничение явно принято владельцем. `backend/apps/orders/views.py:196-207`.
+- Отмена выгруженного мастера в `confirmed` не передаётся в 1С; существующее правило отмены `confirmed` оставлено владельцем. `backend/apps/orders/views.py:196-207`.
+- Отмена между выдачей XML и подтверждением не передаётся в 1С; окно существовало ранее. `backend/apps/orders/views.py:196-207`.
+- Fallback может подтвердить не попавший в XML заказ; этот риск и влияние на новый статус приняты в Code Map. `backend/apps/integrations/onec_exchange/views.py:754-767`.
+- Выгрузка и импорт статусов могут взаимно блокироваться; владелец ранее отклонил изменение и рассчитывает на разнесение расписаний, автоматическое исключение пересечения не проверено. `backend/apps/orders/services/order_export_status.py:56-58`.
+- Исторический статус 1С «Подтвержден» после выгрузки блокируется как регрессия (medium, не подтверждено влияние): нужно проверить, есть ли действующие отправители этого ключа. `backend/tests/integration/test_order_exchange_import_e2e.py:394-408`.
