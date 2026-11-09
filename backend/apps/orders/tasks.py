@@ -169,10 +169,11 @@ def _responsible_manager_email(order: Order) -> str | None:
     (активный сотрудник из групп «Менеджеры»/«Руководители») и у него есть email:
     иначе раздел `/manager/` не откроет ему заказ, и ссылка из письма была бы мёртвой.
     """
-    if order.user_id is None:
+    user = order.user
+    if user is None:
         return None
 
-    manager_id = order.user.responsible_manager_id
+    manager_id = user.responsible_manager_id
     if manager_id is not None:
         manager_email = responsible_manager_candidates().filter(pk=manager_id).values_list("email", flat=True).first()
         if manager_email:
