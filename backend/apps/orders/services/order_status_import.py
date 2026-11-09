@@ -579,6 +579,10 @@ class OrderStatusImportService:
         Note:
             Bulk fetch использует select_for_update() для защиты от race condition.
             Вызывайте внутри transaction.atomic() для корректной блокировки.
+            Порядок блокировок — сначала субзаказы, затем мастера, внутри по pk:
+            так же блокируют отмена клиентом (`OrderViewSet.cancel`) и подтверждение
+            выгрузки в 1С. Порядок только по pk брал мастер (pk меньше) раньше его
+            субзаказов и давал взаимную блокировку с отменой.
 
         Args:
             order_updates: Список данных для обновления.
@@ -616,8 +620,9 @@ class OrderStatusImportService:
         orders = (
             Order.objects.select_for_update()
             .filter(query)
-            # [AI-Review][Medium] Deadlock Risk: стабилизируем порядок блокировок
-            .order_by("pk")
+            # [AI-Review][Medium] Deadlock Risk: стабилизируем порядок блокировок.
+            # is_master=False сортируется раньше True: субзаказы → мастера, как у отмены.
+            .order_by("is_master", "pk")
             .only(
                 "pk",
                 "order_number",
@@ -882,8 +887,13 @@ class OrderStatusImportService:
         result: ImportResult,
         aggregated_master_ids: set[int],
     ) -> None:
-        """Применить агрегацию на всех затронутых мастерах (Story 34-4, AC3, AC10)."""
-        for master_id in master_ids:
+        """Применить агрегацию на всех затронутых мастерах (Story 34-4, AC3, AC10).
+
+        Мастера блокируются по возрастанию pk: порядок обхода множества
+        произволен, а два импорта с пересекающимися мастерами в разном порядке
+        могли бы ждать друг друга.
+        """
+        for master_id in sorted(master_ids):
             try:
                 master = Order.objects.select_for_update().get(pk=master_id)
             except Order.DoesNotExist:

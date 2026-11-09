@@ -142,18 +142,18 @@ class TestManagerQueue:
     def test_empty_queue(self):
         queue = manager_queue(request_for(make_manager("users.view_user", "orders.view_order")), manager_site)
 
-        assert [item["text"] for item in queue] == ["Заявки на верификацию: 0", "Новые заказы: 0"]
+        assert [item["text"] for item in queue] == ["Заявки на верификацию: 0", "Ждут отправки в 1С: 0"]
         assert [item["count"] for item in queue] == [0, 0]
         assert [item["url"] for item in queue] == [
             "/manager/users/user/?verification_status__exact=pending",
-            "/manager/orders/order/?status__exact=pending",
+            "/manager/orders/order/?export_1c=waiting",
         ]
 
     @pytest.mark.parametrize(
         ("codenames", "texts"),
         [
             pytest.param(("users.change_user",), ["Заявки на верификацию: 0"], id="only-users"),
-            pytest.param(("orders.change_order",), ["Новые заказы: 0"], id="only-orders"),
+            pytest.param(("orders.change_order",), ["Ждут отправки в 1С: 0"], id="only-orders"),
             pytest.param((), [], id="nothing"),
         ],
     )

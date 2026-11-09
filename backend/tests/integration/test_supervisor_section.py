@@ -533,7 +533,7 @@ class TestWholeDepartment:
         texts = [item["text"] for item in supervisor_client.get("/manager/").context["manager_queue"]]
 
         assert texts[0].startswith("Заявки на верификацию: 3")
-        assert texts[1] == "Новые заказы: 3"
+        assert texts[1] == "Ждут отправки в 1С: 3"
 
     def test_manager_still_sees_only_own(self, manager_client, manager, other_manager):
         own = make_client(manager)

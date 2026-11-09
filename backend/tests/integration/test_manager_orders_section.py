@@ -458,8 +458,9 @@ class TestChangelist:
         ]
         labels = [label_for_field(name, Order, cl.model_admin) for name in cl.list_display[1:]]
         assert labels == ["Номер", "Клиент", "Статус заказа", "Оплата", "Общая сумма", "Позиций", "Дата создания"]
-        filters = [spec.field_path for spec in cl.filter_specs]
-        assert filters == ["status", "payment_status", "delivery_method"]
+        # SimpleListFilter без поля модели называется своим parameter_name
+        filters = [getattr(spec, "field_path", None) or spec.parameter_name for spec in cl.filter_specs]
+        assert filters == ["status", "payment_status", "delivery_method", "export_1c"]
         content = response.content.decode()
         assert 'class="addlink"' not in content
         assert "/manager/orders/order/add/" not in content
@@ -1247,8 +1248,16 @@ class TestQueue:
         # Запись 1С без аккаунта в статусе pending: список клиентов её по умолчанию скрывает.
         make_client(manager, role=User.ROLE_UNREGISTERED, verification_status="pending", is_verified=False)
         client_user = make_client(manager)
-        new_orders = [make_master(client_user), make_master(client_user)]
-        make_master(client_user, status="processing")
+        # Ждут отправки — есть субзаказ, который заберёт следующий обмен, в любом статусе
+        partially_sent = make_master(client_user)
+        Order.objects.filter(parent_order=partially_sent, suborder_sequence=1).update(sent_to_1c=True)
+        awaiting = [make_master(client_user), make_master(client_user, status="confirmed"), partially_sent]
+        # Не ждут: «Новый» из прошлых выгрузок, пропущенный выгрузкой субзаказ, legacy-мастер без субзаказов
+        sent_pending = make_master(client_user)
+        Order.objects.filter(parent_order=sent_pending).update(sent_to_1c=True)
+        skipped = make_master(client_user, subs=1)
+        Order.objects.filter(parent_order=skipped).update(export_skipped=True)
+        make_master(client_user, subs=0)
         make_applicant(other_manager)
         make_master(make_client(other_manager))
 
@@ -1256,9 +1265,9 @@ class TestQueue:
 
         content = response.content.decode()
         assert "Заявки на верификацию: 3, старейшая — 5 дней" in content
-        assert "Новые заказы: 2" in content
+        assert "Ждут отправки в 1С: 3" in content
         users_url = "/manager/users/user/?verification_status__exact=pending"
-        orders_url = "/manager/orders/order/?status__exact=pending"
+        orders_url = "/manager/orders/order/?export_1c=waiting"
         assert f'href="{users_url}"' in content
         assert f'href="{orders_url}"' in content
 
@@ -1266,15 +1275,15 @@ class TestQueue:
         assert users_list.result_count == 3
         assert {user.pk for user in users_list.result_list} == {user.pk for user in applicants}
         orders_list = manager_client.get(orders_url).context["cl"]
-        assert orders_list.result_count == 2
-        assert {order.pk for order in orders_list.result_list} == {order.pk for order in new_orders}
+        assert orders_list.result_count == 3
+        assert {order.pk for order in orders_list.result_list} == {order.pk for order in awaiting}
 
     def test_zero_applications_without_oldest(self, manager_client):
         content = manager_client.get(INDEX_URL).content.decode()
 
         assert "Заявки на верификацию: 0" in content
         assert "старейшая" not in content
-        assert "Новые заказы: 0" in content
+        assert "Ждут отправки в 1С: 0" in content
 
     def test_application_today(self, manager_client, manager):
         make_applicant(manager)
@@ -1319,16 +1328,16 @@ class TestQueuePermissions:
         content = manager_client.get(INDEX_URL).content.decode()
 
         assert "Заявки на верификацию: 1" in content
-        assert "Новые заказы" not in content
-        assert "/manager/orders/order/?status__exact=pending" not in content
-        assert manager_client.get("/manager/orders/order/?status__exact=pending").status_code == 403
+        assert "Ждут отправки в 1С" not in content
+        assert "/manager/orders/order/?export_1c=waiting" not in content
+        assert manager_client.get("/manager/orders/order/?export_1c=waiting").status_code == 403
 
     def test_without_user_permissions_no_applications_counter(self, manager_client):
         set_group_permissions("orders.view_order", "orders.change_order")
 
         content = manager_client.get(INDEX_URL).content.decode()
 
-        assert "Новые заказы: 1" in content
+        assert "Ждут отправки в 1С: 1" in content
         assert "Заявки на верификацию" not in content
         assert "/manager/users/user/?verification_status__exact=pending" not in content
         assert manager_client.get("/manager/users/user/?verification_status__exact=pending").status_code == 403
@@ -1339,7 +1348,7 @@ class TestQueuePermissions:
         content = manager_client.get(INDEX_URL).content.decode()
 
         assert "Заявки на верификацию: 1" in content
-        assert "Новые заказы: 1" in content
+        assert "Ждут отправки в 1С: 1" in content
 
     def test_without_both_no_queue_block(self, manager_client):
         set_group_permissions()
@@ -1461,15 +1470,15 @@ class TestQueryCount:
         def add_queue(count: int) -> None:
             for _ in range(count):
                 make_applicant(manager)
-                make_master(client_user, subs=0, product=product)
+                make_master(client_user, subs=1, product=product)
 
         add_queue(3)
         with CaptureQueriesContext(connection) as captured:
             first = manager_client.get(INDEX_URL)
-        assert "Новые заказы: 3" in first.content.decode()
+        assert "Ждут отправки в 1С: 3" in first.content.decode()
         baseline = len(captured)
 
         add_queue(27)
         with django_assert_num_queries(baseline):
             second = manager_client.get(INDEX_URL)
-        assert "Новые заказы: 30" in second.content.decode()
+        assert "Ждут отправки в 1С: 30" in second.content.decode()

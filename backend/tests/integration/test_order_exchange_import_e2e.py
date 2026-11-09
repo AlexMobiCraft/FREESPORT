@@ -291,10 +291,12 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db, settings):
     Покрывает:
     - Экспорт двух sub-orders с разными vat_group (5 и 22)
     - mode=query → XML содержит ровно 2 документа с разными организациями
-    - mode=success → оба субзаказа и master помечены sent_to_1c=True
+    - mode=success → оба субзаказа и master помечены sent_to_1c=True и переведены
+      pending → processing (spec-order-processing-after-1c-export)
     - POST orders.xml с разными статусами для каждого субзаказа
-    - sub1.status='shipped', sub2.status='confirmed'
-    - master.status агрегирован по правилу min-priority → 'confirmed'
+    - sub1.status='shipped'; sub2 «Подтвержден» (confirmed) после processing — регрессия,
+      статус остаётся 'processing', фактический статус 1С пишется в status_1c
+    - master.status агрегирован по правилу min-priority → 'processing'
     """
     from decimal import Decimal
 
@@ -376,6 +378,7 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db, settings):
     assert sub2.sent_to_1c is True
     assert master.sent_to_1c is True, "master должен быть помечен sent_to_1c=True после того, как все sub отправлены"
     assert master.sent_to_1c_at is not None, "master.sent_to_1c_at должен быть заполнен"
+    assert (sub1.status, sub2.status, master.status) == ("processing", "processing", "processing")
 
     # ACT 3 — импорт: POST orders.xml с разными статусами
     xml_data = _build_multi_orders_xml(
@@ -400,10 +403,12 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db, settings):
     sub1.refresh_from_db()
     sub2.refresh_from_db()
     assert sub1.status == "shipped", f"sub1.status={sub1.status!r}, ожидали 'shipped'"
-    assert sub2.status == "confirmed", f"sub2.status={sub2.status!r}, ожидали 'confirmed'"
+    # confirmed(2) < processing(3): защита от регрессии оставляет статус сайта
+    assert sub2.status == "processing", f"sub2.status={sub2.status!r}, ожидали 'processing'"
+    assert sub2.status_1c == "Подтвержден", f"sub2.status_1c={sub2.status_1c!r}"
 
-    # ASSERT — мастер агрегирован (min-priority: confirmed(2) < shipped(4))
+    # ASSERT — мастер агрегирован (min-priority: processing(3) < shipped(4))
     master.refresh_from_db()
     assert (
-        master.status == "confirmed"
-    ), f"master.status={master.status!r}, ожидали 'confirmed' (min-priority агрегация)"
+        master.status == "processing"
+    ), f"master.status={master.status!r}, ожидали 'processing' (min-priority агрегация)"

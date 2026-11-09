@@ -14,20 +14,32 @@ Tests cover:
 
 import base64
 import io
+import threading
+import time
 import zipfile
+from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.db import transaction
+from django.core.cache import cache
+from django.db import DEFAULT_DB_ALIAS, DatabaseError, connection, connections, transaction
+from django.db.models.query import QuerySet
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.bonuses.models import BonusProgramSettings, BonusTransaction
+from apps.integrations.onec_exchange.views import ICExchangeView
+from apps.orders.constants import ORDER_ID_PREFIX
 from apps.orders.models import Order, OrderItem
+from apps.orders.services.order_status_import import OrderStatusImportService
 from apps.products.models import Brand, Category, Product, ProductVariant
 
 User = get_user_model()
@@ -1737,3 +1749,655 @@ class TestLegacyOrderExclusion:
 
         legacy_order.refresh_from_db()
         assert legacy_order.sent_to_1c is False
+
+
+EXCHANGE_URL = "/api/integration/1c/exchange/"
+
+
+def _exchange(client, mode):
+    """Шаг обмена: тело ответа строкой, ответ закрыт.
+
+    `mode=query` отдаёт `FileResponse`: временный XML удаляет очиститель ответа,
+    а он срабатывает только при `close()`. Тестовый клиент закрывает потоковый
+    ответ после полного чтения, явный `close()` — на случай, если чтение
+    оборвалось; повторный вызов безопасен.
+    """
+    response = client.get(EXCHANGE_URL, data={"mode": mode})
+    try:
+        assert response.status_code == 200
+        return get_response_content(response).decode("utf-8")
+    finally:
+        response.close()
+
+
+def _refresh(*orders):
+    for order in orders:
+        order.refresh_from_db()
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestOrderProcessingAfterExport:
+    """spec-order-processing-after-1c-export: «Новый» → «В обработке» после выгрузки в 1С."""
+
+    def test_success_promotes_subs_and_master(self, authenticated_client, master_with_two_subs, log_dir):
+        """mode=success: субзаказы pending → processing, мастер пересчитан в processing."""
+        master, sub5, sub22 = master_with_two_subs
+
+        _exchange(authenticated_client, "query")
+        _exchange(authenticated_client, "success")
+
+        _refresh(master, sub5, sub22)
+        assert sub5.status == "processing"
+        assert sub22.status == "processing"
+        assert sub5.sent_to_1c is True
+        assert sub22.sent_to_1c is True
+        assert master.status == "processing"
+        # Сохранение мастера не должно затереть агрегированный sent_to_1c
+        assert master.sent_to_1c is True
+        assert master.sent_to_1c_at is not None
+
+    def test_repeated_query_promotes_previous_batch(self, authenticated_client, master_with_two_subs, log_dir):
+        """Повторный mode=query (неявное подтверждение) переводит предыдущую пачку."""
+        master, sub5, sub22 = master_with_two_subs
+
+        _exchange(authenticated_client, "query")
+        _refresh(master, sub5, sub22)
+        assert (master.status, sub5.status, sub22.status) == ("pending", "pending", "pending")
+
+        _exchange(authenticated_client, "query")
+
+        _refresh(master, sub5, sub22)
+        assert sub5.status == "processing"
+        assert sub22.status == "processing"
+        assert master.status == "processing"
+        assert master.sent_to_1c is True
+
+    def test_fallback_promotes_marked_subs(self, authenticated_client, master_with_two_subs, log_dir):
+        """mode=success без списка ID в кэше: то же правило для помеченных субзаказов."""
+        from django.core.cache import cache as django_cache
+
+        master, sub5, sub22 = master_with_two_subs
+
+        _exchange(authenticated_client, "query")
+        django_cache.delete(f"1c_exported_ids_{authenticated_client.session.session_key}")
+        assert _exchange(authenticated_client, "success") == "success"
+
+        _refresh(master, sub5, sub22)
+        assert sub5.status == "processing"
+        assert sub22.status == "processing"
+        assert master.status == "processing"
+        assert master.sent_to_1c is True
+
+    def test_master_waits_for_all_subs_exported_in_different_exchanges(
+        self, authenticated_client, master_with_two_subs, log_dir
+    ):
+        """Ушёл один субзаказ из двух — мастер «Новый»; ушёл второй — «В обработке»."""
+        master, sub5, sub22 = master_with_two_subs
+        # Второй субзаказ не попадает в первую выгрузку
+        Order.objects.filter(pk=sub22.pk).update(export_skipped=True)
+
+        _exchange(authenticated_client, "query")
+        _exchange(authenticated_client, "success")
+
+        _refresh(master, sub5, sub22)
+        assert sub5.status == "processing"
+        # Пропущенный выгрузкой субзаказ в 1С не попал и не переводится
+        assert sub22.status == "pending"
+        assert sub22.sent_to_1c is False
+        assert master.status == "pending"
+        assert master.sent_to_1c is False
+
+        Order.objects.filter(pk=sub22.pk).update(export_skipped=False)
+        _exchange(authenticated_client, "query")
+        _exchange(authenticated_client, "success")
+
+        _refresh(master, sub5, sub22)
+        assert sub22.status == "processing"
+        assert sub22.sent_to_1c is True
+        assert master.status == "processing"
+        assert master.sent_to_1c is True
+
+    @pytest.mark.parametrize(
+        ("sub5_status", "expected_master_status"),
+        [("confirmed", "confirmed"), ("cancelled", "processing")],
+    )
+    def test_non_pending_sub_status_untouched(
+        self, authenticated_client, master_with_two_subs, log_dir, sub5_status, expected_master_status
+    ):
+        """Субзаказ не в pending: статус не меняется, sent_to_1c ставится как раньше."""
+        master, sub5, sub22 = master_with_two_subs
+        Order.objects.filter(pk=sub5.pk).update(status=sub5_status)
+
+        _exchange(authenticated_client, "query")
+        _exchange(authenticated_client, "success")
+
+        _refresh(master, sub5, sub22)
+        assert sub5.status == sub5_status
+        assert sub5.sent_to_1c is True
+        assert sub22.status == "processing"
+        # Мастер считает существующая агрегация OrderStatusImportService
+        assert master.status == expected_master_status
+
+    def test_master_untouched_when_no_sub_promoted(self, authenticated_client, master_with_two_subs, log_dir):
+        """Ни один субзаказ не переведён — мастер не пересчитывается и не сохраняется."""
+        master, sub5, sub22 = master_with_two_subs
+        # Оба субзаказа уже не pending; мастер в статусе, который агрегация изменила бы.
+        Order.objects.filter(pk__in=[sub5.pk, sub22.pk]).update(status="confirmed")
+        Order.objects.filter(pk=master.pk).update(status="pending")
+
+        with patch.object(Order, "save", autospec=True, side_effect=Order.save) as save_spy:
+            _exchange(authenticated_client, "query")
+            _exchange(authenticated_client, "success")
+
+        _refresh(master, sub5, sub22)
+        assert sub5.sent_to_1c is True and sub22.sent_to_1c is True
+        assert (sub5.status, sub22.status) == ("confirmed", "confirmed")
+        assert master.status == "pending"
+        assert not [c for c in save_spy.call_args_list if c.args[0].pk == master.pk]
+
+    def test_already_sent_sub_is_not_promoted(self, authenticated_client, master_with_two_subs, log_dir):
+        """Субзаказ, уже помеченный sent_to_1c=True раньше, не переводится (без backfill)."""
+        from django.core.cache import cache as django_cache
+
+        master, sub5, sub22 = master_with_two_subs
+        Order.objects.filter(pk=sub5.pk).update(sent_to_1c=True, sent_to_1c_at=timezone.now())
+
+        _exchange(authenticated_client, "query")
+        # Повторное подтверждение уже отправленного субзаказа (sub5) вместе с новым (sub22)
+        cache_key = f"1c_exported_ids_{authenticated_client.session.session_key}"
+        assert django_cache.get(cache_key) == [sub22.pk]
+        django_cache.set(cache_key, [sub5.pk, sub22.pk], timeout=3600)
+        _exchange(authenticated_client, "success")
+
+        _refresh(master, sub5, sub22)
+        assert sub5.status == "pending"
+        assert sub22.status == "processing"
+        assert master.status == "pending"
+
+    @pytest.mark.parametrize("confirm_mode", ["success", "query"])
+    def test_sub_skipped_after_query_is_not_promoted(
+        self, authenticated_client, master_with_two_subs, log_dir, confirm_mode
+    ):
+        """`export_skipped` выставлен после формирования пачки: подтверждение по кэшу ID статус не меняет."""
+        master, sub5, sub22 = master_with_two_subs
+
+        _exchange(authenticated_client, "query")
+        Order.objects.filter(pk=sub22.pk).update(export_skipped=True)
+        _exchange(authenticated_client, confirm_mode)
+
+        _refresh(master, sub5, sub22)
+        assert sub5.status == "processing"
+        assert sub22.status == "pending"
+        assert master.status == "pending"
+
+    def test_repeated_success_changes_nothing(self, authenticated_client, master_with_two_subs, log_dir):
+        """Повторный mode=success по уже отправленным субзаказам ничего не меняет."""
+        from django.core.cache import cache as django_cache
+
+        master, sub5, sub22 = master_with_two_subs
+        _exchange(authenticated_client, "query")
+        exported_ids = django_cache.get(f"1c_exported_ids_{authenticated_client.session.session_key}")
+        _exchange(authenticated_client, "success")
+        _refresh(master, sub5, sub22)
+        master_updated_at, sub22_updated_at = master.updated_at, sub22.updated_at
+
+        # Менеджер вернул субзаказ в «Новый» вручную — повторное подтверждение его не трогает
+        Order.objects.filter(pk=sub5.pk).update(status="pending")
+        session = authenticated_client.session
+        session["last_1c_query_time"] = timezone.now().isoformat()
+        session.save()
+        django_cache.set(f"1c_exported_ids_{session.session_key}", exported_ids, timeout=3600)
+        _exchange(authenticated_client, "success")
+
+        _refresh(master, sub5, sub22)
+        assert sub5.status == "pending"
+        assert sub22.status == "processing"
+        assert master.status == "processing"
+        assert (master.updated_at, sub22.updated_at) == (master_updated_at, sub22_updated_at)
+
+    def test_export_accrues_trainer_bonus_once(
+        self, authenticated_client, master_with_two_subs, customer_user, log_dir
+    ):
+        """accrual_status=processing: post_save мастера начисляет бонус при выгрузке, один раз."""
+        master, _sub5, _sub22 = master_with_two_subs
+        User.objects.filter(pk=customer_user.pk).update(role="trainer", is_verified=True)
+        program = BonusProgramSettings.load()
+        program.is_active = True
+        program.percent = Decimal("10.00")
+        program.accrual_status = "processing"
+        program.program_start_at = master.created_at - timedelta(minutes=1)
+        program.save()
+
+        _exchange(authenticated_client, "query")
+        _exchange(authenticated_client, "success")
+
+        (bonus,) = BonusTransaction.objects.filter(transaction_type=BonusTransaction.ACCRUAL)
+        assert bonus.order_id == master.pk
+        assert bonus.user_id == customer_user.pk
+        # База — товары обоих субзаказов: 1500 + 2000
+        assert bonus.base_amount == Decimal("3500.00")
+        assert bonus.percent_applied == Decimal("10.00")
+        assert bonus.amount == Decimal("350.00")
+
+        # Повторное подтверждение и новое сохранение мастера второй операции не создают
+        _exchange(authenticated_client, "query")
+        master.refresh_from_db()
+        master.save(update_fields=["status", "updated_at"])
+        assert BonusTransaction.objects.filter(transaction_type=BonusTransaction.ACCRUAL).count() == 1
+
+    def test_partial_export_does_not_accrue_bonus(
+        self, authenticated_client, master_with_two_subs, customer_user, log_dir
+    ):
+        """Ушёл один субзаказ из двух — мастер «Новый», бонуса нет."""
+        master, _sub5, sub22 = master_with_two_subs
+        User.objects.filter(pk=customer_user.pk).update(role="trainer", is_verified=True)
+        program = BonusProgramSettings.load()
+        program.is_active = True
+        program.accrual_status = "processing"
+        program.program_start_at = master.created_at - timedelta(minutes=1)
+        program.save()
+        Order.objects.filter(pk=sub22.pk).update(export_skipped=True)
+
+        _exchange(authenticated_client, "query")
+        _exchange(authenticated_client, "success")
+
+        master.refresh_from_db()
+        assert master.status == "pending"
+        assert not BonusTransaction.objects.exists()
+
+    @pytest.mark.parametrize("branch", ["success", "repeated_query", "fallback"])
+    def test_master_save_error_rolls_back_marks_and_statuses(
+        self, authenticated_client, master_with_two_subs, log_dir, prod_like_requests, branch
+    ):
+        """Сбой сохранения мастера откатывает и sent_to_1c, и статусы во всех трёх ветках подтверждения."""
+        master, sub5, sub22 = master_with_two_subs
+        _exchange(authenticated_client, "query")
+        if branch == "fallback":
+            cache.delete(f"1c_exported_ids_{authenticated_client.session.session_key}")
+
+        with patch.object(Order, "save", autospec=True, side_effect=DatabaseError("сбой сохранения мастера")):
+            if branch == "fallback":
+                # Fallback ловит ошибку и отвечает failure: 1С повторит обмен
+                assert _exchange(authenticated_client, "success").startswith("failure")
+            else:
+                mode = "query" if branch == "repeated_query" else "success"
+                with pytest.raises(DatabaseError):
+                    authenticated_client.get(EXCHANGE_URL, data={"mode": mode})
+
+        _refresh(master, sub5, sub22)
+        for order in (master, sub5, sub22):
+            assert (order.status, order.sent_to_1c, order.sent_to_1c_at) == ("pending", False, None)
+
+
+def _sent_skipped_sub(master_with_two_subs: Any, **sub22_fields: Any) -> tuple[Order, Order, Order]:
+    """sub5 уже «В обработке», sub22 подтверждён по кэшу ID с `export_skipped=True` и остался «Новым»."""
+    master, sub5, sub22 = master_with_two_subs
+    now = timezone.now()
+    Order.objects.filter(pk=sub5.pk).update(status="processing", sent_to_1c=True, sent_to_1c_at=now)
+    fields = {"status": "pending", "sent_to_1c": True, "sent_to_1c_at": now, "export_skipped": True}
+    fields.update(sub22_fields)
+    Order.objects.filter(pk=sub22.pk).update(**fields)
+    return master, sub5, Order.objects.get(pk=sub22.pk)
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestStatusRestoredAfterExportSkippedCleared:
+    """Снятие `export_skipped` через `save()` возвращает отправленному субзаказу «В обработке»."""
+
+    def test_cleared_after_cached_confirmation_promotes_sub_and_master(
+        self, authenticated_client, master_with_two_subs, log_dir
+    ):
+        """Флаг выставлен после формирования пачки и снят менеджером: субзаказ и мастер «В обработке»."""
+        master, sub5, sub22 = master_with_two_subs
+        _exchange(authenticated_client, "query")
+        Order.objects.filter(pk=sub22.pk).update(export_skipped=True)
+        _exchange(authenticated_client, "success")
+        _refresh(master, sub5, sub22)
+        assert (sub22.status, sub22.sent_to_1c, master.status) == ("pending", True, "pending")
+
+        sub22.export_skipped = False
+        sub22.save()
+
+        _refresh(master, sub5, sub22)
+        assert (sub5.status, sub22.status) == ("processing", "processing")
+        assert (sub22.export_skipped, sub22.sent_to_1c) == (False, True)
+        assert master.status == "processing"
+        assert master.sent_to_1c is True
+
+    @pytest.mark.parametrize("update_fields", [None, ["export_skipped"], ["export_skipped", "updated_at"]])
+    def test_save_clearing_flag_promotes(self, master_with_two_subs, update_fields):
+        """Полный `save()` и `save(update_fields=[..., "export_skipped"])` одинаково восстанавливают статус."""
+        master, _sub5, sub22 = _sent_skipped_sub(master_with_two_subs)
+
+        sub22.export_skipped = False
+        sub22.save(update_fields=update_fields)
+
+        # Экземпляр тоже знает новый статус: следующий полный save() его не откатит
+        assert sub22.status == "processing"
+        _refresh(master, sub22)
+        assert sub22.status == "processing"
+        assert master.status == "processing"
+
+    @pytest.mark.parametrize(
+        ("sub22_fields", "expected_status"),
+        [
+            ({"sent_to_1c": False, "sent_to_1c_at": None}, "pending"),
+            ({"status": "confirmed"}, "confirmed"),
+        ],
+        ids=["not_sent", "not_pending"],
+    )
+    def test_not_promoted_unless_sent_and_pending(self, master_with_two_subs, sub22_fields, expected_status):
+        """Не отправленный в 1С или уже не «Новый» субзаказ сигнал не трогает."""
+        master, _sub5, sub22 = _sent_skipped_sub(master_with_two_subs, **sub22_fields)
+        master_status = Order.objects.get(pk=master.pk).status
+
+        sub22.export_skipped = False
+        sub22.save()
+
+        _refresh(master, sub22)
+        assert sub22.export_skipped is False
+        assert sub22.status == expected_status
+        assert master.status == master_status
+
+    def test_save_without_flag_change_does_nothing(self, master_with_two_subs):
+        """Отправленный «Новый» субзаказ без флага (менеджер вернул статус) при сохранении не переводится."""
+        master, _sub5, sub22 = _sent_skipped_sub(master_with_two_subs, export_skipped=False)
+
+        sub22.notes = "правка менеджера"
+        sub22.save()
+
+        _refresh(master, sub22)
+        assert sub22.status == "pending"
+        assert master.status == "pending"
+
+    def test_save_with_update_fields_without_flag_does_nothing(self, master_with_two_subs):
+        """`save(update_fields=[...])` без `export_skipped` флаг не пишет — статус не меняется."""
+        master, _sub5, sub22 = _sent_skipped_sub(master_with_two_subs)
+
+        sub22.export_skipped = False
+        sub22.save(update_fields=["notes", "updated_at"])
+
+        _refresh(master, sub22)
+        assert sub22.export_skipped is True
+        assert sub22.status == "pending"
+        assert master.status == "pending"
+
+    def test_queryset_update_is_not_caught(self, master_with_two_subs):
+        """Принятое ограничение: `queryset.update()` сигналов не вызывает, статус не восстанавливается."""
+        master, _sub5, sub22 = _sent_skipped_sub(master_with_two_subs)
+
+        Order.objects.filter(pk=sub22.pk).update(export_skipped=False)
+
+        _refresh(master, sub22)
+        assert sub22.export_skipped is False
+        assert sub22.status == "pending"
+        assert master.status == "pending"
+
+
+@pytest.fixture
+def prod_like_requests(monkeypatch):
+    """Запросы без `ATOMIC_REQUESTS`, как на production: откат обеспечивает только транзакция обмена."""
+    monkeypatch.setitem(connections.settings[DEFAULT_DB_ALIAS], "ATOMIC_REQUESTS", False)
+
+
+class _ExchangeSession(dict):
+    """Сессия обмена для прямого вызова обработчиков из второго соединения."""
+
+    session_key = "concurrent-confirmation"
+
+
+def _waits_for_lock(pid: int | None) -> bool:
+    """Соединение `pid` стоит в очереди на блокировку строки."""
+    with connection.cursor() as cursor:
+        # Статистика активности кэшируется на транзакцию — сбросить снимок.
+        cursor.execute("SELECT pg_stat_clear_snapshot()")
+        cursor.execute("SELECT wait_event_type FROM pg_stat_activity WHERE pid = %s", [pid])
+        row = cursor.fetchone()
+    return bool(row) and row[0] == "Lock"
+
+
+class _BackgroundConfirmation:
+    """Подтверждение выгрузки из второго соединения.
+
+    `start()` возвращается, когда подтверждение завершилось или встало в очередь
+    на блокировку строки — без угадывания задержек.
+    """
+
+    def __init__(self, func: Any) -> None:
+        self.func = func
+        self.pid: int | None = None
+        self.blocked = False
+        self.outcome: dict[str, Any] = {}
+        self.ready = threading.Event()
+        # daemon: поток, зависший на блокировке после проваленной проверки,
+        # не держит процесс pytest после окончания прогона.
+        self.thread = threading.Thread(target=self._run, daemon=True)
+
+    def _run(self) -> None:
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_backend_pid()")
+                self.pid = cursor.fetchone()[0]
+            self.ready.set()
+            self.outcome["result"] = self.func()
+        except BaseException as exc:  # noqa: BLE001 — исключение возвращается в тест
+            self.outcome["error"] = exc
+        finally:
+            self.ready.set()
+            connections.close_all()
+
+    def start(self) -> None:
+        self.thread.start()
+        assert self.ready.wait(timeout=10), "второе соединение не открылось"
+        deadline = time.monotonic() + 10
+        while self.thread.is_alive() and time.monotonic() < deadline:
+            if _waits_for_lock(self.pid):
+                self.blocked = True
+                return
+            time.sleep(0.01)
+        assert not self.thread.is_alive(), "второе подтверждение не завершилось и не ждёт блокировку"
+
+    def join(self) -> Any:
+        self.thread.join(timeout=30)
+        assert not self.thread.is_alive(), "второе подтверждение зависло"
+        if "error" in self.outcome:
+            raise self.outcome["error"]
+        return self.outcome.get("result")
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.integration
+class TestConcurrentExportConfirmation:
+    """Два подтверждения одной пачки: второе не переводит субзаказы, которые уже пометило первое."""
+
+    @pytest.mark.parametrize("branch", ["success", "repeated_query", "fallback"])
+    def test_second_confirmation_skips_sub_orders_claimed_by_first(
+        self, transactional_db, master_with_two_subs, branch
+    ):
+        master, sub5, sub22 = master_with_two_subs
+        sub_ids = [sub5.pk, sub22.pk]
+        session = _ExchangeSession(last_1c_query_time=timezone.now().isoformat())
+        cache_key = f"1c_exported_ids_{session.session_key}"
+        if branch == "fallback":
+            cache.delete(cache_key)
+        else:
+            cache.set(cache_key, sub_ids, timeout=3600)
+        request = SimpleNamespace(session=session)
+        view = ICExchangeView()
+
+        def confirm() -> Any:
+            if branch == "repeated_query":
+                return view._mark_previous_query_as_sent(request)
+            return view.handle_success(request).content.decode("utf-8")
+
+        second = _BackgroundConfirmation(confirm)
+        try:
+            with transaction.atomic():
+                # Состояние строк к моменту, когда их увидит второе подтверждение:
+                # первое пометило пачку отправленной, менеджер вернул заказы в «Новый»
+                Order.objects.filter(pk__in=sub_ids).update(sent_to_1c=True, sent_to_1c_at=timezone.now())
+                second.start()
+                assert second.blocked, "второе подтверждение не дождалось первого — гонка не воспроизведена"
+            result = second.join()
+        finally:
+            cache.delete(cache_key)
+
+        if branch != "repeated_query":
+            assert result == "success"
+        _refresh(master, sub5, sub22)
+        assert (sub5.status, sub22.status) == ("pending", "pending")
+        assert master.status == "pending"
+
+
+def _cancel_as(user: Any, order_pk: int) -> int:
+    """Отмена мастер-заказа клиентом из второго соединения: код ответа."""
+    client = APIClient()
+    client.force_authenticate(user=user)
+    response = client.post(f"/api/v1/orders/{order_pk}/cancel/")
+    return response.status_code
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.integration
+class TestCancelDuringExportConfirmation:
+    """Отмена клиентом, пока подтверждение выгрузки держит блокировки строк."""
+
+    def test_cancel_after_full_export_sees_processing(self, transactional_db, master_with_two_subs, customer_user):
+        """Клиент открыл «Новый» до выгрузки: отмена ждёт подтверждения и отказывает по свежему статусу."""
+        master, sub5, sub22 = master_with_two_subs
+        session = _ExchangeSession(last_1c_query_time=timezone.now().isoformat())
+        cache_key = f"1c_exported_ids_{session.session_key}"
+        cache.set(cache_key, [sub5.pk, sub22.pk], timeout=3600)
+        request = SimpleNamespace(session=session)
+        cancel = _BackgroundConfirmation(lambda: _cancel_as(customer_user, master.pk))
+        try:
+            with transaction.atomic():
+                assert ICExchangeView().handle_success(request).content.decode("utf-8") == "success"
+                cancel.start()
+                assert cancel.blocked, "отмена не дождалась подтверждения — гонка не воспроизведена"
+            status_code = cancel.join()
+        finally:
+            cache.delete(cache_key)
+
+        assert status_code == 400
+        _refresh(master, sub5, sub22)
+        assert (master.status, master.sent_to_1c) == ("processing", True)
+        assert master.sent_to_1c_at is not None
+        assert (sub5.status, sub22.status) == ("processing", "processing")
+
+    def test_cancel_and_partial_export_do_not_deadlock(self, transactional_db, master_with_two_subs, customer_user):
+        """Подтверждение заблокировало субзаказ и идёт к мастеру, отмена уже запущена: обе завершаются."""
+        from apps.orders.services.order_export_status import promote_exported_sub_orders
+
+        master, sub5, sub22 = master_with_two_subs
+        # Частичная выгрузка: мастер остаётся «Новым», отмена разрешена (принятое ограничение спеки)
+        Order.objects.filter(pk=sub22.pk).update(export_skipped=True)
+        session = _ExchangeSession(last_1c_query_time=timezone.now().isoformat())
+        cache_key = f"1c_exported_ids_{session.session_key}"
+        cache.set(cache_key, [sub5.pk], timeout=3600)
+        request = SimpleNamespace(session=session)
+        cancel = _BackgroundConfirmation(lambda: _cancel_as(customer_user, master.pk))
+
+        def promote_with_cancel_in_flight(sub_ids: Any, now: Any) -> Any:
+            # Субзаказ уже заблокирован подтверждением, блокировку мастера оно ещё не брало
+            cancel.start()
+            assert cancel.blocked, "отмена не встала в очередь на блокировку — гонка не воспроизведена"
+            return promote_exported_sub_orders(sub_ids, now)
+
+        try:
+            with patch(
+                "apps.integrations.onec_exchange.views.promote_exported_sub_orders",
+                side_effect=promote_with_cancel_in_flight,
+            ):
+                with transaction.atomic():
+                    assert ICExchangeView().handle_success(request).content.decode("utf-8") == "success"
+            status_code = cancel.join()
+        finally:
+            cache.delete(cache_key)
+
+        assert status_code == 200
+        _refresh(master, sub5, sub22)
+        assert sub5.sent_to_1c is True
+        assert (master.status, sub5.status, sub22.status) == ("cancelled", "cancelled", "cancelled")
+
+
+def _status_import_xml(*orders: Order) -> str:
+    """Пакет статусов из 1С (CommerceML 3.1): по документу «Отгружен» на каждый заказ."""
+    documents = "".join(
+        f"""
+    <Контейнер>
+        <Документ>
+            <Ид>{ORDER_ID_PREFIX}{order.pk}</Ид>
+            <Номер>{order.order_number}</Номер>
+            <Дата>2026-11-09</Дата>
+            <ХозОперация>Заказ товара</ХозОперация>
+            <ЗначенияРеквизитов>
+                <ЗначениеРеквизита>
+                    <Наименование>СтатусЗаказа</Наименование>
+                    <Значение>Отгружен</Значение>
+                </ЗначениеРеквизита>
+            </ЗначенияРеквизитов>
+        </Документ>
+    </Контейнер>"""
+        for order in orders
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="2026-11-09T12:00:00">'
+        f"{documents}\n</КоммерческаяИнформация>\n"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.integration
+class TestCancelDuringStatusImport:
+    """Отмена клиентом и импорт статусов из 1С, пакет которого адресует и мастер, и субзаказ."""
+
+    def test_cancel_and_import_with_master_and_sub_do_not_deadlock(
+        self, transactional_db, master_with_two_subs, customer_user
+    ):
+        """Отмена держит субзаказы и идёт к мастеру, импорт уже запущен: обе завершаются.
+
+        Импорт с порядком блокировок только по pk брал мастер (pk меньше) раньше
+        субзаказа и ждал отмену, а отмена ждала мастер — `deadlock detected`.
+        """
+        master, sub5, sub22 = master_with_two_subs
+        xml = _status_import_xml(master, sub5)
+        subs_locked = threading.Event()
+        resume_cancel = threading.Event()
+        original_get = QuerySet.get
+
+        def get_pausing_cancel(queryset: QuerySet, *args: Any, **kwargs: Any) -> Any:
+            # Отмена заблокировала субзаказы и запрашивает мастер: пауза, пока импорт
+            # не встанет в очередь на блокировку
+            if (
+                threading.current_thread() is cancel.thread
+                and queryset.query.select_for_update
+                and not subs_locked.is_set()
+            ):
+                subs_locked.set()
+                assert resume_cancel.wait(timeout=30), "тест не продолжил отмену"
+            return original_get(queryset, *args, **kwargs)
+
+        cancel = _BackgroundConfirmation(lambda: _cancel_as(customer_user, master.pk))
+        status_import = _BackgroundConfirmation(lambda: OrderStatusImportService().process(xml))
+        try:
+            with patch.object(QuerySet, "get", get_pausing_cancel):
+                cancel.thread.start()
+                assert subs_locked.wait(timeout=10), "отмена не дошла до блокировки мастера"
+                status_import.start()
+                assert status_import.blocked, "импорт не встал в очередь на блокировку — гонка не воспроизведена"
+                resume_cancel.set()
+                status_code = cancel.join()
+                result = status_import.join()
+        finally:
+            resume_cancel.set()
+
+        assert status_code == 200
+        assert not [error for error in result.errors if "deadlock" in error.lower()]
+        # Мастер в пакете отклоняется master-guard, субзаказ после отмены в финальном статусе
+        assert result.skipped_master_unexpected == 1
+        _refresh(master, sub5, sub22)
+        assert (master.status, sub5.status, sub22.status) == ("cancelled", "cancelled", "cancelled")

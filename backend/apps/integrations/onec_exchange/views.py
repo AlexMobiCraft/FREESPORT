@@ -20,6 +20,7 @@ from rest_framework.views import APIView
 
 from apps.orders.models import Order
 from apps.orders.services.order_export import OrderExportService
+from apps.orders.services.order_export_status import promote_exported_sub_orders
 from apps.orders.services.order_status_import import OrderStatusImportService
 from apps.orders.signals import orders_bulk_updated
 
@@ -500,6 +501,31 @@ class ICExchangeView(APIView):
                     aggregated.append(master_id)
         return aggregated
 
+    def _claim_unsent_sub_orders(self, queryset, now):
+        """Пометить ещё не отправленные субзаказы из `queryset` отправленными.
+
+        Строки блокируются `SELECT ... FOR UPDATE` до конца транзакции вызывающего.
+        Параллельное подтверждение той же пачки ждёт коммита первого, после чего
+        PostgreSQL перепроверяет условие `sent_to_1c=False` и пропускает уже
+        помеченные строки. Поэтому список впервые отправленных не устаревает:
+        субзаказ, который менеджер успел вернуть в «Новый», второе подтверждение
+        не переведёт в «В обработке» повторно.
+
+        Returns:
+            (PK впервые помеченных субзаказов, число обновлённых строк).
+        """
+        claimed_ids = list(
+            queryset.filter(sent_to_1c=False).select_for_update().order_by("pk").values_list("pk", flat=True)
+        )
+        if not claimed_ids:
+            return [], 0
+        updated = Order.objects.filter(pk__in=claimed_ids, sent_to_1c=False).update(
+            sent_to_1c=True,
+            sent_to_1c_at=now,
+            updated_at=now,
+        )
+        return claimed_ids, updated
+
     def _mark_previous_query_as_sent(self, request):
         """Mark orders from previous query as sent (implicit success).
 
@@ -523,20 +549,12 @@ class ICExchangeView(APIView):
                     is_master=False,
                 ).values_list("pk", flat=True)
             )
-            # sub_ids_to_update — только ещё не отправленные (для update)
-            sub_ids_to_update = list(
-                Order.objects.filter(
-                    pk__in=sub_ids,
-                    sent_to_1c=False,
-                ).values_list("pk", flat=True)
-            )
-            updated = Order.objects.filter(pk__in=sub_ids_to_update).update(
-                sent_to_1c=True,
-                sent_to_1c_at=now,
-                updated_at=now,
-            )
+            # sub_ids_to_update — только впервые помеченные (под блокировкой строк)
+            sub_ids_to_update, updated = self._claim_unsent_sub_orders(Order.objects.filter(pk__in=sub_ids), now)
             # Агрегация по ВСЕМ sub_ids, не только обновлённым
             aggregated_master_ids = self._aggregate_master_sent_to_1c(sub_ids, now)
+            # Статус в кабинете: «Новый» → «В обработке» только у впервые отправленных
+            promote_exported_sub_orders(sub_ids_to_update, now)
 
         if updated > 0 or aggregated_master_ids:
             logger.info(
@@ -733,24 +751,20 @@ class ICExchangeView(APIView):
                     # sub-order уже помечены, а master ещё нет, решается
                     # отдельной management-командой, а не побочным эффектом
                     # mode=success.
-                    fallback_sub_ids_to_update = list(
+                    fallback_sub_ids_to_update, updated = self._claim_unsent_sub_orders(
                         Order.objects.filter(
                             export_skipped=False,
                             created_at__lte=last_query_time,
                             is_master=False,
                             parent_order__isnull=False,
-                            sent_to_1c=False,
-                        ).values_list("pk", flat=True)
-                    )
-                    updated = Order.objects.filter(pk__in=fallback_sub_ids_to_update).update(
-                        sent_to_1c=True,
-                        sent_to_1c_at=now,
-                        updated_at=now,
+                        ),
+                        now,
                     )
                     # Агрегация только по реально обновлённым sub-order.
                     # При updated == 0 агрегация не запускается.
                     if updated > 0:
                         aggregated_master_ids = self._aggregate_master_sent_to_1c(fallback_sub_ids_to_update, now)
+                        promote_exported_sub_orders(fallback_sub_ids_to_update, now)
                     else:
                         aggregated_master_ids = []
 
@@ -802,20 +816,12 @@ class ICExchangeView(APIView):
                     is_master=False,
                 ).values_list("pk", flat=True)
             )
-            # sub_ids_to_update — только ещё не отправленные (для update)
-            sub_ids_to_update = list(
-                Order.objects.filter(
-                    pk__in=sub_ids,
-                    sent_to_1c=False,
-                ).values_list("pk", flat=True)
-            )
-            updated = Order.objects.filter(pk__in=sub_ids_to_update).update(
-                sent_to_1c=True,
-                sent_to_1c_at=now,
-                updated_at=now,
-            )
+            # sub_ids_to_update — только впервые помеченные (под блокировкой строк)
+            sub_ids_to_update, updated = self._claim_unsent_sub_orders(Order.objects.filter(pk__in=sub_ids), now)
             # Агрегация по ВСЕМ sub_ids, не только обновлённым
             aggregated_master_ids = self._aggregate_master_sent_to_1c(sub_ids, now)
+            # Статус в кабинете: «Новый» → «В обработке» только у впервые отправленных
+            promote_exported_sub_orders(sub_ids_to_update, now)
 
         logger.info(
             f"[EXPORT SUCCESS] Marked {updated} sub-orders as sent_to_1c "
