@@ -19,7 +19,7 @@ describe('buildInitialProductFilters', () => {
     expect(buildInitialProductFilters(reader(''), null)).toEqual({
       page: 1,
       page_size: PAGE_SIZE,
-      ordering: 'name',
+      ordering: 'category_tree',
       min_price: PRICE_MIN,
       max_price: PRICE_MAX,
       in_stock: true,
@@ -70,7 +70,7 @@ describe('buildInitialProductFilters', () => {
       null
     );
 
-    expect(filters).toMatchObject({ page: 1, ordering: 'name', min_price: 1, max_price: 50000 });
+    expect(filters).toMatchObject({ page: 1, ordering: 'category_tree', min_price: 1, max_price: 50000 });
     expect(filters).not.toHaveProperty('search');
     expect(filters).not.toHaveProperty('category_id');
   });

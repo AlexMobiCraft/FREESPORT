@@ -1851,6 +1851,7 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
                     onChange={handleOrderingChange}
                     className="appearance-none border border-gray-200 rounded-full py-2 pl-4 pr-10 text-sm text-gray-700"
                   >
+                    <option value="category_tree">По категориям</option>
                     <option value="-created_at">По новизне</option>
                     <option value="min_retail_price">По цене (возр.)</option>
                     <option value="-min_retail_price">По цене (убыв.)</option>

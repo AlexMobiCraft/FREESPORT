@@ -19,9 +19,9 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from .category_utils import FULL_PLACEHOLDER_CATEGORY_RE_PATTERN
+from .category_utils import sidebar_excluded_categories_q
 from .constants import FEATURED_BRANDS_CACHE_KEY, FEATURED_BRANDS_CACHE_TIMEOUT, FEATURED_BRANDS_MAX_ITEMS
-from .filters import CategoryFilter, ProductFilter
+from .filters import CatalogOrderingFilter, CategoryFilter, ProductFilter
 from .models import Attribute, AttributeValue, Brand, Category, Product, ProductVariant
 from .serializers import (
     AttributeFilterSerializer,
@@ -56,7 +56,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
     permission_classes = [permissions.AllowAny]  # Каталог доступен всем
     lookup_field = "slug"
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, CatalogOrderingFilter]
     filterset_class = ProductFilter
     # После Epic 13: retail_price и stock_quantity перенесены в ProductVariant
     # Используем аннотации: min_retail_price (мин. цена варианта),
@@ -148,7 +148,11 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             OpenApiParameter(
                 "ordering",
                 OpenApiTypes.STR,
-                description=("Сортировка: name, -name, retail_price, -retail_price, " "created_at, -created_at"),
+                description=(
+                    "Сортировка: name, -name, min_retail_price, -min_retail_price, created_at, "
+                    "-created_at, total_stock, -total_stock; category_tree — в порядке дерева "
+                    "категорий каталога (затем по названию). По умолчанию -created_at"
+                ),
             ),
         ],
         tags=["Products"],
@@ -350,11 +354,7 @@ class CategoryTreeViewSet(viewsets.ReadOnlyModelViewSet):
 
         return (
             Category.objects.filter(is_active=True, parent__in=anchor_qs)
-            .exclude(
-                Q(slug__in=["uncategorized", "onec-unresolved-category"])
-                | Q(name="Без категории")
-                | Q(name__regex=FULL_PLACEHOLDER_CATEGORY_RE_PATTERN)
-            )
+            .exclude(sidebar_excluded_categories_q())
             .distinct()
             .annotate(
                 products_count=Count("products", filter=Q(products__is_active=True)),

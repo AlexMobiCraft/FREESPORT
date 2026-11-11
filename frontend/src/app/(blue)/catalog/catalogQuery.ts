@@ -19,7 +19,7 @@ export const PRICE_MIN = 1;
 export const PRICE_MAX = 50000;
 export const DEFAULT_PRICE_RANGE: PriceRange = { min: PRICE_MIN, max: PRICE_MAX };
 export const PAGE_SIZE = 12;
-export const DEFAULT_ORDERING = 'name';
+export const DEFAULT_ORDERING = 'category_tree';
 
 /**
  * Разбирает query-параметр `page`. Всё, что не является строкой из одних цифр
@@ -36,6 +36,7 @@ export const parsePageNumber = (value: string | null): number => {
 
 /** Белый список значений <select> сортировки: всё остальное — сортировка по умолчанию */
 const ORDERING_OPTIONS: readonly string[] = [
+  'category_tree',
   '-created_at',
   'min_retail_price',
   '-min_retail_price',

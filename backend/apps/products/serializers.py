@@ -12,7 +12,7 @@ from django.db.models import Case, Count, IntegerField, Q, Sum, When
 from drf_spectacular.utils import extend_schema_field, inline_serializer
 from rest_framework import serializers
 
-from .category_utils import FULL_PLACEHOLDER_CATEGORY_RE_PATTERN
+from .category_utils import sidebar_excluded_categories_q
 from .models import Attribute, AttributeValue, Brand, Category, ColorMapping, Product, ProductImage, ProductVariant
 from .pricing_policy import WHOLESALE_PRICE_FIELDS, can_see_info_prices, can_see_wholesale_prices
 from .utils.images import product_main_image_url
@@ -913,11 +913,7 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
         """Рекурсивно получить все дочерние категории"""
         children = (
             obj.children.filter(is_active=True)
-            .exclude(
-                Q(slug__in=["uncategorized", "onec-unresolved-category"])
-                | Q(name="Без категории")
-                | Q(name__regex=FULL_PLACEHOLDER_CATEGORY_RE_PATTERN)
-            )
+            .exclude(sidebar_excluded_categories_q())
             .annotate(
                 products_count=Count("products", filter=Q(products__is_active=True)),
                 in_stock_count=Count(
