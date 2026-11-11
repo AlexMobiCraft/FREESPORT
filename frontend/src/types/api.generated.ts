@@ -4364,7 +4364,7 @@ export interface operations {
         max_price?: number;
         /** @description Минимальная цена */
         min_price?: number;
-        /** @description Сортировка: name, -name, retail_price, -retail_price, created_at, -created_at */
+        /** @description Сортировка: name, -name, min_retail_price, -min_retail_price, created_at, -created_at, total_stock, -total_stock; category_tree — в порядке дерева категорий каталога (затем по названию). По умолчанию -created_at */
         ordering?: string;
         /** @description A page number within the paginated result set. */
         page?: number;

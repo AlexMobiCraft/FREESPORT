@@ -1781,10 +1781,10 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
 
     await waitFor(() => {
       expect(productsService.getAll).toHaveBeenCalledWith(
-        expect.objectContaining({ ordering: 'name' })
+        expect.objectContaining({ ordering: 'category_tree' })
       );
     });
-    expect(orderingSelect()).toHaveValue('name');
+    expect(orderingSelect()).toHaveValue('category_tree');
   });
 
   it('распахивает сайдбар при «назад» на ?in_stock=false', async () => {
@@ -1806,7 +1806,7 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
   // --- Канонизация URL ------------------------------------------------------
 
   it('вычищает значения по умолчанию из внешней ссылки одним replace', async () => {
-    resetSearchParams('ordering=name&in_stock=true&min_price=1');
+    resetSearchParams('ordering=category_tree&in_stock=true&min_price=1');
 
     render(<CatalogPage />);
 
@@ -1817,6 +1817,21 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
     expect(navigationLog).toHaveLength(1);
     expect(navigationLog[0].type).toBe('replace');
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('оставляет в URL старую ссылку ?ordering=name и сортирует по названию', async () => {
+    resetSearchParams('ordering=name');
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(
+        expect.objectContaining({ ordering: 'name' })
+      );
+    });
+    expect(orderingSelect()).toHaveValue('name');
+    // name больше не умолчание: канонизация его не трогает
+    expect(navigationLog).toEqual([]);
   });
 
   it('трактует мусор в параметрах как умолчания и вычищает его из URL', async () => {
@@ -1831,7 +1846,7 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
 
     await waitFor(() => {
       expect(productsService.getAll).toHaveBeenCalledWith(
-        expect.objectContaining({ ordering: 'name', min_price: 1, max_price: 50000 })
+        expect.objectContaining({ ordering: 'category_tree', min_price: 1, max_price: 50000 })
       );
     });
     // max_price=-5 → умолчание СВОЕГО конца (50000), а не clamp к PRICE_MIN
@@ -1892,7 +1907,7 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
 
     await waitFor(() => {
       expect(productsService.getAll).toHaveBeenCalledWith(
-        expect.objectContaining({ ordering: 'name', min_price: 1, max_price: 50000, in_stock: true })
+        expect.objectContaining({ ordering: 'category_tree', min_price: 1, max_price: 50000, in_stock: true })
       );
     });
     expect(navigationLog).toHaveLength(1);
@@ -1916,7 +1931,7 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
     expect(lastNavigationUrl()).toBe('/catalog?is_sale=true');
     await waitFor(() => {
       expect(productsService.getAll).toHaveBeenCalledWith(
-        expect.objectContaining({ is_sale: true, ordering: 'name' })
+        expect.objectContaining({ is_sale: true, ordering: 'category_tree' })
       );
     });
     expect((productsService.getAll as Mock).mock.calls.at(-1)?.[0]).not.toHaveProperty('brand');
@@ -2199,7 +2214,7 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
 
       await waitFor(() => {
         expect(productsService.getAll).toHaveBeenCalledWith(
-          expect.objectContaining({ ordering: 'name', page: 2 })
+          expect.objectContaining({ ordering: 'category_tree', page: 2 })
         );
       });
     } finally {
@@ -2721,7 +2736,7 @@ describe('CatalogPage — первая страница выдачи с серв
     render(<CatalogPage initialProducts={initialFor('')} />);
     await expectServerProductsReused();
 
-    fireEvent.change(screen.getByDisplayValue('По названию (А→Я)'), {
+    fireEvent.change(screen.getByDisplayValue('По категориям'), {
       target: { value: '-created_at' },
     });
 

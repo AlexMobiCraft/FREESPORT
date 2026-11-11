@@ -71,7 +71,7 @@ describe('серверная первая страница выдачи ката
     expect(Object.fromEntries(url.searchParams)).toEqual({
       page: '2',
       page_size: '12',
-      ordering: 'name',
+      ordering: 'category_tree',
       min_price: '1',
       max_price: '50000',
       is_new: 'true',

@@ -1260,3 +1260,13 @@
 - Fallback может подтвердить не попавший в XML заказ; этот риск и влияние на новый статус приняты в Code Map. `backend/apps/integrations/onec_exchange/views.py:754-767`.
 - Выгрузка и импорт статусов могут взаимно блокироваться; владелец ранее отклонил изменение и рассчитывает на разнесение расписаний, автоматическое исключение пересечения не проверено. `backend/apps/orders/services/order_export_status.py:56-58`.
 - Исторический статус 1С «Подтвержден» после выгрузки блокируется как регрессия (medium, не подтверждено влияние): нужно проверить, есть ли действующие отправители этого ключа. `backend/tests/integration/test_order_exchange_import_e2e.py:394-408`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-catalog-products-category-tree-order.md`
+  summary: Сайдбар (`CategoryTreeViewSet.get_queryset`, `CategoryTreeSerializer.get_children`) сортирует сестёр по `sort_order, name` без `id`, поэтому одноимённые сёстры с одинаковым `sort_order` идут в произвольном порядке и могут разойтись с выдачей `ordering=category_tree`, где тай-брейк — `id`.
+  evidence: `views.py` и `serializers.py` — `.order_by("sort_order", "name")`; `category_utils.catalog_category_order` — `order_by("sort_order", "name", "id")`; дубли имён из 1С встречаются.
+- source_spec: `_bmad-output/implementation-artifacts/spec-catalog-products-category-tree-order.md`
+  summary: `OrderingFilter` всегда применяет `ordering` или умолчание `-created_at`, поэтому ранжирование `order_by("-rank", …)` из `filter_search` в выдаче не действует никогда, а комментарий «override при search» в `ProductViewSet` ложен.
+  evidence: DRF `OrderingFilter.filter_queryset` вызывает `queryset.order_by(*ordering)` и при пустом параметре берёт `view.ordering`; `filters.py` `filter_search` задаёт `-rank` до него.
+- source_spec: `_bmad-output/implementation-artifacts/spec-catalog-products-category-tree-order.md`
+  summary: `Category.full_name` рекурсирует по `parent` без защиты от цикла, поэтому товар в категории с циклом `parent` роняет `GET /api/v1/products/` с `RecursionError` при любом `ordering`.
+  evidence: найдено при реализации теста цикла (`test_parent_cycle_is_left_out_of_traversal`); `backend/apps/products/models.py` `full_name`; сериализатор товара вызывает `str(category)`.

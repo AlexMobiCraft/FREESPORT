@@ -8,10 +8,13 @@ from typing import TYPE_CHECKING, Any
 
 import django_filters
 from django.conf import settings
+from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db import connection
-from django.db.models import Q, QuerySet
+from django.db.models import BigIntegerField, F, Func, IntegerField, Q, QuerySet, Value
+from rest_framework.filters import OrderingFilter
 
+from .category_utils import catalog_category_order
 from .models import Attribute, Brand, Category, Product
 from .pricing_policy import resolve_pricing_role, role_price_fields
 
@@ -533,3 +536,35 @@ class CategoryFilter(django_filters.FilterSet):
         if value:
             return queryset.filter(homepage_categories_q())
         return queryset
+
+
+# Режим `ordering`: товары в порядке дерева категорий сайдбара каталога
+CATEGORY_TREE_ORDERING = "category_tree"
+
+
+class CatalogOrderingFilter(OrderingFilter):
+    """`OrderingFilter` с режимом `ordering=category_tree`.
+
+    Режим: позиция категории товара при обходе дерева в глубину
+    (`catalog_category_order`), затем `name`, затем `id` — страницы не пересекаются.
+    Товары в категориях вне обхода (исключённые сайдбаром, вне дерева якоря, без
+    категории) идут после всех. Остальные значения и умолчание — как у `OrderingFilter`.
+    """
+
+    def filter_queryset(self, request: Any, queryset: QuerySet, view: Any) -> QuerySet:
+        if request.query_params.get(self.ordering_param) != CATEGORY_TREE_ORDERING:
+            return super().filter_queryset(request, queryset, view)
+
+        category_ids = catalog_category_order()
+        if not category_ids:
+            # Дерева нет (нет якоря или категорий): ARRAY[] без типа Postgres не примет
+            return queryset.order_by("name", "id")
+
+        # Выражение прямо в order_by: алиас не нужен, а в GROUP BY оно попадёт и так
+        position = Func(
+            Value(category_ids, output_field=ArrayField(BigIntegerField())),  # id категорий — BigAutoField
+            F("category_id"),
+            function="array_position",
+            output_field=IntegerField(),
+        )
+        return queryset.order_by(position.asc(nulls_last=True), "name", "id")
