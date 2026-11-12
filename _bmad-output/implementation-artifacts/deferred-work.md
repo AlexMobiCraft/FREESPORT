@@ -1270,3 +1270,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-catalog-products-category-tree-order.md`
   summary: `Category.full_name` рекурсирует по `parent` без защиты от цикла, поэтому товар в категории с циклом `parent` роняет `GET /api/v1/products/` с `RecursionError` при любом `ordering`.
   evidence: найдено при реализации теста цикла (`test_parent_cycle_is_left_out_of_traversal`); `backend/apps/products/models.py` `full_name`; сериализатор товара вызывает `str(category)`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-checkout-price-recalc.md`
+  summary: **Вид цены в каждой строке заказа и соглашение акции для 1С** — готовый черновик `spec-order-line-price-type-1c.md` (status draft), начинать после `spec-checkout-price-recalc.md`.
+  evidence: выделено 12.11.2026 по решению владельца из единой спецификации, превысившей объём (~4000 токенов): пересчёт цены при оформлении — самостоятельная поставка, выгрузка вида цены опирается на её функцию «цена + поле-источник». Фактура — `research-order-line-price-type-1c.md`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-checkout-price-recalc.md`
+  summary: **Гостевая корзина при входе теряется.** `merge_guest_cart_on_login` — мёртвый код: запрос берётся из `instance._request`, который пользователю никто не присваивает, а `if not created: return` пропускает всё, кроме создания пользователя (комментарий в коде утверждает обратное). Если перенос когда-нибудь реализуют, позиции из гостевой корзины должны получать снимок по цене вошедшего пользователя (`get_price_for_user`), а не копию розничного снимка гостя (`signals.py:85`), иначе оформление стабильно уходит в 409 `prices_changed`.
+  evidence: найдено на обсуждении спеки 12.11.2026; `backend/apps/cart/signals.py:47-90`; присваиваний `_request` в `apps/` нет; `tests/integration/test_guest_session_integration.py:83` — `# TODO: Реализовать автоматический перенос корзины`, проверяет только `assertIsNotNone`. Из спеки пересчёта цены исключено решением владельца.
