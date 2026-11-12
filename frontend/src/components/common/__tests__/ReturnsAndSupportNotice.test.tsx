@@ -38,8 +38,8 @@ describe('ReturnsAndSupportNotice', () => {
   it('содержит телефон и почту поддержки (AC1)', () => {
     render(<ReturnsAndSupportNotice />);
 
-    const phone = screen.getByRole('link', { name: '+7 968 273-21-68' });
-    expect(phone).toHaveAttribute('href', 'tel:+79682732168');
+    const phone = screen.getByRole('link', { name: '8 800 700 70 89' });
+    expect(phone).toHaveAttribute('href', 'tel:88007007089');
 
     const email = screen.getByRole('link', { name: 'info@optisport.ru' });
     expect(email).toHaveAttribute('href', 'mailto:info@optisport.ru');

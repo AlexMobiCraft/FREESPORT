@@ -109,10 +109,10 @@ const ElectricFooter: React.FC = () => {
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-[var(--color-primary)] flex-shrink-0" />
                 <a
-                  href="tel:+79682732168"
+                  href="tel:88007007089"
                   className="hover:text-[var(--foreground)] transition-colors"
                 >
-                  +7 968 273-21-68
+                  8 800 700 70 89
                 </a>
               </li>
               <li className="flex items-center gap-3">

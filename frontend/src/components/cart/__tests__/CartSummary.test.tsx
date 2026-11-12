@@ -303,9 +303,9 @@ describe('CartSummary', () => {
     it('показывает телефон и почту поддержки', () => {
       render(<CartSummary />);
 
-      expect(screen.getByRole('link', { name: '+7 968 273-21-68' })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: '8 800 700 70 89' })).toHaveAttribute(
         'href',
-        'tel:+79682732168'
+        'tel:88007007089'
       );
       expect(screen.getByRole('link', { name: 'info@optisport.ru' })).toHaveAttribute(
         'href',

@@ -41,8 +41,8 @@ const deliveryOptions = {
 
 // Контакты
 const contacts = {
-  phone: '+7 968 273-21-68',
-  phoneLink: 'tel:+79682732168',
+  phone: '8 800 700 70 89',
+  phoneLink: 'tel:88007007089',
   email: 'logist@optisport.ru',
   emailLink: 'mailto:logist@optisport.ru',
 };

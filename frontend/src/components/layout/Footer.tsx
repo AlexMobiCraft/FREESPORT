@@ -74,7 +74,7 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
   {
     title: 'Контакты',
     links: [
-      { label: '+7 968 273-21-68', href: 'tel:+79682732168' },
+      { label: '8 800 700 70 89', href: 'tel:88007007089' },
       { label: 'info@optisport.ru', href: 'mailto:info@optisport.ru' },
       // Не ссылка: пункт самовывоза на /delivery остался по старому адресу
       { label: 'г. Ставрополь, ул. Дзержинского, 131А, 3 этаж' },
