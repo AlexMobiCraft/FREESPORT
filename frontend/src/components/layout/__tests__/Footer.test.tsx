@@ -192,8 +192,8 @@ describe('Footer', () => {
     it('renders Контакты column with tel: and mailto: links', () => {
       render(<Footer />);
 
-      const phoneLink = screen.getByRole('link', { name: '+7 968 273-21-68' });
-      expect(phoneLink).toHaveAttribute('href', 'tel:+79682732168');
+      const phoneLink = screen.getByRole('link', { name: '8 800 700 70 89' });
+      expect(phoneLink).toHaveAttribute('href', 'tel:88007007089');
 
       const emailLink = screen.getByRole('link', { name: 'info@optisport.ru' });
       expect(emailLink).toHaveAttribute('href', 'mailto:info@optisport.ru');
@@ -218,7 +218,7 @@ describe('Footer', () => {
       expect(companyColumn).toContainElement(
         screen.getByRole('heading', { level: 3, name: 'Контакты' })
       );
-      expect(companyColumn).toContainElement(screen.getByRole('link', { name: '+7 968 273-21-68' }));
+      expect(companyColumn).toContainElement(screen.getByRole('link', { name: '8 800 700 70 89' }));
     });
 
     it('renders custom columns when provided', () => {

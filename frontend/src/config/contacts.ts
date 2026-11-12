@@ -10,10 +10,10 @@
  */
 
 /** Телефон поддержки в человекочитаемом виде */
-export const SUPPORT_PHONE_DISPLAY = '+7 968 273-21-68';
+export const SUPPORT_PHONE_DISPLAY = '8 800 700 70 89';
 
 /** Телефон поддержки для атрибута href */
-export const SUPPORT_PHONE_HREF = 'tel:+79682732168';
+export const SUPPORT_PHONE_HREF = 'tel:88007007089';
 
 /** Электронная почта поддержки */
 export const SUPPORT_EMAIL = 'info@optisport.ru';

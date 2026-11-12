@@ -300,7 +300,7 @@ describe('Cart Components Accessibility', () => {
       const names = screen.getAllByRole('link').map(link => link.textContent?.trim());
       expect(names).toEqual([
         'Условия возврата и рекламаций',
-        '+7 968 273-21-68',
+        '8 800 700 70 89',
         'info@optisport.ru',
       ]);
     });

@@ -187,10 +187,10 @@ describe('DeliveryPage (/delivery)', () => {
 
     it('должна отображать телефон как ссылку tel:', () => {
       render(<DeliveryPage />);
-      const phoneLink = screen.getByText('+7 968 273-21-68').closest('a');
+      const phoneLink = screen.getByText('8 800 700 70 89').closest('a');
 
       expect(phoneLink).toBeInTheDocument();
-      expect(phoneLink).toHaveAttribute('href', 'tel:+79682732168');
+      expect(phoneLink).toHaveAttribute('href', 'tel:88007007089');
     });
 
     it('должна отображать email как ссылку mailto:', () => {
@@ -241,7 +241,7 @@ describe('DeliveryPage (/delivery)', () => {
 
     it('должна иметь hover-эффекты для ссылок', () => {
       render(<DeliveryPage />);
-      const phoneLink = screen.getByText('+7 968 273-21-68').closest('a');
+      const phoneLink = screen.getByText('8 800 700 70 89').closest('a');
 
       expect(phoneLink).toHaveClass('hover:text-primary-hover');
     });
