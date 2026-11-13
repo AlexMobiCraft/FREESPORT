@@ -934,7 +934,7 @@ export interface paths {
     put?: never;
     /**
      * Создание заказа
-     * @description Создание нового заказа из корзины пользователя
+     * @description Создание нового заказа из корзины пользователя. Цена каждой позиции пересчитывается в момент оформления. Если цена хоть одной позиции разошлась со снимком корзины, заказ не создаётся: снимки обновляются, ответ 409 `prices_changed` перечисляет изменившиеся позиции и новую сумму позиций; повторная отправка оформляет заказ по новым ценам.
      */
     post: operations['orders_create'];
     delete?: never;
@@ -2060,6 +2060,34 @@ export interface components {
        */
       readonly created_at: string;
       readonly total_items: number;
+    };
+    /** @description Позиция корзины, цена которой изменилась к моменту оформления. */
+    OrderPriceChange: {
+      variant_id: number;
+      product_name: string;
+      quantity: number;
+      /**
+       * Format: decimal
+       * @description Цена из снимка корзины
+       */
+      old_price: string;
+      /**
+       * Format: decimal
+       * @description Цена на момент оформления
+       */
+      new_price: string;
+    };
+    /** @description Тело ответа 409 `prices_changed`: заказ не создан, снимки корзины обновлены. */
+    OrderPricesChanged: {
+      code: string;
+      detail: string;
+      /** @description Только позиции с изменившейся ценой */
+      items: components['schemas']['OrderPriceChange'][];
+      /**
+       * Format: decimal
+       * @description Сумма всех позиций корзины по новым ценам
+       */
+      items_total: string;
     };
     /** @description Serializer для статической страницы */
     Page: {
@@ -4758,12 +4786,16 @@ export interface operations {
           'application/json': components['schemas']['OrderDetail'];
         };
       };
-      /** @description Ошибки валидации или пустая корзина */
+      /** @description Ошибки валидации, пустая корзина или товар без цены */
       400: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
+        };
       };
       /** @description Пользователь не авторизован */
       401: {
@@ -4771,6 +4803,15 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Цены позиций изменились: заказ не создан, корзина обновлена */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OrderPricesChanged'];
+        };
       };
     };
   };

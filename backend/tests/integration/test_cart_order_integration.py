@@ -142,12 +142,12 @@ class CartOrderIntegrationTest(TestCase):
 
         self.assertEqual(cart_price, order_price)
 
-    def test_order_creation_uses_cart_price_snapshot_on_price_change(self):
-        """Regression: цена в заказе берётся из snapshot корзины, а не из текущего каталога.
+    def test_price_change_after_adding_to_cart_requires_confirmation(self):
+        """Цена в заказе — текущая цена каталога, а не снимок корзины.
 
-        Сценарий: товар добавлен в корзину по цене 100 руб., затем
-        цена в каталоге изменилась до 999 руб. Заказ должен сохранять
-        цену snapshot (100 руб.), зафиксированную при добавлении.
+        Сценарий: товар добавлен в корзину по цене 100 руб., затем цена
+        в каталоге изменилась до 999 руб. Первая отправка — 409 без заказа,
+        корзина показывает новую цену; повторная — заказ по 999 руб.
         """
         self.client.force_authenticate(user=self.user)
 
@@ -158,12 +158,20 @@ class CartOrderIntegrationTest(TestCase):
         self.variant1.retail_price = 999.00
         self.variant1.save()
 
-        # Создаём заказ
         order_data = {
             "delivery_address": "Test Address",
             "delivery_method": "pickup",
             "payment_method": "cash",
         }
+        conflict = self.client.post("/api/v1/orders/", order_data)
+        self.assertEqual(conflict.status_code, 409)
+        self.assertEqual(conflict.data["code"], "prices_changed")
+        self.assertEqual(conflict.data["items_total"], "1998.00")
+        self.assertFalse(Order.objects.filter(user=self.user).exists())
+
+        cart_response = self.client.get("/api/v1/cart/")
+        self.assertEqual(float(cart_response.data["items"][0]["unit_price"]), 999.00)
+
         order_response = self.client.post("/api/v1/orders/", order_data)
         self.assertEqual(order_response.status_code, 201)
 
@@ -171,12 +179,11 @@ class CartOrderIntegrationTest(TestCase):
         order_detail = self.client.get(f"/api/v1/orders/{order_id}/")
         item = order_detail.data["items"][0]
 
-        # unit_price должен быть snapshot (100.00), а не новой ценой (999.00)
-        self.assertEqual(float(item["unit_price"]), 100.00)
-        self.assertEqual(float(item["total_price"]), 200.00)  # 100 * 2
+        self.assertEqual(float(item["unit_price"]), 999.00)
+        self.assertEqual(float(item["total_price"]), 1998.00)  # 999 * 2
 
-        # total_amount мастера тоже по snapshot (без delivery_cost для pickup)
-        self.assertEqual(float(order_response.data["total_amount"]), 200.00)
+        # total_amount мастера по новой цене (без delivery_cost для pickup)
+        self.assertEqual(float(order_response.data["total_amount"]), 1998.00)
 
     def test_cart_validation_before_order_creation(self):
         """Валидация корзины перед созданием заказа"""

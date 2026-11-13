@@ -1253,21 +1253,23 @@ class TestOrderVATSplit:
         # Транзакция откатилась: ни мастер, ни субзаказы не сохранились
         assert Order.objects.count() == initial_order_count
 
-    def test_snapshot_prices_used_not_live_catalog_price(
+    def test_live_catalog_price_is_used_after_price_change(
         self,
         user_factory,
         cart_factory,
         product_factory,
         cart_item_factory,
     ):
-        """[AI-Review][Medium] Regression: unit_price, sub_order.total_amount и
-        master.total_amount вычисляются из cart snapshot, а не из live catalog price.
+        """Цена позиции пересчитывается при оформлении (spec-checkout-price-recalc).
 
-        Сценарий: товар добавлен в корзину по цене 100 руб. (snapshot), затем
-        retail_price изменён на 999 руб. Все финансовые поля заказа должны
-        использовать snapshot (100 руб.), а не обновлённую цену каталога.
+        Сценарий: товар добавлен в корзину по 100 руб. (снимок), затем
+        retail_price изменён на 999 руб. Первая отправка возвращает флаг
+        сервиса `PricesChanged` без заказа и обновляет снимок; повторная
+        создаёт заказ, все финансовые поля которого — по 999 руб.
         """
-        from apps.orders.models import OrderItem
+        from apps.cart.models import CartItem
+        from apps.orders.models import Order, OrderItem
+        from apps.orders.services.order_create import PriceChange, PricesChanged
 
         user = user_factory.create()
         cart = cart_factory.create(user=user)
@@ -1278,28 +1280,42 @@ class TestOrderVATSplit:
         variant.save()
 
         # Добавляем в корзину — snapshot фиксирует цену 100.00
-        cart_item_factory.create(cart=cart, product=product, quantity=3)
+        cart_item = cart_item_factory.create(cart=cart, product=product, quantity=3)
 
         # Изменяем цену в каталоге ПОСЛЕ добавления в корзину
         variant.retail_price = Decimal("999.00")
+        variant.promo_price = None
         variant.save()
+
+        result = self._create_order_via_serializer(user, cart_factory)
+
+        assert result == PricesChanged(
+            items=[
+                PriceChange(
+                    variant_id=variant.pk,
+                    product_name=product.name,
+                    quantity=3,
+                    old_price=Decimal("100.00"),
+                    new_price=Decimal("999.00"),
+                )
+            ],
+            items_total=Decimal("2997.00"),
+        )
+        assert not Order.objects.filter(user=user).exists()
+        assert CartItem.objects.get(pk=cart_item.pk).price_snapshot == Decimal("999.00")
 
         master = self._create_order_via_serializer(user, cart_factory)
 
-        # OrderItem.unit_price = snapshot (100), не live (999)
         items = list(OrderItem.objects.filter(order__parent_order=master))
         assert len(items) == 1
-        assert items[0].unit_price == Decimal("100.00")
-        assert items[0].total_price == Decimal("300.00")  # 100 * 3
-
-        # sub_order.total_amount = snapshot total (300), не live (2997)
-        from apps.orders.models import Order
+        assert items[0].unit_price == Decimal("999.00")
+        assert items[0].total_price == Decimal("2997.00")
 
         sub = Order.objects.get(parent_order=master)
-        assert sub.total_amount == Decimal("300.00")
+        assert sub.total_amount == Decimal("2997.00")
 
         # master.total_amount = sub totals + delivery_cost (pickup=0)
-        assert master.total_amount == Decimal("300.00")
+        assert master.total_amount == Decimal("2997.00")
 
     def test_discount_amount_zero_on_master_and_subs_security_fix(
         self,

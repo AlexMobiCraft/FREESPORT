@@ -239,4 +239,33 @@ export const ordersErrorHandlers = {
   networkError: http.post('*/orders/', () => {
     return HttpResponse.error();
   }),
+
+  /** 409: цена позиции изменилась, заказ не создан (spec-checkout-price-recalc) */
+  pricesChanged409: http.post('*/orders/', () => {
+    return HttpResponse.json(mockPricesChangedBody, { status: 409 });
+  }),
+
+  /** 400: у позиции нет цены (spec-checkout-price-recalc) */
+  priceUnavailable400: http.post('*/orders/', () => {
+    return HttpResponse.json(
+      { code: 'price_unavailable', detail: 'Футбольный мяч Nike сейчас недоступен для заказа' },
+      { status: 400 }
+    );
+  }),
+};
+
+/** Тело 409 `prices_changed`: мяч подорожал с 2500 до 2800, сумма позиций 5600 */
+export const mockPricesChangedBody = {
+  code: 'prices_changed',
+  detail: 'Цены изменились. Проверьте сумму заказа',
+  items: [
+    {
+      variant_id: 123,
+      product_name: 'Футбольный мяч Nike',
+      quantity: 2,
+      old_price: '2500.00',
+      new_price: '2800.00',
+    },
+  ],
+  items_total: '5600.00',
 };

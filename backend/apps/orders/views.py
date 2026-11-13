@@ -6,13 +6,17 @@ API Views для заказов OPTISPORT
 from django.db import transaction
 from django.db.models import prefetch_related_objects
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Order
-from .serializers import OrderCreateSerializer, OrderDetailSerializer, OrderListSerializer
+from .serializers import OrderCreateSerializer, OrderDetailSerializer, OrderListSerializer, OrderPricesChangedSerializer
+from .services.order_create import PricesChanged
+
+PRICES_CHANGED_DETAIL = "Цены изменились. Проверьте сумму заказа"
 
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -99,21 +103,58 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Создание заказа",
-        description="Создание нового заказа из корзины пользователя",
+        description=(
+            "Создание нового заказа из корзины пользователя. Цена каждой позиции "
+            "пересчитывается в момент оформления. Если цена хоть одной позиции "
+            "разошлась со снимком корзины, заказ не создаётся: снимки обновляются, "
+            "ответ 409 `prices_changed` перечисляет изменившиеся позиции и новую "
+            "сумму позиций; повторная отправка оформляет заказ по новым ценам."
+        ),
         request=OrderCreateSerializer,
         responses={
             201: OrderDetailSerializer,
             400: OpenApiResponse(
-                description="Ошибки валидации или пустая корзина",
+                # Без схемы drf-spectacular отбрасывает примеры ответа
+                response=OpenApiTypes.OBJECT,
+                description="Ошибки валидации, пустая корзина или товар без цены",
                 examples=[
                     OpenApiExample(
                         "Пустая корзина",
                         value={"non_field_errors": ["Корзина пуста"]},
                         media_type="application/json",
-                    )
+                    ),
+                    OpenApiExample(
+                        "Товар без цены",
+                        value={"code": "price_unavailable", "detail": "Мяч футбольный сейчас недоступен для заказа"},
+                        media_type="application/json",
+                    ),
                 ],
             ),
             401: OpenApiResponse(description="Пользователь не авторизован"),
+            409: OpenApiResponse(
+                response=OrderPricesChangedSerializer,
+                description="Цены позиций изменились: заказ не создан, корзина обновлена",
+                examples=[
+                    OpenApiExample(
+                        "Цены изменились",
+                        value={
+                            "code": "prices_changed",
+                            "detail": PRICES_CHANGED_DETAIL,
+                            "items": [
+                                {
+                                    "variant_id": 42,
+                                    "product_name": "Мяч футбольный",
+                                    "quantity": 2,
+                                    "old_price": "800.00",
+                                    "new_price": "1000.00",
+                                }
+                            ],
+                            "items_total": "2500.00",
+                        },
+                        media_type="application/json",
+                    )
+                ],
+            ),
         },
         tags=["Orders"],
     )
@@ -122,6 +163,19 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
+
+        # Цены изменились: заказа нет, снимки корзины уже обновлены сервисом.
+        # Ответ без исключения — обновление снимков фиксируется коммитом.
+        if isinstance(order, PricesChanged):
+            body = OrderPricesChangedSerializer(
+                {
+                    "code": "prices_changed",
+                    "detail": PRICES_CHANGED_DETAIL,
+                    "items": order.items,
+                    "items_total": order.items_total,
+                }
+            ).data
+            return Response(body, status=status.HTTP_409_CONFLICT)
 
         # Наполняем prefetch cache на уже созданном объекте без лишнего root SELECT
         # по Order.pk. Для freshly-created master direct items всегда пусты,

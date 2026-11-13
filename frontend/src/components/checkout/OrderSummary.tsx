@@ -14,6 +14,18 @@ export interface OrderSummaryProps {
   submitError?: string | null;
   /** Флаг пустой корзины (передаётся из CheckoutForm) */
   isCartEmpty?: boolean;
+  /**
+   * Цены в корзине устарели: после «Цены изменились» корзина перезагружается
+   * или её не удалось перезагрузить. Цены и суммы скрыты, оформление заблокировано.
+   */
+  pricesOutdated?: boolean;
+  /** Повторная перезагрузка корзины (кнопка в режиме `pricesOutdated`) */
+  onRefreshCart?: () => void;
+  /**
+   * Идёт перезагрузка корзины: в режиме `pricesOutdated` вместо ошибки
+   * и кнопки показывается «Загружаем актуальные цены корзины…».
+   */
+  isRefreshingCart?: boolean;
 }
 
 /**
@@ -30,12 +42,22 @@ export interface OrderSummaryProps {
  * - Кнопку "Оформить заказ" (submit формы)
  * - Блок условий возврата и поддержки (Story 41.4, только при непустой корзине)
  * - Информирование о политике обработки ПДн со ссылкой на неё (Story 41.4)
+ * - Режим устаревших цен (spec-checkout-price-recalc): без цен и сумм, с
+ *   заблокированным оформлением; пока корзина перезагружается — сообщение
+ *   о загрузке, после неудачи — кнопка перезагрузки корзины
  *
  * Адаптивная вёрстка:
  * - Mobile: под формой
  * - Desktop: sticky sidebar справа
  */
-export function OrderSummary({ isSubmitting, submitError, isCartEmpty }: OrderSummaryProps) {
+export function OrderSummary({
+  isSubmitting,
+  submitError,
+  isCartEmpty,
+  pricesOutdated = false,
+  onRefreshCart,
+  isRefreshingCart = false,
+}: OrderSummaryProps) {
   const { items, totalPrice } = useCartStore();
 
   // Проверка на пустую корзину
@@ -69,44 +91,79 @@ export function OrderSummary({ isSubmitting, submitError, isCartEmpty }: OrderSu
                     </p>
                   )}
                   <p className="text-gray-600">
-                    {item.quantity} × {parseFloat(item.unit_price).toLocaleString('ru-RU')} ₽
+                    {pricesOutdated
+                      ? `${item.quantity} шт.`
+                      : `${item.quantity} × ${parseFloat(item.unit_price).toLocaleString('ru-RU')} ₽`}
                   </p>
                 </div>
-                <p className="font-medium text-gray-900">
-                  {parseFloat(item.total_price).toLocaleString('ru-RU')} ₽
-                </p>
+                {!pricesOutdated && (
+                  <p className="font-medium text-gray-900">
+                    {parseFloat(item.total_price).toLocaleString('ru-RU')} ₽
+                  </p>
+                )}
               </div>
             ))}
           </div>
 
-          <div className="border-t border-gray-200 pt-4">
-            {/* Итого за товары */}
-            <div className="mb-2 flex justify-between text-sm">
-              <span className="text-gray-600">Итого за товары:</span>
-              <span className="font-medium text-gray-900" data-testid="total-price-items">
-                {totalPrice.toLocaleString('ru-RU')} ₽
-              </span>
+          {pricesOutdated && isRefreshingCart ? (
+            <p
+              className="rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700"
+              role="status"
+              data-testid="prices-refreshing"
+            >
+              Загружаем актуальные цены корзины…
+            </p>
+          ) : pricesOutdated ? (
+            <div
+              className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+              role="status"
+              data-testid="prices-outdated"
+            >
+              <p>
+                Не удалось загрузить актуальные цены корзины. Обновите корзину, чтобы продолжить
+                оформление.
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                className="mt-3"
+                onClick={onRefreshCart}
+                data-testid="refresh-cart-button"
+              >
+                Обновить корзину
+              </Button>
             </div>
-
-            {/* Доставка (placeholder) */}
-            <div className="mb-2 flex justify-between text-sm">
-              <span className="text-gray-600">Доставка:</span>
-              <span className="text-gray-600">Уточняется</span>
-            </div>
-
-            {/* Общая сумма */}
+          ) : (
             <div className="border-t border-gray-200 pt-4">
-              <div className="flex justify-between">
-                <span className="text-lg font-semibold text-gray-900">Итого:</span>
-                <span className="text-lg font-semibold text-gray-900" data-testid="total-price">
+              {/* Итого за товары */}
+              <div className="mb-2 flex justify-between text-sm">
+                <span className="text-gray-600">Итого за товары:</span>
+                <span className="font-medium text-gray-900" data-testid="total-price-items">
                   {totalPrice.toLocaleString('ru-RU')} ₽
                 </span>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Финальная стоимость с учётом доставки будет рассчитана после оформления
-              </p>
+
+              {/* Доставка (placeholder) */}
+              <div className="mb-2 flex justify-between text-sm">
+                <span className="text-gray-600">Доставка:</span>
+                <span className="text-gray-600">Уточняется</span>
+              </div>
+
+              {/* Общая сумма */}
+              <div className="border-t border-gray-200 pt-4">
+                <div className="flex justify-between">
+                  <span className="text-lg font-semibold text-gray-900">Итого:</span>
+                  <span className="text-lg font-semibold text-gray-900" data-testid="total-price">
+                    {totalPrice.toLocaleString('ru-RU')} ₽
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Финальная стоимость с учётом доставки будет рассчитана после оформления
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
 
@@ -131,7 +188,7 @@ export function OrderSummary({ isSubmitting, submitError, isCartEmpty }: OrderSu
             size="large"
             className="mt-6 w-full text-white"
             loading={isSubmitting}
-            disabled={isSubmitting}
+            disabled={isSubmitting || pricesOutdated}
             aria-busy={isSubmitting}
             data-testid="checkout-submit-button"
           >

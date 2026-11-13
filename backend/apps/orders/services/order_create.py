@@ -4,6 +4,7 @@
 """
 
 from collections import defaultdict
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, cast
 
@@ -13,10 +14,36 @@ from django.db.models import F
 from django.db.models.manager import BaseManager
 from rest_framework import serializers
 
-from apps.cart.models import Cart
+from apps.cart.models import Cart, CartItem
 from apps.orders.models import Order, OrderItem
 from apps.orders.services.order_numbering import OrderNumberError, OrderNumberingService
 from apps.products.models import ProductVariant
+from apps.products.pricing_policy import PricedField, resolve_user_price
+from apps.products.services.promo import lock_promo_state
+
+
+@dataclass(frozen=True)
+class PriceChange:
+    """Позиция корзины, цена которой разошлась со снимком."""
+
+    variant_id: int
+    product_name: str
+    quantity: int
+    old_price: Decimal
+    new_price: Decimal
+
+
+@dataclass(frozen=True)
+class PricesChanged:
+    """
+    Результат оформления «цены изменились»: заказ не создан, снимки корзины обновлены.
+
+    `items` — только разошедшиеся позиции, `items_total` — сумма всех позиций
+    корзины по новым ценам.
+    """
+
+    items: list[PriceChange]
+    items_total: Decimal
 
 
 class OrderCreateService:
@@ -29,10 +56,22 @@ class OrderCreateService:
         self.delivery_cost = delivery_cost
 
     @transaction.atomic
-    def create(self) -> Order:
+    def create(self) -> Order | PricesChanged:
+        """
+        Создаёт заказ по ценам, пересчитанным в момент оформления.
+
+        Возвращает `PricesChanged` (заказа нет), если цена хоть одной позиции
+        разошлась со снимком корзины: снимки обновляются и фиксируются коммитом
+        этой транзакции. Цена `≤ 0` у любой позиции — `ValidationError`
+        `price_unavailable`, корзина не меняется.
+        """
         user = self.user
         delivery_cost = self.delivery_cost
         validated_data = dict(self.validated_data)
+
+        # Пока идёт смена или сброс текущей акции (исключительная блокировка),
+        # оформление ждёт: цена позиции не должна читаться посреди переключения.
+        lock_promo_state(shared=True)
 
         # Double-submit protection: блокируем строку корзины внутри транзакции.
         # Второй параллельный запрос будет ждать снятия блокировки; после этого
@@ -54,20 +93,35 @@ class OrderCreateService:
         # 1. Сгруппировать позиции корзины по устойчивой ставке НДС и складу.
         # 1С требует отдельные документы не только для разных ставок НДС, но и
         # для разных складов внутри одной ставки (например 1 СДВ и Intex ОСНОВНОЙ).
-        groups: dict[tuple[Decimal | None, str | None], list] = defaultdict(list)
-        total_items_sum = Decimal("0")
+        # Цена каждой позиции считается заново, вместе с полем-источником.
+        groups: dict[tuple[Decimal | None, str | None], list[tuple[CartItem, PricedField]]] = defaultdict(list)
+        priced_items: list[tuple[CartItem, PricedField]] = []
 
-        for ci in cart.items.select_related("variant__product"):
+        for ci in cart.items.select_related("variant__product").order_by("pk"):
             variant = ci.variant
             product = variant.product if variant else None
             if not variant or not product:
                 raise serializers.ValidationError("Некорректный товар в корзине. Обновите корзину и попробуйте снова.")
+            priced = resolve_user_price(variant, user)
+            priced_items.append((ci, priced))
             vat_key = self._resolve_item_vat_rate(variant, product)
             warehouse_key = getattr(variant, "warehouse_name", None) or None
-            key = (vat_key, warehouse_key)
-            groups[key].append(ci)
-            # Используем снимок цены из корзины, а не пересчитываем по текущему каталогу.
-            total_items_sum += ci.total_price
+            groups[(vat_key, warehouse_key)].append((ci, priced))
+
+        # Проверки — до номера заказа и любых записей: (1) цены нет, (2) цена изменилась.
+        for ci, priced in priced_items:
+            if priced.price <= 0:
+                raise serializers.ValidationError(
+                    {
+                        "code": "price_unavailable",
+                        "detail": f"{ci.variant.product.name} сейчас недоступен для заказа",
+                    }
+                )
+
+        total_items_sum = sum((priced.price * ci.quantity for ci, priced in priced_items), Decimal("0"))
+        price_changes = self._sync_changed_snapshots(priced_items)
+        if price_changes:
+            return PricesChanged(items=price_changes, items_total=total_items_sum)
 
         ordered_groups = sorted(
             groups.items(),
@@ -104,7 +158,7 @@ class OrderCreateService:
         order_item_manager = cast(BaseManager[OrderItem], getattr(OrderItem, "objects"))
 
         for suborder_sequence, ((vat_key, _warehouse_key), items) in enumerate(ordered_groups, start=1):
-            group_total = Decimal(sum(ci.total_price for ci in items))
+            group_total = sum((priced.price * ci.quantity for ci, priced in items), Decimal("0"))
             sub_number = OrderNumberingService.build_suborder_number(master, suborder_sequence)
             sub = Order(
                 order_number=sub_number.order_number,
@@ -132,10 +186,10 @@ class OrderCreateService:
             sub.save()
 
             sub_items = []
-            for ci in items:
+            for ci, priced in items:
                 variant = ci.variant
                 product = variant.product
-                unit_price = ci.price_snapshot
+                unit_price = priced.price
                 snapshot = OrderItem.build_snapshot(product, variant)
                 sub_items.append(
                     OrderItem(
@@ -175,6 +229,31 @@ class OrderCreateService:
         cart.clear()
 
         return master
+
+    @staticmethod
+    def _sync_changed_snapshots(priced_items: list[tuple[CartItem, PricedField]]) -> list[PriceChange]:
+        """
+        Обновляет снимки цен разошедшихся позиций и возвращает список изменений.
+
+        `update()`, а не `save()`: `CartItem.save` вызывает `full_clean`, а сигнал
+        позиции пересчитывает `reserved_quantity` — ни то, ни другое здесь не нужно.
+        """
+        changes: list[PriceChange] = []
+        cart_item_manager = cast(BaseManager[CartItem], getattr(CartItem, "objects"))
+        for ci, priced in priced_items:
+            if priced.price == ci.price_snapshot:
+                continue
+            cart_item_manager.filter(pk=ci.pk).update(price_snapshot=priced.price)
+            changes.append(
+                PriceChange(
+                    variant_id=ci.variant_id,
+                    product_name=ci.variant.product.name,
+                    quantity=ci.quantity,
+                    old_price=ci.price_snapshot,
+                    new_price=priced.price,
+                )
+            )
+        return changes
 
     def _resolve_item_vat_rate(self, variant: ProductVariant, product: Any) -> Decimal | None:
         """

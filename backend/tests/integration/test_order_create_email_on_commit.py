@@ -15,7 +15,7 @@ from rest_framework import serializers
 
 from apps.cart.models import Cart, CartItem
 from apps.orders.models import Order, OrderItem
-from apps.orders.services.order_create import OrderCreateService
+from apps.orders.services.order_create import OrderCreateService, PricesChanged
 from apps.products.models import Brand, Category, Product, ProductVariant
 
 User = get_user_model()
@@ -92,6 +92,25 @@ class TestOrderEmailTasksOnCommit:
         recipients.delay.assert_called_once_with(master.id)
         assert Order.objects.filter(parent_order=master).count() == 1
         assert seen == {"master": True, "items": 1}
+
+    def test_prices_changed_queues_nothing(self, cart_with_item, django_capture_on_commit_callbacks):
+        """Цена разошлась со снимком: заказа нет, коммит обновления снимков писем не ставит."""
+        user, cart = cart_with_item()
+        variant_id = CartItem.objects.get(cart=cart).variant_id
+        ProductVariant.objects.filter(pk=variant_id).update(retail_price=Decimal("150.00"))
+
+        with patch("apps.orders.tasks.send_order_confirmation_to_customer") as customer, patch(
+            "apps.orders.tasks.send_order_notification_email"
+        ) as recipients:
+            with django_capture_on_commit_callbacks(execute=True):
+                result = self._service(user, cart).create()
+
+        assert isinstance(result, PricesChanged)
+        assert result.items_total == Decimal("150.00")
+        customer.delay.assert_not_called()
+        recipients.delay.assert_not_called()
+        assert not Order.objects.filter(user=user).exists()
+        assert CartItem.objects.get(cart=cart).price_snapshot == Decimal("150.00")
 
     def test_rollback_queues_nothing(self, cart_with_item, django_capture_on_commit_callbacks):
         # Запас меньше количества в корзине: create() откатывает транзакцию целиком
