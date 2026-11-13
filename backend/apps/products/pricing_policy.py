@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 if TYPE_CHECKING:
     from apps.products.models import ProductVariant
@@ -93,7 +93,18 @@ def role_price_fields(role: str) -> tuple[str, ...]:
     return (field, fallback) if fallback else (field,)
 
 
-def resolve_role_price(variant: "ProductVariant", role: str) -> Decimal:
+class PricedField(NamedTuple):
+    """Цена и поле варианта, из которого она взята (`opt2_price`, `promo_price`, `retail_price`…)."""
+
+    price: Decimal
+    field: str
+
+
+RETAIL_PRICE_FIELD = "retail_price"
+PROMO_PRICE_FIELD = "promo_price"
+
+
+def resolve_role_price(variant: "ProductVariant", role: str) -> PricedField:
     """
     Цена варианта для роли без учёта акции: первая заданная ступень цепочки, иначе розница.
 
@@ -104,8 +115,28 @@ def resolve_role_price(variant: "ProductVariant", role: str) -> Decimal:
     for field in role_price_fields(role):
         value: Decimal | None = getattr(variant, field)
         if value is not None and value > 0:
-            return value
-    return variant.retail_price
+            return PricedField(value, field)
+    return PricedField(variant.retail_price, RETAIL_PRICE_FIELD)
+
+
+def resolve_user_price(variant: "ProductVariant", user: "User | Any | None") -> PricedField:
+    """
+    Цена, которую платит пользователь, и поле-источник: меньшая из цены по роли и акционной.
+
+    Акционная цена действует для всех ролей, но клиенту невыгодной не бывает:
+    `min(цена по роли, акционная)` (решение владельца 2026-10-26). При равенстве
+    источник — акция (решение 2026-11-12: вид цены строки для 1С). Цена роли `≤ 0`
+    в сравнении не участвует: платит акцию. Нулевая цена без акции возвращается
+    как есть — «цены нет» решает вызывающий (оформление заказа отказывает).
+    `ProductVariant.get_price_for_user` отдаёт отсюда только `price`.
+    """
+    regular = resolve_role_price(variant, resolve_pricing_role(user))
+    promo: Decimal | None = getattr(variant, PROMO_PRICE_FIELD)
+    if promo is None or promo <= 0:
+        return regular
+    if regular.price <= 0 or promo <= regular.price:
+        return PricedField(promo, PROMO_PRICE_FIELD)
+    return regular
 
 
 def resolve_pricing_role(user: "User | Any | None") -> str:

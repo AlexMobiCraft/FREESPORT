@@ -271,7 +271,12 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         return None
 
     def create(self, validated_data):
-        """Создание заказа из корзины — делегирует OrderCreateService."""
+        """
+        Создание заказа из корзины — делегирует OrderCreateService.
+
+        Результат сервиса отдаётся как есть: `Order` или `PricesChanged`
+        (цены позиций изменились, заказа нет) — второй случай разбирает вью.
+        """
         from apps.orders.services.order_create import OrderCreateService
 
         cart = validated_data.pop("_cart")
@@ -304,6 +309,27 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         """Возвращаем детальный вид созданного заказа"""
         return OrderDetailSerializer(instance, context=self.context).data
+
+
+class OrderPriceChangeSerializer(serializers.Serializer):
+    """Позиция корзины, цена которой изменилась к моменту оформления."""
+
+    variant_id = serializers.IntegerField()
+    product_name = serializers.CharField()
+    quantity = serializers.IntegerField()
+    old_price = serializers.DecimalField(max_digits=12, decimal_places=2, help_text="Цена из снимка корзины")
+    new_price = serializers.DecimalField(max_digits=12, decimal_places=2, help_text="Цена на момент оформления")
+
+
+class OrderPricesChangedSerializer(serializers.Serializer):
+    """Тело ответа 409 `prices_changed`: заказ не создан, снимки корзины обновлены."""
+
+    code = serializers.CharField()
+    detail = serializers.CharField()
+    items = OrderPriceChangeSerializer(many=True, help_text="Только позиции с изменившейся ценой")
+    items_total = serializers.DecimalField(
+        max_digits=12, decimal_places=2, help_text="Сумма всех позиций корзины по новым ценам"
+    )
 
 
 class OrderListSerializer(serializers.ModelSerializer):

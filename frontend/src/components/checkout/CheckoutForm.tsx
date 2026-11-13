@@ -15,7 +15,9 @@ import {
 import { useOrderStore } from '@/stores/orderStore';
 import { useCartStore } from '@/stores/cartStore';
 import { addressService } from '@/services/addressService';
+import type { OrderPriceChanges } from '@/services/ordersService';
 import type { Address } from '@/types/address';
+import type { CartItem } from '@/types/cart';
 import type { CheckoutAddressFields } from '@/utils/checkout/addressMapping';
 import {
   addressToFormValues,
@@ -36,6 +38,77 @@ import {
 
 export interface CheckoutFormProps {
   user: User | null;
+}
+
+const formatRub = (value: string): string => `${parseFloat(value).toLocaleString('ru-RU')} ₽`;
+
+/** Характеристики варианта «цвет / размер»; пустая строка, если их нет. */
+function variantTraits(cartItem: CartItem): string {
+  return [cartItem.variant.color_name, cartItem.variant.size_value].filter(Boolean).join(' / ');
+}
+
+/**
+ * Название строки «было → стало»: товар и характеристики варианта (цвет / размер),
+ * чтобы различать варианты одного товара. Характеристики — из уже загруженной
+ * корзины по `variant_id`: в теле 409 их нет. Если в корзине есть другая позиция
+ * с тем же названием и теми же (или пустыми) характеристиками, добавляется артикул.
+ */
+function priceChangeLabel(
+  productName: string,
+  cartItem: CartItem | undefined,
+  cartItems: CartItem[]
+): string {
+  if (!cartItem) return productName;
+  const traits = variantTraits(cartItem);
+  const ambiguous = cartItems.some(
+    other =>
+      other.variant_id !== cartItem.variant_id &&
+      other.product.name === cartItem.product.name &&
+      variantTraits(other) === traits
+  );
+  const details = [traits, ambiguous ? `арт. ${cartItem.variant.sku}` : '']
+    .filter(Boolean)
+    .join(', ');
+  return details ? `${productName} (${details})` : productName;
+}
+
+/**
+ * Сообщение 409 `prices_changed`: изменившиеся строки «было → стало» и новая
+ * сумма позиций. Цены и сумма берутся из тела ответа, а не из перезагруженной корзины.
+ */
+function PriceChangesMessage({
+  message,
+  changes,
+  cartItems,
+}: {
+  message: string;
+  changes: OrderPriceChanges;
+  cartItems: CartItem[];
+}) {
+  return (
+    <>
+      <p>{message}</p>
+      {changes.items.length > 0 && (
+        <ul className="mt-2 space-y-1" aria-label="Изменившиеся цены">
+          {changes.items.map(item => (
+            <li key={item.variant_id}>
+              {priceChangeLabel(
+                item.product_name,
+                cartItems.find(cartItem => cartItem.variant_id === item.variant_id),
+                cartItems
+              )}
+              : {formatRub(item.old_price)} → {formatRub(item.new_price)}
+            </li>
+          ))}
+        </ul>
+      )}
+      {changes.items_total && (
+        <p className="mt-2 font-semibold text-text-primary">
+          Новая сумма товаров: {formatRub(changes.items_total)}
+        </p>
+      )}
+    </>
+  );
 }
 
 const ADDRESS_FIELDS = [
@@ -72,7 +145,16 @@ function CheckoutFormFields({ user }: CheckoutFormProps) {
   const router = useRouter();
   const [initialDraft] = useState(() => readCheckoutDraft(user?.id ?? null));
 
-  const { createOrder, isSubmitting, error: orderError, clearOrder } = useOrderStore();
+  const {
+    createOrder,
+    isSubmitting,
+    error: orderError,
+    priceChanges,
+    cartRefreshFailed,
+    cartRefreshing,
+    refreshCart,
+    clearOrder,
+  } = useOrderStore();
   const { items: cartItems } = useCartStore();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -338,7 +420,17 @@ function CheckoutFormFields({ user }: CheckoutFormProps) {
         <InfoPanel
           variant="error"
           title="Ошибка оформления заказа"
-          message={orderError}
+          message={
+            priceChanges ? (
+              <PriceChangesMessage
+                message={orderError}
+                changes={priceChanges}
+                cartItems={cartItems}
+              />
+            ) : (
+              orderError
+            )
+          }
           className="mb-6"
         />
       )}
@@ -376,6 +468,9 @@ function CheckoutFormFields({ user }: CheckoutFormProps) {
             isSubmitting={isSubmitting}
             submitError={orderError}
             isCartEmpty={isCartEmpty}
+            pricesOutdated={cartRefreshFailed || cartRefreshing}
+            onRefreshCart={refreshCart}
+            isRefreshingCart={cartRefreshing}
           />
         </div>
       </div>

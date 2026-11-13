@@ -11,10 +11,11 @@
  * - Получение заказа по ID
  */
 
-import ordersService, { mapFormDataToPayload, parseApiError } from '../ordersService';
+import ordersService, { mapFormDataToPayload, OrderApiError, parseApiError } from '../ordersService';
 import { server } from '../../__mocks__/api/server';
 import {
   ordersErrorHandlers,
+  mockPricesChangedBody,
   mockSuccessOrder,
   mockOrdersList,
 } from '../../__mocks__/handlers/ordersHandlers';
@@ -173,6 +174,25 @@ describe('ordersService', () => {
       expect(message).toBe('Некорректные данные');
     });
 
+    test('парсит 409 без detail в стандартное сообщение о смене цен', () => {
+      const error = {
+        response: { status: 409, data: {} },
+      } as AxiosError<MockApiError>;
+
+      expect(parseApiError(error)).toBe('Цены изменились. Проверьте сумму заказа');
+    });
+
+    test('парсит 400 price_unavailable по detail, а не «ключ: сообщение»', () => {
+      const error = {
+        response: {
+          status: 400,
+          data: { code: 'price_unavailable', detail: 'Мяч сейчас недоступен для заказа' },
+        },
+      } as unknown as AxiosError<MockApiError>;
+
+      expect(parseApiError(error)).toBe('Мяч сейчас недоступен для заказа');
+    });
+
     test('парсит 401 ошибку', () => {
       const error = {
         response: {
@@ -258,6 +278,33 @@ describe('ordersService', () => {
       await expect(ordersService.createOrder(mockFormData, mockCartItems)).rejects.toThrow(
         'Validation failed'
       );
+    });
+
+    test('409 prices_changed → OrderApiError со статусом, кодом и изменившимися строками', async () => {
+      server.use(ordersErrorHandlers.pricesChanged409);
+
+      const error = await ordersService.createOrder(mockFormData, mockCartItems).catch(e => e);
+
+      expect(error).toBeInstanceOf(OrderApiError);
+      expect(error.message).toBe('Цены изменились. Проверьте сумму заказа');
+      expect(error.status).toBe(409);
+      expect(error.code).toBe('prices_changed');
+      expect(error.priceChanges).toEqual({
+        items: mockPricesChangedBody.items,
+        items_total: '5600.00',
+      });
+    });
+
+    test('400 price_unavailable → сообщение из detail, без priceChanges', async () => {
+      server.use(ordersErrorHandlers.priceUnavailable400);
+
+      const error = await ordersService.createOrder(mockFormData, mockCartItems).catch(e => e);
+
+      expect(error).toBeInstanceOf(OrderApiError);
+      expect(error.message).toBe('Футбольный мяч Nike сейчас недоступен для заказа');
+      expect(error.status).toBe(400);
+      expect(error.code).toBe('price_unavailable');
+      expect(error.priceChanges).toBeUndefined();
     });
 
     test.skip('[deprecated] backward-compat: передаёт discount_amount при явной передаче (Story 34-2 — сервер всегда выставляет 0)', async () => {

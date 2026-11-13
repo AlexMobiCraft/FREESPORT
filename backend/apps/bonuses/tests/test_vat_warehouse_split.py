@@ -24,9 +24,10 @@ from apps.bonuses.models import BonusTransaction
 from apps.bonuses.tests.utils import create_user, ensure_program_started
 from apps.cart.models import Cart, CartItem
 from apps.orders.constants import ORDER_ID_PREFIX
-from apps.orders.services.order_create import OrderCreateService
+from apps.orders.services.order_create import OrderCreateService, PricesChanged
 from apps.orders.services.order_status_import import OrderStatusImportService
 from apps.products.factories import ProductVariantFactory
+from apps.products.pricing_policy import ROLE_PRICE_FIELDS
 
 if TYPE_CHECKING:
     from apps.orders.models import Order
@@ -72,16 +73,20 @@ def _xml_for(order: Order, status_1c: str) -> str:
 def _build_cart(user: User, specs: list[tuple[str | None, str | None, str, int]]) -> Cart:
     """Корзина из позиций вида (склад, ставка НДС варианта, цена, количество).
 
-    Цена фиксируется снимком, чтобы база начисления не зависела
-    от ролевого прайса тренера.
+    Оформление пересчитывает цену по текущему каталогу, поэтому цена
+    ставится во все ценовые поля варианта: база начисления не зависит
+    от роли, а снимок совпадает с ценой на момент оформления.
     """
     cart = Cart.objects.create(user=user)
     for warehouse_name, vat_rate, price, quantity in specs:
+        prices = {field: Decimal(price) for field in ("retail_price", *ROLE_PRICE_FIELDS.values())}
         variant = ProductVariantFactory(
             warehouse_name=warehouse_name,
             vat_rate=Decimal(vat_rate) if vat_rate is not None else None,
             stock_quantity=quantity + 100,
             reserved_quantity=0,
+            promo_price=None,
+            **prices,
         )
         CartItem.objects.create(
             cart=cart,
@@ -100,12 +105,15 @@ def _create_order(
     """Создаёт заказ через продакшен-сервис разбивки по VAT-группам."""
     ensure_program_started()
     cart = _build_cart(user, specs)
-    return OrderCreateService(
+    result = OrderCreateService(
         cart=cart,
         user=user,
         validated_data=dict(ORDER_DATA),
         delivery_cost=Decimal(delivery_cost),
     ).create()
+    # Снимок совпадает с ценой каталога — сервис обязан создать заказ
+    assert not isinstance(result, PricesChanged), result
+    return result
 
 
 def _close(order: Order, status_1c: str = "Закрыт") -> None:

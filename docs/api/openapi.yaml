@@ -1742,7 +1742,11 @@ paths:
           description: Пользователь не авторизован
     post:
       operationId: orders_create
-      description: Создание нового заказа из корзины пользователя
+      description: 'Создание нового заказа из корзины пользователя. Цена каждой позиции
+        пересчитывается в момент оформления. Если цена хоть одной позиции разошлась
+        со снимком корзины, заказ не создаётся: снимки обновляются, ответ 409 `prices_changed`
+        перечисляет изменившиеся позиции и новую сумму позиций; повторная отправка
+        оформляет заказ по новым ценам.'
       summary: Создание заказа
       tags:
       - Orders
@@ -1766,9 +1770,44 @@ paths:
                 $ref: '#/components/schemas/OrderDetail'
           description: ''
         '400':
-          description: Ошибки валидации или пустая корзина
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                ПустаяКорзина:
+                  value:
+                    non_field_errors:
+                    - Корзина пуста
+                  summary: Пустая корзина
+                ТоварБезЦены:
+                  value:
+                    code: price_unavailable
+                    detail: Мяч футбольный сейчас недоступен для заказа
+                  summary: Товар без цены
+          description: Ошибки валидации, пустая корзина или товар без цены
         '401':
           description: Пользователь не авторизован
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPricesChanged'
+              examples:
+                ЦеныИзменились:
+                  value:
+                    code: prices_changed
+                    detail: Цены изменились. Проверьте сумму заказа
+                    items:
+                    - variant_id: 42
+                      product_name: Мяч футбольный
+                      quantity: 2
+                      old_price: '800.00'
+                      new_price: '1000.00'
+                    items_total: '2500.00'
+                  summary: Цены изменились
+          description: 'Цены позиций изменились: заказ не создан, корзина обновлена'
   /orders/{id}/:
     get:
       operationId: orders_retrieve
@@ -3753,6 +3792,56 @@ components:
       - total_items
       - user
       - vat_group
+    OrderPriceChange:
+      type: object
+      description: Позиция корзины, цена которой изменилась к моменту оформления.
+      properties:
+        variant_id:
+          type: integer
+        product_name:
+          type: string
+        quantity:
+          type: integer
+        old_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          description: Цена из снимка корзины
+        new_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          description: Цена на момент оформления
+      required:
+      - new_price
+      - old_price
+      - product_name
+      - quantity
+      - variant_id
+    OrderPricesChanged:
+      type: object
+      description: 'Тело ответа 409 `prices_changed`: заказ не создан, снимки корзины
+        обновлены.'
+      properties:
+        code:
+          type: string
+        detail:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderPriceChange'
+          description: Только позиции с изменившейся ценой
+        items_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          description: Сумма всех позиций корзины по новым ценам
+      required:
+      - code
+      - detail
+      - items
+      - items_total
     Page:
       type: object
       description: Serializer для статической страницы

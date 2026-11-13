@@ -18,10 +18,12 @@ from apps.products.pricing_policy import (
     ROLE_PRICE_FALLBACKS,
     ROLE_PRICE_FIELDS,
     WHOLESALE_PRICE_FIELDS,
+    PricedField,
     can_see_info_prices,
     can_see_wholesale_prices,
     resolve_pricing_role,
     resolve_role_price,
+    resolve_user_price,
     role_price_fields,
 )
 from apps.products.serializers import ProductDetailSerializer, ProductListSerializer
@@ -318,7 +320,91 @@ class TestRolePriceChain:
         """NULL, 0 и отрицательное — «цены нет»: берётся следующая ступень цепочки"""
         variant = ProductVariant(retail_price=Decimal("1200.00"), opt1_price=Decimal("1000.00"), special_price=value)
 
-        assert resolve_role_price(variant, "special_price") == Decimal("1000.00")
+        assert resolve_role_price(variant, "special_price") == PricedField(Decimal("1000.00"), "opt1_price")
+
+    def test_role_price_reports_own_field(self):
+        variant = ProductVariant(retail_price=Decimal("1200.00"), opt2_price=Decimal("900.00"))
+
+        assert resolve_role_price(variant, "wholesale_level2") == PricedField(Decimal("900.00"), "opt2_price")
+
+    @pytest.mark.parametrize("role", ["retail", "wholesale_level1"])
+    def test_role_price_falls_back_to_retail_field(self, role):
+        """Нет своей цены у роли или поле роли пусто — источник `retail_price`"""
+        variant = ProductVariant(retail_price=Decimal("1200.00"), opt1_price=None)
+
+        assert resolve_role_price(variant, role) == PricedField(Decimal("1200.00"), "retail_price")
+
+
+class TestResolveUserPrice:
+    """Цена и поле-источник для оформления заказа: контракт для вида цены строки в 1С"""
+
+    def _variant(self, **prices):
+        return ProductVariant(retail_price=Decimal("1200.00"), **prices)
+
+    def test_role_price_without_promo(self):
+        variant = self._variant(opt2_price=Decimal("900.00"))
+        user = _make_user("wholesale_level2", is_verified=True)
+
+        assert resolve_user_price(variant, user) == PricedField(Decimal("900.00"), "opt2_price")
+
+    def test_promo_below_role_price(self):
+        variant = self._variant(opt2_price=Decimal("900.00"), promo_price=Decimal("800.00"))
+        user = _make_user("wholesale_level2", is_verified=True)
+
+        assert resolve_user_price(variant, user) == PricedField(Decimal("800.00"), "promo_price")
+
+    def test_promo_above_role_price_keeps_role_field(self):
+        variant = self._variant(opt2_price=Decimal("700.00"), promo_price=Decimal("800.00"))
+        user = _make_user("wholesale_level2", is_verified=True)
+
+        assert resolve_user_price(variant, user) == PricedField(Decimal("700.00"), "opt2_price")
+
+    def test_equal_role_and_promo_price_reports_promo(self):
+        """Решение владельца 12.11.2026: при равенстве источник — акция"""
+        variant = self._variant(opt2_price=Decimal("800.00"), promo_price=Decimal("800.00"))
+        user = _make_user("wholesale_level2", is_verified=True)
+
+        assert resolve_user_price(variant, user) == PricedField(Decimal("800.00"), "promo_price")
+
+    def test_special_price_fallback_field(self):
+        variant = self._variant(opt1_price=Decimal("1000.00"), special_price=None)
+        user = _make_user("special_price", is_verified=True)
+
+        assert resolve_user_price(variant, user) == PricedField(Decimal("1000.00"), "opt1_price")
+
+    def test_guest_and_unverified_b2b_get_retail_field(self):
+        variant = self._variant(opt1_price=Decimal("1000.00"))
+
+        assert resolve_user_price(variant, None) == PricedField(Decimal("1200.00"), "retail_price")
+        unverified = _make_user("wholesale_level1", is_verified=False)
+        assert resolve_user_price(variant, unverified) == PricedField(Decimal("1200.00"), "retail_price")
+
+    def test_zero_retail_without_promo_is_returned_as_is(self):
+        """Ноль не подменяется: решение «цены нет» принимает оформление заказа"""
+        variant = ProductVariant(retail_price=Decimal("0.00"))
+
+        assert resolve_user_price(variant, None) == PricedField(Decimal("0.00"), "retail_price")
+
+    def test_zero_role_price_pays_promo(self):
+        variant = ProductVariant(retail_price=Decimal("0.00"), promo_price=Decimal("500.00"))
+
+        assert resolve_user_price(variant, None) == PricedField(Decimal("500.00"), "promo_price")
+
+    @pytest.mark.parametrize(
+        ("prices", "role"),
+        [
+            ({"opt2_price": Decimal("900.00"), "promo_price": Decimal("800.00")}, "wholesale_level2"),
+            ({"opt2_price": Decimal("700.00"), "promo_price": Decimal("800.00")}, "wholesale_level2"),
+            ({"promo_price": Decimal("0.00")}, "retail"),
+            ({"special_price": Decimal("850.00"), "promo_price": Decimal("850.00")}, "special_price"),
+        ],
+    )
+    def test_get_price_for_user_returns_resolved_price(self, prices, role):
+        """`get_price_for_user` — та же цепочка, контракт (Decimal) прежний"""
+        variant = self._variant(**prices)
+        user = _make_user(role, is_verified=True)
+
+        assert variant.get_price_for_user(user) == resolve_user_price(variant, user).price
 
 
 class TestVipAndSpecialPriceForUser:

@@ -15,7 +15,11 @@ import { http, HttpResponse } from 'msw';
 import { useOrderStore } from '../orderStore';
 import { useCartStore } from '../cartStore';
 import { server } from '../../__mocks__/api/server';
-import { ordersErrorHandlers, mockSuccessOrder } from '../../__mocks__/handlers/ordersHandlers';
+import {
+  ordersErrorHandlers,
+  mockPricesChangedBody,
+  mockSuccessOrder,
+} from '../../__mocks__/handlers/ordersHandlers';
 import type { CheckoutFormData } from '@/schemas/checkoutSchema';
 import type { CartItem } from '@/types/cart';
 
@@ -70,6 +74,9 @@ describe('orderStore', () => {
       currentOrder: null,
       isSubmitting: false,
       error: null,
+      priceChanges: null,
+      cartRefreshFailed: false,
+      cartRefreshing: false,
     });
 
     // Setup cartStore с mock данными
@@ -360,6 +367,232 @@ describe('orderStore', () => {
       });
 
       expect(useOrderStore.getState().error).toBeNull();
+    });
+  });
+
+  describe('createOrder: 409 prices_changed', () => {
+    /** Корзина на сервере после 409: снимок мяча обновлён до 2800 */
+    const refreshedCart = {
+      id: 1,
+      items: [{ ...mockCartItems[0], unit_price: '2800.00', total_price: '5600.00' }],
+      total_items: 2,
+      total_amount: '5600.00',
+      created_at: '2026-11-12T10:00:00Z',
+      updated_at: '2026-11-12T10:00:00Z',
+    };
+
+    const submit = async () => {
+      let thrown: unknown = null;
+      await act(async () => {
+        try {
+          await useOrderStore.getState().createOrder(mockFormData);
+        } catch (error) {
+          thrown = error;
+        }
+      });
+      return thrown;
+    };
+
+    test('сохраняет priceChanges, перезагружает корзину и выставляет сообщение', async () => {
+      server.use(
+        ordersErrorHandlers.pricesChanged409,
+        http.get('*/cart/', () => HttpResponse.json(refreshedCart))
+      );
+
+      const thrown = await submit();
+
+      expect(thrown).toBeInstanceOf(Error);
+      const state = useOrderStore.getState();
+      expect(state.error).toBe('Цены изменились. Проверьте сумму заказа');
+      expect(state.priceChanges).toEqual({
+        items: mockPricesChangedBody.items,
+        items_total: '5600.00',
+      });
+      expect(state.currentOrder).toBeNull();
+      expect(state.isSubmitting).toBe(false);
+      expect(useCartStore.getState().items[0].unit_price).toBe('2800.00');
+      expect(useCartStore.getState().totalPrice).toBe(5600);
+      expect(state.cartRefreshFailed).toBe(false);
+    });
+
+    test('при упавшей перезагрузке корзины priceChanges из тела 409 сохранены', async () => {
+      server.use(
+        ordersErrorHandlers.pricesChanged409,
+        // 4xx: apiClient не повторяет запрос (5xx повторил бы с паузами 1/2/4 с)
+        http.get('*/cart/', () => HttpResponse.json({ detail: 'boom' }, { status: 404 }))
+      );
+
+      await submit();
+
+      expect(useCartStore.getState().error).not.toBeNull();
+
+      const state = useOrderStore.getState();
+      expect(state.error).toBe('Цены изменились. Проверьте сумму заказа');
+      expect(state.priceChanges?.items_total).toBe('5600.00');
+      expect(state.priceChanges?.items).toHaveLength(1);
+      expect(state.cartRefreshFailed).toBe(true);
+    });
+
+    test('пока корзина не перезагружена, оформление не отправляется', async () => {
+      let orderRequests = 0;
+      server.use(
+        http.post('*/orders/', () => {
+          orderRequests += 1;
+          return HttpResponse.json(mockSuccessOrder, { status: 201 });
+        })
+      );
+      useOrderStore.setState({ cartRefreshFailed: true });
+
+      const thrown = await submit();
+
+      expect(thrown).toBeInstanceOf(Error);
+      expect(orderRequests).toBe(0);
+      expect(useOrderStore.getState().currentOrder).toBeNull();
+      expect(useOrderStore.getState().error).toMatch(/Обновите корзину/);
+      expect(useCartStore.getState().items).toHaveLength(1);
+    });
+
+    test('refreshCart: успешная перезагрузка снимает флаг, повторный сбой оставляет', async () => {
+      useOrderStore.setState({ cartRefreshFailed: true });
+      server.use(
+        http.get('*/cart/', () => HttpResponse.json({ detail: 'boom' }, { status: 404 }))
+      );
+
+      await act(async () => {
+        await useOrderStore.getState().refreshCart();
+      });
+      expect(useOrderStore.getState().cartRefreshFailed).toBe(true);
+      expect(useCartStore.getState().items[0].unit_price).toBe('2500.00');
+
+      server.use(http.get('*/cart/', () => HttpResponse.json(refreshedCart)));
+      await act(async () => {
+        await useOrderStore.getState().refreshCart();
+      });
+      expect(useOrderStore.getState().cartRefreshFailed).toBe(false);
+      expect(useCartStore.getState().totalPrice).toBe(5600);
+    });
+
+    test('clearOrder снимает флаг устаревшей корзины', () => {
+      useOrderStore.setState({ cartRefreshFailed: true, cartRefreshing: true });
+
+      act(() => {
+        useOrderStore.getState().clearOrder();
+      });
+
+      expect(useOrderStore.getState().cartRefreshFailed).toBe(false);
+      expect(useOrderStore.getState().cartRefreshing).toBe(false);
+    });
+
+    test('сообщение и строки видны сразу, до окончания перезагрузки корзины', async () => {
+      let releaseCart: () => void = () => {};
+      const cartGate = new Promise<void>(resolve => {
+        releaseCart = resolve;
+      });
+      let cartRequested: () => void = () => {};
+      const cartRequestSeen = new Promise<void>(resolve => {
+        cartRequested = resolve;
+      });
+      server.use(
+        ordersErrorHandlers.pricesChanged409,
+        http.get('*/cart/', async () => {
+          cartRequested();
+          await cartGate;
+          return HttpResponse.json(refreshedCart);
+        })
+      );
+
+      let pending: Promise<unknown> = Promise.resolve();
+      await act(async () => {
+        pending = useOrderStore
+          .getState()
+          .createOrder(mockFormData)
+          .catch(error => error);
+        await cartRequestSeen;
+      });
+
+      // Корзина ещё грузится, а сообщение и строки уже в сторе
+      expect(useOrderStore.getState().error).toBe('Цены изменились. Проверьте сумму заказа');
+      expect(useOrderStore.getState().priceChanges?.items_total).toBe('5600.00');
+      expect(useCartStore.getState().items[0].unit_price).toBe('2500.00');
+      // Прежние цены корзины помечены как перезагружаемые, отправка ещё заблокирована
+      expect(useOrderStore.getState().cartRefreshing).toBe(true);
+      expect(useOrderStore.getState().isSubmitting).toBe(true);
+
+      await act(async () => {
+        releaseCart();
+        await pending;
+      });
+
+      expect(useCartStore.getState().items[0].unit_price).toBe('2800.00');
+      expect(useOrderStore.getState().isSubmitting).toBe(false);
+      expect(useOrderStore.getState().cartRefreshing).toBe(false);
+      expect(useOrderStore.getState().cartRefreshFailed).toBe(false);
+    });
+
+    test('refreshCart помечает перезагрузку на время запроса', async () => {
+      useOrderStore.setState({ cartRefreshFailed: true });
+      let releaseCart: () => void = () => {};
+      const cartGate = new Promise<void>(resolve => {
+        releaseCart = resolve;
+      });
+      let cartRequested: () => void = () => {};
+      const cartRequestSeen = new Promise<void>(resolve => {
+        cartRequested = resolve;
+      });
+      server.use(
+        http.get('*/cart/', async () => {
+          cartRequested();
+          await cartGate;
+          return HttpResponse.json(refreshedCart);
+        })
+      );
+
+      let pending: Promise<void> = Promise.resolve();
+      await act(async () => {
+        pending = useOrderStore.getState().refreshCart();
+        await cartRequestSeen;
+      });
+      expect(useOrderStore.getState().cartRefreshing).toBe(true);
+
+      await act(async () => {
+        releaseCart();
+        await pending;
+      });
+      expect(useOrderStore.getState().cartRefreshing).toBe(false);
+      expect(useOrderStore.getState().cartRefreshFailed).toBe(false);
+    });
+
+    test('следующая отправка сбрасывает priceChanges', async () => {
+      useOrderStore.setState({
+        priceChanges: { items: mockPricesChangedBody.items, items_total: '5600.00' },
+      });
+
+      await act(async () => {
+        await useOrderStore.getState().createOrder(mockFormData);
+      });
+
+      expect(useOrderStore.getState().priceChanges).toBeNull();
+      expect(useOrderStore.getState().currentOrder?.id).toBe(mockSuccessOrder.id);
+    });
+
+    test('400 price_unavailable не трогает корзину и не заполняет priceChanges', async () => {
+      let cartRequests = 0;
+      server.use(
+        ordersErrorHandlers.priceUnavailable400,
+        http.get('*/cart/', () => {
+          cartRequests += 1;
+          return HttpResponse.json(refreshedCart);
+        })
+      );
+
+      await submit();
+
+      expect(useOrderStore.getState().error).toBe(
+        'Футбольный мяч Nike сейчас недоступен для заказа'
+      );
+      expect(useOrderStore.getState().priceChanges).toBeNull();
+      expect(cartRequests).toBe(0);
+      expect(useCartStore.getState().items[0].unit_price).toBe('2500.00');
     });
   });
 

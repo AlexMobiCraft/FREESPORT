@@ -1520,16 +1520,13 @@ class ProductVariant(models.Model):
         Акционная цена действует для всех ролей, но клиенту невыгодной не бывает:
         `min(цена по роли, акционная)` (решение владельца 2026-10-26, оно отменило
         решение 2026-10-21 «акция применяется, даже если выше цены клиента»).
-        `min` считается только здесь: корзина, заказ, API и JSON-LD берут результат отсюда.
+        `min` считается только в `pricing_policy.resolve_user_price`: корзина, заказ, API
+        и JSON-LD берут результат отсюда или оттуда (там же поле-источник цены).
         Цена роли `≤ 0` в сравнении не участвует: платит акцию.
         """
-        regular = self.get_regular_price_for_user(user)
-        promo = self.promo_price
-        if promo is None or promo <= 0:
-            return regular
-        if regular <= 0:
-            return promo
-        return min(regular, promo)
+        from apps.products.pricing_policy import resolve_user_price
+
+        return resolve_user_price(self, user).price
 
     def get_regular_price_for_user(self, user: User | None) -> Decimal:
         """Цена варианта по роли пользователя без учёта акции"""
@@ -1540,7 +1537,7 @@ class ProductVariant(models.Model):
 
         # Цепочка «поле роли → запасное поле → розница» общая с ценовыми фильтрами
         # каталога (`filters.visible_price_q`): живёт в pricing_policy.
-        return resolve_role_price(self, role)
+        return resolve_role_price(self, role).price
 
 
 class Attribute(models.Model):
