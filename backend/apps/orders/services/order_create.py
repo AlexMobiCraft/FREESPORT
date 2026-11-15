@@ -3,6 +3,7 @@
 Реализует разбивку заказа на мастер + субзаказы по VAT-группам (Story 34-2).
 """
 
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
@@ -17,9 +18,11 @@ from rest_framework import serializers
 from apps.cart.models import Cart, CartItem
 from apps.orders.models import Order, OrderItem
 from apps.orders.services.order_numbering import OrderNumberError, OrderNumberingService
-from apps.products.models import ProductVariant
-from apps.products.pricing_policy import PricedField, resolve_user_price
-from apps.products.services.promo import lock_promo_state
+from apps.products.models import PriceType, ProductVariant
+from apps.products.pricing_policy import PROMO_PRICE_FIELD, PricedField, resolve_user_price
+from apps.products.services.promo import current_promo_type, lock_promo_state
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -54,6 +57,8 @@ class OrderCreateService:
         self.user = user
         self.validated_data = validated_data
         self.delivery_cost = delivery_cost
+        # Поле-источник цены → (GUID, наименование) вида цен 1С; один запрос на поле за заказ
+        self._price_types: dict[str, tuple[str, str]] = {}
 
     @transaction.atomic
     def create(self) -> Order | PricesChanged:
@@ -191,6 +196,7 @@ class OrderCreateService:
                 product = variant.product
                 unit_price = priced.price
                 snapshot = OrderItem.build_snapshot(product, variant)
+                price_type_onec_id, price_type_name = self._price_type_for_field(priced.field, master.order_number)
                 sub_items.append(
                     OrderItem(
                         order=sub,
@@ -199,6 +205,9 @@ class OrderCreateService:
                         quantity=ci.quantity,
                         unit_price=unit_price,
                         total_price=unit_price * ci.quantity,
+                        price_source_field=priced.field,
+                        price_type_onec_id=price_type_onec_id,
+                        price_type_name=price_type_name,
                         **snapshot,
                     )
                 )
@@ -229,6 +238,48 @@ class OrderCreateService:
         cart.clear()
 
         return master
+
+    def _price_type_for_field(self, field: str, order_number: str) -> tuple[str, str]:
+        """
+        Вид цен 1С поля-источника цены: (GUID, наименование) или ("", ""), если вида нет.
+
+        Только активные `PriceType`, без поиска по наименованию. Акция — текущая
+        (`current_promo_type`): `create` держит общую блокировку акции с начала
+        транзакции, поэтому вид читается в том же состоянии акции, что и цена.
+        Несколько активных видов у поля — первый по `onec_name` и предупреждение.
+        """
+        if field in self._price_types:
+            return self._price_types[field]
+
+        candidates: list[PriceType]
+        if field == PROMO_PRICE_FIELD:
+            promo_type = current_promo_type()
+            candidates = [promo_type] if promo_type else []
+        else:
+            price_type_manager = cast(BaseManager[PriceType], getattr(PriceType, "objects"))
+            candidates = list(
+                price_type_manager.filter(product_field=field, is_active=True).order_by("onec_name", "pk")[:2]
+            )
+
+        if not candidates:
+            logger.warning(
+                "Заказ %s: нет активного вида цен 1С для поля %s — вид цены строки в 1С не передаётся",
+                order_number,
+                field,
+            )
+            result = ("", "")
+        else:
+            if len(candidates) > 1:
+                logger.warning(
+                    "Заказ %s: у поля %s несколько активных видов цен 1С, взят первый по наименованию «%s»",
+                    order_number,
+                    field,
+                    candidates[0].onec_name,
+                )
+            result = (candidates[0].onec_id, candidates[0].onec_name)
+
+        self._price_types[field] = result
+        return result
 
     @staticmethod
     def _sync_changed_snapshots(priced_items: list[tuple[CartItem, PricedField]]) -> list[PriceChange]:
