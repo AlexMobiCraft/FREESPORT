@@ -8,6 +8,7 @@ from __future__ import annotations
 import csv
 from typing import TYPE_CHECKING, Any
 
+from django import forms
 from django.contrib import admin
 from django.http import HttpResponse
 from django.utils.html import format_html
@@ -20,13 +21,40 @@ if TYPE_CHECKING:
     from django.http import HttpRequest
 
 
+class OrderItemInlineForm(forms.ModelForm):
+    """Позиция заказа: цена строки со снимком вида цены не редактируется."""
+
+    class Meta:
+        model = OrderItem
+        fields = "__all__"
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # Вид цены и соглашение акции в 1С выбраны по цене на момент оформления:
+        # новая цена ушла бы в 1С с прежним видом цены. Disabled-поле Django
+        # не берёт из POST, поэтому запрет действует и на сервере.
+        if self.instance.pk and self.instance.price_source_field and "unit_price" in self.fields:
+            self.fields["unit_price"].disabled = True
+
+
 class OrderItemInline(admin.TabularInline):
     """Inline для отображения позиций заказа."""
 
     model = OrderItem
+    form = OrderItemInlineForm
     extra = 0
-    fields = ["product_name", "product_sku", "quantity", "unit_price", "total_price"]
-    readonly_fields = ["total_price"]
+    fields = [
+        "product_name",
+        "product_sku",
+        "quantity",
+        "unit_price",
+        "total_price",
+        "price_source_field",
+        "price_type_name",
+        "price_type_onec_id",
+    ]
+    # Снимок вида цены фиксируется при оформлении и уходит в 1С — правке не подлежит
+    readonly_fields = ["total_price", "price_source_field", "price_type_name", "price_type_onec_id"]
     can_delete = False
 
     def has_add_permission(self, request: HttpRequest, obj: Order | None = None) -> bool:

@@ -431,6 +431,9 @@ class OrderItem(models.Model):
         product_sku: str
         variant_info: str
         vat_rate: "Decimal | None"
+        price_source_field: str
+        price_type_onec_id: str
+        price_type_name: str
         created_at: datetime
         updated_at: datetime
 
@@ -497,6 +500,39 @@ class OrderItem(models.Model):
             null=True,
             blank=True,
             help_text="Снимок ставки НДС варианта на момент создания заказа",
+        ),
+    )
+
+    # Снимок вида цены строки для 1С на момент оформления (spec-order-line-price-type-1c).
+    # Пустой `price_source_field` — строка создана до снимка: выгружается по роли покупателя.
+    price_source_field = cast(
+        str,
+        models.CharField(
+            "Поле-источник цены",
+            max_length=50,
+            blank=True,
+            default="",
+            help_text="Поле варианта, из которого взята цена при оформлении (opt2_price, promo_price…)",
+        ),
+    )
+    price_type_onec_id = cast(
+        str,
+        models.CharField(
+            "GUID вида цены 1С",
+            max_length=100,
+            blank=True,
+            default="",
+            help_text="Активный вид цен 1С поля-источника; пусто — вида цен нет, в 1С строка уходит без него",
+        ),
+    )
+    price_type_name = cast(
+        str,
+        models.CharField(
+            "Вид цены 1С",
+            max_length=200,
+            blank=True,
+            default="",
+            help_text="Наименование вида цен 1С на момент оформления",
         ),
     )
 

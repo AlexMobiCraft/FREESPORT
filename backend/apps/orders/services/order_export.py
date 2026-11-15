@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from apps.orders.models import Order, OrderItem
 from apps.products.models import ProductVariant
+from apps.products.pricing_policy import PROMO_PRICE_FIELD
 from apps.users.models import User
 
 logger = logging.getLogger(__name__)
@@ -183,8 +184,7 @@ class OrderExportService:
             _exc_cfg = getattr(settings, "ONEC_EXCHANGE", {})
             org_name = _exc_cfg.get("DEFAULT_ORGANIZATION", "ИП Семерюк Д.В.")
             warehouse_name = _exc_cfg.get("DEFAULT_WAREHOUSE", "1 СДВ склад")
-        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
-        agreement_name = exchange_cfg.get("DEFAULT_AGREEMENT", "Стандартное")
+        agreement_name = self._get_agreement_name(order)
 
         self._add_text_element(document, "Организация", org_name)
         self._add_text_element(document, "Склад", warehouse_name)
@@ -328,8 +328,9 @@ class OrderExportService:
 
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         action = exchange_cfg.get("DEFAULT_ITEM_ACTION", "Резервировать")
-        price_type_name = self._get_price_type(order)
-        price_type_id = self._get_price_type_id(price_type_name)
+        # Вид цены по роли — только для строк без снимка (созданы до spec-order-line-price-type-1c)
+        role_price_type_name = self._get_price_type(order)
+        role_price_type_id = self._get_price_type_id(role_price_type_name)
         order_vat_rate = self._get_order_vat_rate(order)
 
         for item in order.items.all():
@@ -363,11 +364,17 @@ class OrderExportService:
             # Действие строки — резервирование товара на складе
             self._add_text_element(product, "Действие", action)
 
-            # Вид цены — зависит от категории (роли) покупателя
-            vid_ceny = ET.SubElement(product, "ВидЦены")
-            if price_type_id:
-                self._add_text_element(vid_ceny, "Ид", price_type_id)
-            self._add_text_element(vid_ceny, "Наименование", price_type_name)
+            # Вид цены строки. Снимок оформления — вид цен поля, давшего цену; поле без
+            # активного вида цен — тега нет. Строка без снимка — как раньше, по роли.
+            if not item.price_source_field:
+                vid_ceny = ET.SubElement(product, "ВидЦены")
+                if role_price_type_id:
+                    self._add_text_element(vid_ceny, "Ид", role_price_type_id)
+                self._add_text_element(vid_ceny, "Наименование", role_price_type_name)
+            elif item.price_type_onec_id:
+                vid_ceny = ET.SubElement(product, "ВидЦены")
+                self._add_text_element(vid_ceny, "Ид", item.price_type_onec_id)
+                self._add_text_element(vid_ceny, "Наименование", item.price_type_name)
 
             # НДС «в том числе» (включён в сумму строки).
             item_vat_rate = self._resolve_item_vat_rate_for_export(item, order_vat_rate)
@@ -393,6 +400,11 @@ class OrderExportService:
             self._add_text_element(prop2, "Наименование", "ТипНоменклатуры")
             self._add_text_element(prop2, "Значение", "Товар")
             props.append(prop2)
+
+            # Тег <ВидЦены> строки БУС не читает: вид цены заполняет настройка узла
+            # `<Свой алгоритм>` по этому реквизиту (docs/integrations/1c/order-line-price-type-setup.md).
+            if item.price_source_field and item.price_type_onec_id:
+                self._add_requisite(props, "ВидЦеныИд", item.price_type_onec_id)
 
             product.append(props)
 
@@ -546,6 +558,24 @@ class OrderExportService:
             return warehouse_vat_rate
 
         return default_rate
+
+    def _get_agreement_name(self, order: "Order") -> str:
+        """
+        Соглашение субзаказа: вид цен акции, если среди выгружаемых строк есть акционная.
+
+        Иначе — `DEFAULT_AGREEMENT`. Учитываются только строки, которые попадут в XML
+        (`_create_products_element` пропускает строки без варианта и без `onec_id`).
+        Имя соглашения акции в 1С совпадает с именем вида цен акции; соглашение по
+        имени находит настройка узла БУС, не нашла — ставит «Стандартное».
+        """
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        default_agreement = str(exchange_cfg.get("DEFAULT_AGREEMENT", "Стандартное"))
+        for item in order.items.all():
+            if item.variant is None or not item.variant.onec_id:
+                continue
+            if item.price_source_field == PROMO_PRICE_FIELD and item.price_type_name:
+                return str(item.price_type_name)
+        return default_agreement
 
     def _get_price_type(self, order: "Order") -> str:
         """
