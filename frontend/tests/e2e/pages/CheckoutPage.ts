@@ -47,7 +47,7 @@ export class CheckoutPage {
   readonly contactSection: Locator;
   readonly addressSection: Locator;
   readonly deliverySection: Locator;
-  /** Плашка «согласует менеджер», пока выбор способа доставки отключён */
+  /** Плашка «согласует персональный специалист», пока выбор способа доставки отключён */
   readonly deliveryAgreementNotice: Locator;
   readonly orderSummary: Locator;
 

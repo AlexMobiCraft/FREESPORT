@@ -131,7 +131,7 @@ class TestOrderEmailTasksOnCommit:
         assert not Order.objects.filter(user=user).exists()
 
     def test_by_agreement_label_in_both_emails(self, cart_with_item, django_capture_on_commit_callbacks):
-        """Заказ «Согласуется с менеджером»: подпись способа в письме клиенту и получателям."""
+        """Заказ «Согласуется с персональным специалистом»: подпись способа в письме клиенту и получателям."""
         user, cart = cart_with_item()
         NotificationRecipient.objects.create(email="orders@example.com", is_active=True, notify_new_orders=True)
         data = {**VALIDATED_DATA, "delivery_method": "by_agreement"}
@@ -149,6 +149,6 @@ class TestOrderEmailTasksOnCommit:
             assert send_order_notification_email(master.id) is True
 
         customer_mail, staff_mail = (call.kwargs for call in send_mail.call_args_list)
-        assert "Способ: Согласуется с менеджером" in customer_mail["message"]
-        assert "Способ: Согласуется с менеджером" in staff_mail["message"]
-        assert "Согласуется с менеджером" in staff_mail["html_message"]
+        assert "Способ: Согласуется с персональным специалистом" in customer_mail["message"]
+        assert "Способ: Согласуется с персональным специалистом" in staff_mail["message"]
+        assert "Согласуется с персональным специалистом" in staff_mail["html_message"]

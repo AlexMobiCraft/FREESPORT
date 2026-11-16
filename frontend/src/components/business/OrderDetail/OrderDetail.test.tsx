@@ -148,11 +148,11 @@ describe('OrderDetail', () => {
     expect(screen.queryByText('Бесплатно')).not.toBeInTheDocument();
   });
 
-  it('локализует by_agreement как Согласуется с менеджером', () => {
+  it('локализует by_agreement как Согласуется с персональным специалистом', () => {
     render(
       <OrderDetail {...defaultProps} order={{ ...mockOrder, delivery_method: 'by_agreement' }} />
     );
-    expect(screen.getByText('Согласуется с менеджером')).toBeInTheDocument();
+    expect(screen.getByText('Согласуется с персональным специалистом')).toBeInTheDocument();
   });
 
   it('локализует post как Почтовая доставка (Story 34-2 regression)', () => {

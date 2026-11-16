@@ -162,7 +162,7 @@ describe('CheckoutForm — выбор способа доставки отклю
 
       expect(screen.getByText('Способ доставки')).toBeInTheDocument();
       expect(screen.getByTestId('delivery-by-agreement-notice')).toHaveTextContent(
-        'Способ и стоимость доставки согласует менеджер после оформления заказа.'
+        'Способ и стоимость доставки согласует персональный специалист после оформления заказа.'
       );
       expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
       expect(screen.queryByRole('radio')).not.toBeInTheDocument();

@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
                     ("post", "Почтовая доставка"),
                     ("transport_company", "Транспортная компания"),
                     ("transport_schedule", "Транспортная компания (по расписанию)"),
-                    ("by_agreement", "Согласуется с менеджером"),
+                    ("by_agreement", "Согласуется с персональным специалистом"),
                 ],
                 max_length=50,
                 verbose_name="Способ доставки",

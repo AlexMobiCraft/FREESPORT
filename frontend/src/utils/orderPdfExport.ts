@@ -71,7 +71,7 @@ export function getDeliveryMethodLabel(method: string): string {
     post: 'Почтовая доставка',
     transport_company: 'Транспортная компания',
     transport_schedule: 'Доставка по расписанию',
-    by_agreement: 'Согласуется с менеджером',
+    by_agreement: 'Согласуется с персональным специалистом',
   };
   return deliveryMethodLabels[method] || method;
 }

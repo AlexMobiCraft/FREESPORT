@@ -255,7 +255,7 @@ class TestOrderCreateSerializer:
         product_factory,
         cart_item_factory,
     ):
-        """Способ «Согласуется с менеджером»: заказ создаётся, доставка 0 ₽."""
+        """Способ «Согласуется с персональным специалистом»: заказ создаётся, доставка 0 ₽."""
         from unittest.mock import Mock
 
         user = user_factory.create()
@@ -277,7 +277,7 @@ class TestOrderCreateSerializer:
         order = serializer.save()
         assert order.delivery_method == "by_agreement"  # type: ignore
         assert order.delivery_cost == Decimal("0")  # type: ignore
-        assert order.get_delivery_method_display() == "Согласуется с менеджером"  # type: ignore
+        assert order.get_delivery_method_display() == "Согласуется с персональным специалистом"  # type: ignore
 
     def test_order_creation_with_b2b_user(
         self,

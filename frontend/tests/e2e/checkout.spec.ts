@@ -496,7 +496,7 @@ test.describe('Checkout Flow E2E Tests', () => {
     const deliverySection = page.locator('section:has(h2:has-text("Способ доставки"))');
     await expect(deliverySection).toBeVisible();
     await expect(page.getByTestId('delivery-by-agreement-notice')).toHaveText(
-      'Способ и стоимость доставки согласует менеджер после оформления заказа.'
+      'Способ и стоимость доставки согласует персональный специалист после оформления заказа.'
     );
     await expect(deliverySection.locator('input[type="radio"]')).toHaveCount(0);
 

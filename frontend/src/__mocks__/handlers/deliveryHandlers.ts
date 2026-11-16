@@ -14,7 +14,7 @@ export const mockDeliveryMethods = [
   {
     id: 'courier',
     name: 'Курьер',
-    description: 'Доставка курьером до двери. Стоимость уточняется администратором.',
+    description: 'Доставка курьером до двери. Стоимость уточняется персональным специалистом.',
     icon: 'truck',
     is_available: true,
   },

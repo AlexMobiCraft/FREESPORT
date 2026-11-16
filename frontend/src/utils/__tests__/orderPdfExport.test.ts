@@ -110,7 +110,7 @@ describe('getDeliveryMethodLabel', () => {
   });
 
   it('локализует by_agreement', () => {
-    expect(getDeliveryMethodLabel('by_agreement')).toBe('Согласуется с менеджером');
+    expect(getDeliveryMethodLabel('by_agreement')).toBe('Согласуется с персональным специалистом');
   });
 
   it('возвращает raw code для неизвестного значения', () => {

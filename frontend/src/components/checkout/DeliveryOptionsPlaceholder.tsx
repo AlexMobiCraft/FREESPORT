@@ -63,7 +63,7 @@ export function DeliveryOptionsPlaceholder({ form }: DeliveryOptionsPlaceholderP
                 {option.description}
               </span>
               <span className="mt-1 block text-xs text-gray-500">
-                Стоимость: Уточняется администратором
+                Стоимость: Уточняется персональным специалистом
               </span>
             </div>
           </label>

@@ -46,7 +46,7 @@ const deliveryMethodLabels: Record<string, string> = {
   post: 'Почтовая доставка',
   transport_company: 'Транспортная компания',
   transport_schedule: 'Доставка по расписанию',
-  by_agreement: 'Согласуется с менеджером',
+  by_agreement: 'Согласуется с персональным специалистом',
 };
 
 /**
@@ -132,7 +132,9 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({ order }) => 
               </p>
             )}
             {parseDecimal(order.delivery_cost) === 0 && (
-              <p className="text-sm text-gray-500 mt-1">Стоимость: Уточняется администратором</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Стоимость: Уточняется после выбора способа доставки
+              </p>
             )}
           </div>
         )}

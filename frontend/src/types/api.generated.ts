@@ -1701,7 +1701,7 @@ export interface components {
      *     * `post` - Почтовая доставка
      *     * `transport_company` - Транспортная компания
      *     * `transport_schedule` - Транспортная компания (по расписанию)
-     *     * `by_agreement` - Согласуется с менеджером
+     *     * `by_agreement` - Согласуется с персональным специалистом
      * @enum {string}
      */
     DeliveryMethodEnum:

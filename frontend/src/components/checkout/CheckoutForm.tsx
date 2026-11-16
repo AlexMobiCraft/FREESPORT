@@ -136,7 +136,7 @@ function DeliveryByAgreementNotice() {
       </h2>
       <div className="rounded-md bg-primary-subtle p-3" data-testid="delivery-by-agreement-notice">
         <p className="text-xs text-text-primary">
-          Способ и стоимость доставки согласует менеджер после оформления заказа.
+          Способ и стоимость доставки согласует персональный специалист после оформления заказа.
         </p>
       </div>
     </section>
