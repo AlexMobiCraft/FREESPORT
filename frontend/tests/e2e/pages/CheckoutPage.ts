@@ -47,6 +47,8 @@ export class CheckoutPage {
   readonly contactSection: Locator;
   readonly addressSection: Locator;
   readonly deliverySection: Locator;
+  /** Плашка «согласует менеджер», пока выбор способа доставки отключён */
+  readonly deliveryAgreementNotice: Locator;
   readonly orderSummary: Locator;
 
   // Локаторы полей контактных данных
@@ -72,6 +74,7 @@ export class CheckoutPage {
     this.contactSection = page.locator('section:has(h2:has-text("Контактные данные"))');
     this.addressSection = page.locator('section:has(h2:has-text("Адрес доставки"))');
     this.deliverySection = page.locator('section:has(h2:has-text("Способ доставки"))');
+    this.deliveryAgreementNotice = page.getByTestId('delivery-by-agreement-notice');
     this.orderSummary = page.locator('div:has(h2:has-text("Ваш заказ"))');
 
     // Поля контактных данных
@@ -138,7 +141,11 @@ export class CheckoutPage {
   }
 
   /**
-   * Заполнение всей формы
+   * Заполнение всей формы.
+   *
+   * Способ доставки выбирается, только если передан `deliveryMethod`. Пока выбор
+   * отключён (`DELIVERY_METHOD_SELECTION_ENABLED = false`), его не передают:
+   * заказ уходит с `by_agreement`.
    */
   async fillForm(data: CheckoutFormData) {
     await this.fillContactInfo({

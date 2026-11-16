@@ -30,6 +30,7 @@ import { DeliveryOptions } from './DeliveryOptions';
 import { OrderCommentSection } from './OrderCommentSection';
 import { OrderSummary } from './OrderSummary';
 import { InfoPanel } from '@/components/ui';
+import { DEFAULT_DELIVERY_METHOD, DELIVERY_METHOD_SELECTION_ENABLED } from '@/config/checkout';
 import {
   clearCheckoutDraft,
   readCheckoutDraft,
@@ -111,6 +112,37 @@ function PriceChangesMessage({
   );
 }
 
+/**
+ * Способ доставки для начальных значений формы.
+ *
+ * Выбор выключен — всегда `DEFAULT_DELIVERY_METHOD`, что бы ни лежало в черновике.
+ * Выбор включён — значение черновика, кроме `DEFAULT_DELIVERY_METHOD`: его в списке
+ * способов нет, поэтому покупатель выбирает способ заново.
+ */
+function initialDeliveryMethod(draftValue: string | undefined): string {
+  if (!DELIVERY_METHOD_SELECTION_ENABLED) return DEFAULT_DELIVERY_METHOD;
+  if (draftValue === undefined || draftValue === DEFAULT_DELIVERY_METHOD) {
+    return defaultCheckoutFormValues.deliveryMethod;
+  }
+  return draftValue;
+}
+
+/** Секция «Способ доставки», пока выбор отключён: только плашка, без запроса способов. */
+function DeliveryByAgreementNotice() {
+  return (
+    <section className="rounded-lg bg-white p-6 shadow-sm" aria-labelledby="delivery-section">
+      <h2 id="delivery-section" className="mb-4 text-lg font-semibold text-gray-900">
+        Способ доставки
+      </h2>
+      <div className="rounded-md bg-primary-subtle p-3" data-testid="delivery-by-agreement-notice">
+        <p className="text-xs text-text-primary">
+          Способ и стоимость доставки согласует менеджер после оформления заказа.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 const ADDRESS_FIELDS = [
   'firstName',
   'lastName',
@@ -184,10 +216,10 @@ function CheckoutFormFields({ user }: CheckoutFormProps) {
       buildingSection: defaultCheckoutFormValues.buildingSection,
       apartment: defaultCheckoutFormValues.apartment,
       postalCode: defaultCheckoutFormValues.postalCode,
-      deliveryMethod: defaultCheckoutFormValues.deliveryMethod,
       paymentMethod: defaultCheckoutFormValues.paymentMethod,
       comment: defaultCheckoutFormValues.comment,
       ...initialDraft?.values,
+      deliveryMethod: initialDeliveryMethod(initialDraft?.values?.deliveryMethod),
     },
   });
 
@@ -458,7 +490,11 @@ function CheckoutFormFields({ user }: CheckoutFormProps) {
             onToggleSaveAddress={setSaveAddress}
           />
 
-          <DeliveryOptions form={form} />
+          {DELIVERY_METHOD_SELECTION_ENABLED ? (
+            <DeliveryOptions form={form} />
+          ) : (
+            <DeliveryByAgreementNotice />
+          )}
 
           <OrderCommentSection form={form} />
         </div>

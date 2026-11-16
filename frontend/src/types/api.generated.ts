@@ -1701,9 +1701,16 @@ export interface components {
      *     * `post` - Почтовая доставка
      *     * `transport_company` - Транспортная компания
      *     * `transport_schedule` - Транспортная компания (по расписанию)
+     *     * `by_agreement` - Согласуется с менеджером
      * @enum {string}
      */
-    DeliveryMethodEnum: 'pickup' | 'courier' | 'post' | 'transport_company' | 'transport_schedule';
+    DeliveryMethodEnum:
+      | 'pickup'
+      | 'courier'
+      | 'post'
+      | 'transport_company'
+      | 'transport_schedule'
+      | 'by_agreement';
     /**
      * @description Serializer для избранных товаров.
      *

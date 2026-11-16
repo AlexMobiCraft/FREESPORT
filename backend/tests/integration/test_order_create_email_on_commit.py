@@ -14,8 +14,10 @@ from django.db import transaction
 from rest_framework import serializers
 
 from apps.cart.models import Cart, CartItem
+from apps.common.models import NotificationRecipient
 from apps.orders.models import Order, OrderItem
 from apps.orders.services.order_create import OrderCreateService, PricesChanged
+from apps.orders.tasks import send_order_confirmation_to_customer, send_order_notification_email
 from apps.products.models import Brand, Category, Product, ProductVariant
 
 User = get_user_model()
@@ -127,3 +129,26 @@ class TestOrderEmailTasksOnCommit:
         customer.delay.assert_not_called()
         recipients.delay.assert_not_called()
         assert not Order.objects.filter(user=user).exists()
+
+    def test_by_agreement_label_in_both_emails(self, cart_with_item, django_capture_on_commit_callbacks):
+        """Заказ «Согласуется с менеджером»: подпись способа в письме клиенту и получателям."""
+        user, cart = cart_with_item()
+        NotificationRecipient.objects.create(email="orders@example.com", is_active=True, notify_new_orders=True)
+        data = {**VALIDATED_DATA, "delivery_method": "by_agreement"}
+
+        with patch("apps.orders.tasks.send_order_confirmation_to_customer"), patch(
+            "apps.orders.tasks.send_order_notification_email"
+        ):
+            with django_capture_on_commit_callbacks(execute=True):
+                master = OrderCreateService(cart, user, data, Decimal("0")).create()
+
+        assert master.delivery_method == "by_agreement"
+
+        with patch("apps.orders.tasks.send_mail") as send_mail:
+            assert send_order_confirmation_to_customer(master.id) is True
+            assert send_order_notification_email(master.id) is True
+
+        customer_mail, staff_mail = (call.kwargs for call in send_mail.call_args_list)
+        assert "Способ: Согласуется с менеджером" in customer_mail["message"]
+        assert "Способ: Согласуется с менеджером" in staff_mail["message"]
+        assert "Согласуется с менеджером" in staff_mail["html_message"]

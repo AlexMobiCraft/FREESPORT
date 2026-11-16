@@ -167,7 +167,11 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
           <div className="flex justify-between text-body-m">
             <span className="text-text-secondary">Доставка:</span>
             <span className="text-text-primary">
-              {parseFloat(order.delivery_cost) > 0 ? formatPrice(order.delivery_cost) : 'Бесплатно'}
+              {order.delivery_method === 'by_agreement'
+                ? 'Уточняется'
+                : parseFloat(order.delivery_cost) > 0
+                  ? formatPrice(order.delivery_cost)
+                  : 'Бесплатно'}
             </span>
           </div>
           <div className="flex justify-between text-title-m font-bold pt-2 border-t border-neutral-300">

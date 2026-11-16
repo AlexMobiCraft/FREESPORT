@@ -19,6 +19,13 @@ import { useOrderStore } from '@/stores/orderStore';
 import { useCartStore } from '@/stores/cartStore';
 import type { CartItem } from '@/types/cart';
 
+// Сценарии написаны для включённого выбора способа доставки. Выключенный выбор —
+// в `CheckoutForm.deliveryDisabled.test.tsx`.
+vi.mock('@/config/checkout', () => ({
+  DELIVERY_METHOD_SELECTION_ENABLED: true,
+  DEFAULT_DELIVERY_METHOD: 'by_agreement',
+}));
+
 // Mock next/navigation с использованием vi.mock (Vitest)
 const mockRouter = {
   push: vi.fn(),

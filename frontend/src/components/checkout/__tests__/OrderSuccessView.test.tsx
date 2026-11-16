@@ -287,6 +287,12 @@ describe('OrderSuccessView', () => {
       expect(screen.getByText('Доставка по расписанию')).toBeInTheDocument();
     });
 
+    it('должен локализовать by_agreement', () => {
+      const order: Order = { ...mockOrder, delivery_method: 'by_agreement' };
+      render(<OrderSuccessView order={order} />);
+      expect(screen.getByText('Согласуется с менеджером')).toBeInTheDocument();
+    });
+
     it('должен обрабатывать строковые Decimal значения', () => {
       const orderWithStringDecimals: Order = {
         ...mockOrder,

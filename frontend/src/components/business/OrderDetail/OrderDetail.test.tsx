@@ -137,6 +137,24 @@ describe('OrderDetail', () => {
     expect(screen.getByText('Доставка по расписанию')).toBeInTheDocument();
   });
 
+  it('by_agreement: доставка «Уточняется», а не «Бесплатно»', () => {
+    render(
+      <OrderDetail
+        {...defaultProps}
+        order={{ ...mockOrder, delivery_method: 'by_agreement', delivery_cost: '0.00' }}
+      />
+    );
+    expect(screen.getByText('Уточняется')).toBeInTheDocument();
+    expect(screen.queryByText('Бесплатно')).not.toBeInTheDocument();
+  });
+
+  it('локализует by_agreement как Согласуется с менеджером', () => {
+    render(
+      <OrderDetail {...defaultProps} order={{ ...mockOrder, delivery_method: 'by_agreement' }} />
+    );
+    expect(screen.getByText('Согласуется с менеджером')).toBeInTheDocument();
+  });
+
   it('локализует post как Почтовая доставка (Story 34-2 regression)', () => {
     render(<OrderDetail {...defaultProps} order={{ ...mockOrder, delivery_method: 'post' }} />);
     expect(screen.getByText('Почтовая доставка')).toBeInTheDocument();
