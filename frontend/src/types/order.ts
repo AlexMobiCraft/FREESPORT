@@ -17,14 +17,15 @@ export type OrderStatus =
 
 /**
  * Способ доставки (backend возвращает строку-код)
- * pickup | courier | post | transport_company | transport_schedule
+ * pickup | courier | post | transport_company | transport_schedule | by_agreement
  */
 export type DeliveryMethodCode =
   | 'pickup'
   | 'courier'
   | 'post'
   | 'transport_company'
-  | 'transport_schedule';
+  | 'transport_schedule'
+  | 'by_agreement';
 
 /**
  * Адрес доставки (backend возвращает как строку)

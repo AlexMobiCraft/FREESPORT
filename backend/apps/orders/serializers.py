@@ -303,6 +303,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             "post": 300,
             "transport_company": 1000,
             "transport_schedule": 1000,
+            # Способ и стоимость согласует персональный специалист после оформления
+            "by_agreement": 0,
         }
         return delivery_costs.get(delivery_method, 0)
 

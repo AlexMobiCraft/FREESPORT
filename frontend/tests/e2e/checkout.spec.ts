@@ -9,9 +9,18 @@
  * - AC4: Выбор способа доставки
  * - AC5: Оформление заказа
  * - AC6: Отображение страницы успеха с номером заказа
+ *
+ * Выбор способа доставки временно отключён флагом
+ * `DELIVERY_METHOD_SELECTION_ENABLED` (spec-disable-checkout-delivery-choice):
+ * сценарии с радиокнопками пропускаются, пока флаг выключен, и снова
+ * заработают после его включения.
  */
 
 import { test, expect, Page } from '@playwright/test';
+import { DELIVERY_METHOD_SELECTION_ENABLED } from '../../src/config/checkout';
+
+const SKIP_DELIVERY_CHOICE_REASON =
+  'Выбор способа доставки временно отключён (DELIVERY_METHOD_SELECTION_ENABLED = false)';
 
 /**
  * Тестовые данные для checkout формы
@@ -183,6 +192,16 @@ async function setupApiMocks(page: Page) {
 }
 
 /**
+ * Выбирает способ доставки, если выбор включён. Пока он выключен, заказ уходит
+ * с `by_agreement` без участия покупателя.
+ */
+async function chooseDeliveryMethod(page: Page, methodId = 'courier') {
+  if (!DELIVERY_METHOD_SELECTION_ENABLED) return;
+  await expect(page.locator('h2:has-text("Способ доставки")')).toBeVisible();
+  await page.click(`input[value="${methodId}"]`);
+}
+
+/**
  * Заполнение формы checkout
  */
 async function fillCheckoutForm(page: Page, data: typeof testCheckoutData) {
@@ -293,10 +312,8 @@ test.describe('Checkout Flow E2E Tests', () => {
     // 2. Заполняем контактные данные (AC2)
     await fillCheckoutForm(page, testCheckoutData);
 
-    // 3. Выбираем способ доставки (AC4)
-    // Ждём загрузки способов доставки
-    await expect(page.locator('h2:has-text("Способ доставки")')).toBeVisible();
-    await page.click('input[value="courier"]');
+    // 3. Выбираем способ доставки (AC4), если выбор включён
+    await chooseDeliveryMethod(page);
 
     // 4. Проверяем, что форма заполнена корректно
     await expect(page.locator('input[name="email"]')).toHaveValue(testCheckoutData.email);
@@ -353,8 +370,7 @@ test.describe('Checkout Flow E2E Tests', () => {
     await page.goto('/checkout');
     await expect(page.locator('h2:has-text("Контактные данные")')).toBeVisible();
     await fillCheckoutForm(page, testCheckoutData);
-    await expect(page.locator('h2:has-text("Способ доставки")')).toBeVisible();
-    await page.click('input[value="courier"]');
+    await chooseDeliveryMethod(page);
     await expect(page.locator('[data-testid="cart-item"]').first()).toBeVisible({ timeout: 10000 });
     const submitButton = page.locator('[data-testid="checkout-submit-button"]');
     await expect(submitButton).toBeEnabled({ timeout: 10000 });
@@ -435,6 +451,7 @@ test.describe('Checkout Flow E2E Tests', () => {
    * AC4: Выбор способа доставки
    */
   test('selects delivery method', async ({ page }) => {
+    test.skip(!DELIVERY_METHOD_SELECTION_ENABLED, SKIP_DELIVERY_CHOICE_REASON);
     await page.goto('/checkout');
 
     // Ждём загрузки способов доставки
@@ -452,6 +469,47 @@ test.describe('Checkout Flow E2E Tests', () => {
     await page.click('input[value="pickup"]');
     await expect(page.locator('input[value="pickup"]')).toBeChecked();
     await expect(page.locator('input[value="courier"]')).not.toBeChecked();
+  });
+
+  /**
+   * Выбор способа доставки отключён: вместо радиокнопок плашка, способы
+   * доставки не запрашиваются, заказ уходит с `delivery_method: 'by_agreement'`.
+   */
+  test('shows manager-agreement notice instead of delivery choice', async ({ page }) => {
+    test.skip(DELIVERY_METHOD_SELECTION_ENABLED, 'Проверяет только отключённый выбор доставки');
+
+    const deliveryRequests: string[] = [];
+    page.on('request', request => {
+      if (request.url().includes('/delivery/methods')) {
+        deliveryRequests.push(request.url());
+      }
+    });
+    let orderPayload: Record<string, unknown> | null = null;
+    page.on('request', request => {
+      if (request.method() === 'POST' && request.url().includes('/api/v1/orders/')) {
+        orderPayload = request.postDataJSON() as Record<string, unknown>;
+      }
+    });
+
+    await page.goto('/checkout');
+
+    const deliverySection = page.locator('section:has(h2:has-text("Способ доставки"))');
+    await expect(deliverySection).toBeVisible();
+    await expect(page.getByTestId('delivery-by-agreement-notice')).toHaveText(
+      'Способ и стоимость доставки согласует персональный специалист после оформления заказа.'
+    );
+    await expect(deliverySection.locator('input[type="radio"]')).toHaveCount(0);
+
+    await fillCheckoutForm(page, testCheckoutData);
+    await expect(page.locator('[data-testid="cart-item"]').first()).toBeVisible({ timeout: 10000 });
+    const submitButton = page.locator('[data-testid="checkout-submit-button"]');
+    await expect(submitButton).toBeEnabled({ timeout: 10000 });
+    await submitButton.click();
+
+    await expect(page).toHaveURL(/\/checkout\/success\/\d+/, { timeout: 10000 });
+    expect(orderPayload).not.toBeNull();
+    expect(orderPayload!.delivery_method).toBe('by_agreement');
+    expect(deliveryRequests).toHaveLength(0);
   });
 
   /**
@@ -623,6 +681,7 @@ test.describe('Checkout Form Validation E2E Tests', () => {
    * Тест: требуется выбор способа доставки
    */
   test('requires delivery method selection', async ({ page }) => {
+    test.skip(!DELIVERY_METHOD_SELECTION_ENABLED, SKIP_DELIVERY_CHOICE_REASON);
     await page.goto('/checkout');
 
     // Заполняем все поля кроме способа доставки
@@ -699,8 +758,8 @@ test.describe('Checkout Error Handling E2E Tests', () => {
     // Заполняем форму
     await fillCheckoutForm(page, testCheckoutData);
 
-    // Выбираем способ доставки
-    await page.click('input[value="courier"]');
+    // Выбираем способ доставки, если выбор включён
+    await chooseDeliveryMethod(page);
 
     // Отправляем форму
     const submitButton = page.locator('[data-testid="checkout-submit-button"]');
@@ -739,7 +798,7 @@ test.describe('Checkout Error Handling E2E Tests', () => {
 
     // Заполняем форму
     await fillCheckoutForm(page, testCheckoutData);
-    await page.click('input[value="courier"]');
+    await chooseDeliveryMethod(page);
 
     // Отправляем форму
     const submitButton = page.locator('[data-testid="checkout-submit-button"]');
@@ -771,7 +830,7 @@ test.describe('Checkout Error Handling E2E Tests', () => {
 
     // Заполняем форму
     await fillCheckoutForm(page, testCheckoutData);
-    await page.click('input[value="courier"]');
+    await chooseDeliveryMethod(page);
 
     // Отправляем форму
     const submitButton = page.locator('[data-testid="checkout-submit-button"]');
@@ -786,6 +845,7 @@ test.describe('Checkout Error Handling E2E Tests', () => {
    * Тест: ошибка загрузки способов доставки
    */
   test('handles delivery methods loading error', async ({ page }) => {
+    test.skip(!DELIVERY_METHOD_SELECTION_ENABLED, SKIP_DELIVERY_CHOICE_REASON);
     // Базовые моки без delivery methods
     await page.route('**/api/v1/cart/**', async route => {
       await route.fulfill({

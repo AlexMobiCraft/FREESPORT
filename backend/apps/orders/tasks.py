@@ -120,15 +120,7 @@ def _build_order_email_text(order):
     customer_name = order.customer_display_name or "Уважаемый клиент"
     display_number = order.order_number_display
 
-    delivery_methods = {
-        "pickup": "Самовывоз",
-        "courier": "Курьерская доставка",
-        "post": "Почтовая доставка",
-        "transport": "Транспортная компания",
-        "transport_company": "Транспортная компания",
-        "transport_schedule": "Доставка по расписанию",
-    }
-    delivery_method_name = delivery_methods.get(order.delivery_method, order.delivery_method)
+    delivery_method_name = order.get_delivery_method_display()
 
     items_text = ""
     for item in _get_order_display_items(order):
@@ -259,20 +251,13 @@ def send_order_notification_email(self: Any, order_id: int) -> bool:
         customer_phone = order.customer_phone
         customer_name = order.customer_name or order.customer_email
 
-    delivery_methods = {
-        "pickup": "Самовывоз",
-        "courier": "Курьерская доставка",
-        "post": "Почтовая доставка",
-        "transport_company": "Транспортная компания",
-    }
-
     context = {
         "order": order,
         "items": _get_order_display_items(order),
         "customer_name": customer_name,
         "customer_email": customer_email,
         "customer_phone": customer_phone,
-        "delivery_method": delivery_methods.get(order.delivery_method, order.delivery_method),
+        "delivery_method": order.get_delivery_method_display(),
     }
 
     # Менеджер или руководитель среди получателей в /admin/ не войдёт —

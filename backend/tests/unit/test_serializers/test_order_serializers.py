@@ -246,6 +246,38 @@ class TestOrderCreateSerializer:
         assert serializer.calculate_delivery_cost("courier") == 500
         assert serializer.calculate_delivery_cost("post") == 300
         assert serializer.calculate_delivery_cost("transport_company") == 1000
+        assert serializer.calculate_delivery_cost("by_agreement") == 0
+
+    def test_order_creation_by_agreement(
+        self,
+        user_factory,
+        cart_factory,
+        product_factory,
+        cart_item_factory,
+    ):
+        """Способ «Согласуется с персональным специалистом»: заказ создаётся, доставка 0 ₽."""
+        from unittest.mock import Mock
+
+        user = user_factory.create()
+        cart = cart_factory.create(user=user)
+        product = product_factory.create(stock_quantity=10)
+        cart_item_factory.create(cart=cart, product=product, quantity=1)
+
+        mock_request = Mock()
+        mock_request.user = user
+        data = {
+            "delivery_address": "г. Москва, ул. Тестовая, д. 1",
+            "payment_method": "card",
+            "delivery_method": "by_agreement",
+        }
+
+        serializer = OrderCreateSerializer(data=data, context={"request": mock_request})
+        assert serializer.is_valid(), serializer.errors
+
+        order = serializer.save()
+        assert order.delivery_method == "by_agreement"  # type: ignore
+        assert order.delivery_cost == Decimal("0")  # type: ignore
+        assert order.get_delivery_method_display() == "Согласуется с персональным специалистом"  # type: ignore
 
     def test_order_creation_with_b2b_user(
         self,

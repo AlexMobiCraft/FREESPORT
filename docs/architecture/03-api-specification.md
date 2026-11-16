@@ -1541,7 +1541,7 @@ components:
           format: decimal
         delivery_method:
           type: string
-          enum: [pickup, courier, post, transport_company, transport_schedule]
+          enum: [pickup, courier, post, transport_company, transport_schedule, by_agreement]
         payment_method:
           type: string
           enum: [card, cash, bank_transfer, payment_on_delivery]
@@ -1584,7 +1584,7 @@ components:
           enum: [card, cash, bank_transfer, payment_on_delivery]
         delivery_method:
           type: string
-          enum: [pickup, courier, post, transport_company, transport_schedule]
+          enum: [pickup, courier, post, transport_company, transport_schedule, by_agreement]
         delivery_date:
           type: string
           format: date

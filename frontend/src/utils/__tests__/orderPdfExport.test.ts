@@ -109,6 +109,10 @@ describe('getDeliveryMethodLabel', () => {
     expect(getDeliveryMethodLabel('transport_schedule')).toBe('Доставка по расписанию');
   });
 
+  it('локализует by_agreement', () => {
+    expect(getDeliveryMethodLabel('by_agreement')).toBe('Согласуется с персональным специалистом');
+  });
+
   it('возвращает raw code для неизвестного значения', () => {
     expect(getDeliveryMethodLabel('unknown_method')).toBe('unknown_method');
   });

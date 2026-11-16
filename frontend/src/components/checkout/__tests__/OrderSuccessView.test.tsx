@@ -141,7 +141,7 @@ describe('OrderSuccessView', () => {
     it('должен показывать что стоимость уточняется если delivery_cost = 0', () => {
       render(<OrderSuccessView order={mockOrder} />);
 
-      expect(screen.getByText('Стоимость: Уточняется администратором')).toBeInTheDocument();
+      expect(screen.getByText('Стоимость: Уточняется после выбора способа доставки')).toBeInTheDocument();
     });
 
     it('должен показывать стоимость доставки если указана', () => {
@@ -285,6 +285,12 @@ describe('OrderSuccessView', () => {
       const order: Order = { ...mockOrder, delivery_method: 'transport_schedule' };
       render(<OrderSuccessView order={order} />);
       expect(screen.getByText('Доставка по расписанию')).toBeInTheDocument();
+    });
+
+    it('должен локализовать by_agreement', () => {
+      const order: Order = { ...mockOrder, delivery_method: 'by_agreement' };
+      render(<OrderSuccessView order={order} />);
+      expect(screen.getByText('Согласуется с персональным специалистом')).toBeInTheDocument();
     });
 
     it('должен обрабатывать строковые Decimal значения', () => {

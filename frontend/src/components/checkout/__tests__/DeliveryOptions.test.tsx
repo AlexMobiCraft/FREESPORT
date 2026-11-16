@@ -139,11 +139,11 @@ describe('DeliveryOptions', () => {
       });
     });
 
-    it('показывает "Уточняется администратором" для каждого способа', async () => {
+    it('показывает "Уточняется персональным специалистом" для каждого способа', async () => {
       render(<DeliveryOptionsWrapper />);
 
       await waitFor(() => {
-        const priceTexts = screen.getAllByText(/уточняется администратором/i);
+        const priceTexts = screen.getAllByText(/уточняется персональным специалистом/i);
         expect(priceTexts).toHaveLength(3);
       });
     });

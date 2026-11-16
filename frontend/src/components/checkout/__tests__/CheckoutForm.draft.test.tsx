@@ -17,6 +17,12 @@ import { clearCheckoutDraft, readCheckoutDraft } from '@/utils/checkout/checkout
 import type { User } from '@/types/api';
 import type { Address } from '@/types/address';
 
+// Сценарии написаны для включённого выбора способа доставки. Выключенный выбор —
+// в `CheckoutForm.deliveryDisabled.test.tsx`.
+vi.mock('@/config/checkout', () => ({
+  DELIVERY_METHOD_SELECTION_ENABLED: true,
+  DEFAULT_DELIVERY_METHOD: 'by_agreement',
+}));
 vi.mock('@/stores/cartStore');
 vi.mock('@/stores/orderStore', () => ({
   useOrderStore: Object.assign(

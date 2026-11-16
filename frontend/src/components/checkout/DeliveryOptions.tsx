@@ -19,7 +19,7 @@ export interface DeliveryOptionsProps {
  * - Загрузка списка способов доставки через deliveryService
  * - Radio group для выбора способа доставки
  * - Отображение icon, name и description каждого метода
- * - Стоимость отображается как "Уточняется администратором"
+ * - Стоимость отображается как "Уточняется персональным специалистом"
  * - Интеграция с React Hook Form
  * - Обработка loading и error состояний
  * - WCAG 2.1 AA accessibility
@@ -126,7 +126,7 @@ export function DeliveryOptions({ form }: DeliveryOptionsProps) {
                 {method.description}
               </span>
               <span className="mt-1 block text-xs text-gray-500">
-                Стоимость: <span className="font-medium">Уточняется администратором</span>
+                Стоимость: <span className="font-medium">Уточняется персональным специалистом</span>
               </span>
             </div>
           </label>
