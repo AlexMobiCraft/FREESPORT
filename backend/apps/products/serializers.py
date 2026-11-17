@@ -461,6 +461,7 @@ def priced_variant_q() -> Q:
         | Q(federation_price__gt=0)
         | Q(vip_price__gt=0)
         | Q(special_price__gt=0)
+        | Q(dealer_price__gt=0)
         | Q(promo_price__gt=0)
     )
 

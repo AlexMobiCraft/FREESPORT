@@ -23,11 +23,6 @@ WHOLESALE_PRICE_FIELDS = ("opt1_price", "opt2_price", "opt3_price", "opt4_price"
 # Инфо-цены B2B. Не участвуют в расчётах, но так же закрыты от розницы.
 INFO_PRICE_FIELDS = ("rrp", "msrp")
 
-# Сырые цены ролей VIP и «Спец цена»: API их не отдаёт ни в одном ответе, клиент
-# получает итог в `current_price` / `regular_price`. Сериализаторы со вложенным
-# вариантом целиком (`OrderItemSerializer`, `depth = 1`) обязаны их вырезать.
-HIDDEN_ROLE_PRICE_FIELDS = ("vip_price", "special_price")
-
 # Роль → поле цены роли варианта. Роли вне карты (retail, unregistered,
 # admin, аноним) считаются по retail_price.
 #
@@ -47,20 +42,39 @@ ROLE_PRICE_FIELDS = {
     "federation_rep": "federation_price",
     "vip": "vip_price",
     "special_price": "special_price",
+    "dealer": "dealer_price",
 }
 
-# Поле спеццены: её, в отличие от остальных цен роли, импорт ещё и снимает.
-SPECIAL_PRICE_FIELD = "special_price"
+# Цены ролей, которые импорт 1С не только пишет, но и снимает: вид цен убрали из
+# предложения — поле сбрасывается в NULL (`variant_import._resolve_role_price`).
+# Этот же набор полное сохранение варианта не пишет (`ProductVariant.save`), а админка
+# показывает только для чтения: источник истины — 1С, ручную правку сотрёт импорт.
+RESETTABLE_ROLE_PRICE_FIELDS = ("special_price", "dealer_price")
 
 # Вид цен 1С → роль, которую получает клиент с этим видом цен в соглашении
-# (`PriceType.user_role`). GUID видов «VIP цены» и «СПЕЦЦЕНА» заранее неизвестны,
-# миграция их не засеет: роль проставляет импорт справочника цен.
-PRICE_TYPE_ROLES = {"vip_price": "vip", "special_price": "special_price"}
+# (`PriceType.user_role`). GUID видов «VIP цены», «СПЕЦЦЕНА» и «Дилерская цена»
+# заранее неизвестны, миграция их не засеет: роль проставляет импорт справочника цен.
+#
+# Один набор «ролей с ценой из 1С» намеренно (решение владельца 2026-11-16): каждая
+# такая роль получает оптовые условия — оплата только банковским переводом или при
+# получении, оптовые баннеры, нет саморегистрации, сырое поле цены скрыто в API.
+# Поэтому `ASSIGNED_PRICE_ROLES` и `HIDDEN_ROLE_PRICE_FIELDS` выводятся отсюда. Роль с
+# ценой из 1С без оптовых условий — повод развести наборы, а не исключение внутри одного.
+PRICE_TYPE_ROLES = {"vip_price": "vip", "special_price": "special_price", "dealer_price": "dealer"}
+
+# Роли с ценой из 1С: назначаются менеджером или 1С по виду цен соглашения, без
+# саморегистрации; условия оплаты и баннеры — оптовые.
+ASSIGNED_PRICE_ROLES = frozenset(PRICE_TYPE_ROLES.values())
+
+# Сырые цены ролей с ценой из 1С: API их не отдаёт ни в одном ответе, клиент
+# получает итог в `current_price` / `regular_price`. Сериализаторы со вложенным
+# вариантом целиком (`OrderItemSerializer`, `depth = 1`) обязаны их вырезать.
+HIDDEN_ROLE_PRICE_FIELDS = tuple(PRICE_TYPE_ROLES)
 
 # Роль → запасное поле, если поле роли не задано. Дальше — розничная цена.
 # Цепочка роли: поле роли → запасное поле → розница. У остальных ролей запасного
 # поля нет: VIP без своей цены платит розницу, а не «Опт 1».
-ROLE_PRICE_FALLBACKS = {"special_price": "opt1_price"}
+ROLE_PRICE_FALLBACKS = {"special_price": "opt1_price", "dealer": "opt1_price"}
 
 # Роли, которым видны РРЦ/МРЦ. federation_rep исключён намеренно —
 # поведение перенесено как есть из литеральных списков сериализаторов.
@@ -73,6 +87,7 @@ INFO_PRICE_ROLES = frozenset(
         "trainer",
         "vip",
         "special_price",
+        "dealer",
         "admin",
     }
 )

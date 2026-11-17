@@ -816,14 +816,15 @@ class TestCustomerRoleFromPriceType:
         [
             ("0c0c0001-0001-11f0-81c3-00155d3cae02", "СПЕЦЦЕНА", "special_price", "special_price"),
             ("0c0c0002-0001-11f0-81c3-00155d3cae02", "VIP цены", "vip", "vip_price"),
+            ("190b6b22-bcac-11ea-81c4-00155d3cae02", "Дилерская цена", "dealer", "dealer_price"),
         ],
-        ids=["special_price", "vip"],
+        ids=["special_price", "vip", "dealer"],
     )
-    def test_linked_account_gets_vip_and_special_price_roles(self, processor, guid, onec_name, role, product_field):
+    def test_linked_account_gets_role_with_price_from_1c(self, processor, guid, onec_name, role, product_field):
         """
-        Соглашение с видом цен «СПЕЦЦЕНА» / «VIP цены» → роль special_price / vip
-        (spec-roles-vip-special-price). Контрагент собран вручную: в реальных
-        выгрузках этих видов цен пока нет.
+        Соглашение с видом цен «СПЕЦЦЕНА» / «VIP цены» / «Дилерская цена» → роль
+        special_price / vip / dealer (spec-roles-vip-special-price, spec-role-dealer-price).
+        Контрагент собран вручную: в реальных выгрузках этих видов цен пока нет.
         """
         self._ensure_price_type(guid, onec_name, role, product_field)
         data = {
@@ -843,6 +844,37 @@ class TestCustomerRoleFromPriceType:
         assert user.onec_price_type_id == guid
         assert user.is_b2b_user is True
         assert processor.last_role_outcome == "roles_updated_from_assigned"
+
+    @pytest.mark.parametrize(
+        ("current_role", "outcome"),
+        [
+            ("unregistered", "roles_updated_from_unregistered"),
+            ("wholesale_level3", "roles_updated_from_assigned"),
+        ],
+    )
+    def test_linked_account_gets_dealer_role(self, processor, current_role, outcome):
+        """
+        Соглашение с видом цен «Дилерская цена» → роль dealer (spec-role-dealer-price):
+        и у привязанного аккаунта без роли, и у аккаунта с назначенной ролью опт 2–4.
+        Контрагент собран вручную: в реальных выгрузках этого вида цен пока нет.
+        """
+        guid = "190b6b22-bcac-11ea-81c4-00155d3cae02"
+        self._ensure_price_type(guid, "Дилерская цена", "dealer", "dealer_price")
+        data = {
+            "onec_id": f"dealer-role-{current_role}",
+            "name": "ООО Дилер",
+            "role": "Покупатель",
+            "email": f"dealer-{current_role}@example.com",
+            "price_type_ids": [guid],
+            "agreement_status": "",
+        }
+        existing = self._linked_account(data["onec_id"], current_role, data["email"])
+
+        user = processor.process_customer(data)
+
+        assert user.pk == existing.pk
+        assert user.role == "dealer"
+        assert processor.last_role_outcome == outcome
 
     # -- AC3, AC5: перетирание ручной роли и журнал -------------------------
 

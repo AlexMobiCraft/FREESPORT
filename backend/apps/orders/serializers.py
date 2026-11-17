@@ -12,7 +12,7 @@ from rest_framework import serializers
 
 from apps.cart.models import Cart
 from apps.products.models import Product, ProductVariant
-from apps.products.pricing_policy import HIDDEN_ROLE_PRICE_FIELDS
+from apps.products.pricing_policy import ASSIGNED_PRICE_ROLES, HIDDEN_ROLE_PRICE_FIELDS
 
 from .models import Order, OrderItem
 
@@ -45,7 +45,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         depth = 1
 
     def to_representation(self, instance: OrderItem) -> dict[str, Any]:
-        """`depth = 1` отдаёт вариант целиком: сырые цены VIP и спеццены API не раскрывает."""
+        """`depth = 1` отдаёт вариант целиком: сырые цены ролей с ценой из 1С API не раскрывает."""
         data = cast(dict[str, Any], super().to_representation(instance))
         variant = data.get("variant")
         if isinstance(variant, dict):
@@ -252,8 +252,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
         # Проверка совместимости для B2B/B2C
         if user and hasattr(user, "role"):
-            # VIP и «Спец цена» — оптовые условия: `startswith("wholesale")` их не ловит
-            if (user.role.startswith("wholesale") or user.role in ("vip", "special_price")) and payment_method not in [
+            # Роли с ценой из 1С (VIP, «Спец цена», «Дилер») — оптовые условия:
+            # `startswith("wholesale")` их не ловит
+            if (user.role.startswith("wholesale") or user.role in ASSIGNED_PRICE_ROLES) and payment_method not in [
                 "bank_transfer",
                 "payment_on_delivery",
             ]:

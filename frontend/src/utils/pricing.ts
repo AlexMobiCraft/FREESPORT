@@ -12,10 +12,11 @@ export type UserRole =
   | 'wholesale_level4'
   | 'trainer'
   | 'federation_rep'
-  // Роли с собственной ценой из 1С («VIP цены», «СПЕЦЦЕНА»): сырых цен API не отдаёт,
-  // итог приходит в current_price / regular_price
+  // Роли с собственной ценой из 1С («VIP цены», «СПЕЦЦЕНА», «Дилерская цена»): сырых
+  // цен API не отдаёт, итог приходит в current_price / regular_price
   | 'vip'
   | 'special_price'
+  | 'dealer'
   | 'admin'
   // Контрагент 1С без портального аккаунта: цены розничные (ветка default)
   | 'unregistered'
@@ -36,17 +37,18 @@ export function isB2BRole(role: UserRole | undefined): boolean {
     role === 'trainer' ||
     role === 'federation_rep' ||
     role === 'vip' ||
-    role === 'special_price'
+    role === 'special_price' ||
+    role === 'dealer'
   );
 }
 
 /**
  * Роль, чью цену API отдаёт только итогом: в `current_price` / `regular_price`.
- * Сырых `vip_price` и `special_price` в ответах каталога нет, поэтому цену по полям
- * товара (`opt1_price`, `price.wholesale`) для этих ролей не собрать.
+ * Сырых `vip_price`, `special_price` и `dealer_price` в ответах каталога нет, поэтому цену
+ * по полям товара (`opt1_price`, `price.wholesale`) для этих ролей не собрать.
  */
 export function isApiPricedRole(role: UserRole | undefined): boolean {
-  return role === 'vip' || role === 'special_price';
+  return role === 'vip' || role === 'special_price' || role === 'dealer';
 }
 
 /** Поля цен товара или варианта, по которым решается, применена ли акция. */
@@ -101,6 +103,7 @@ export function getPriceForRole(price: ProductPrice, userRole: UserRole): number
       return price.retail;
     case 'vip':
     case 'special_price':
+    case 'dealer':
       // В ProductPrice полей этих ролей нет: цену отдаёт API итогом (см. getProductDisplayPrice)
       return price.retail;
     case 'guest':
@@ -132,14 +135,14 @@ export function getProductDisplayPrice(
   // Цену роли считает backend: current_price — цена первого варианта по тем же правилам, что в
   // корзине и заказе (роль, откат на розницу, меньшая из цены и акционной). Неверифицированный
   // B2B backend понижает до розницы, и страница показывает её же, а не цену роли. В ProductPrice
-  // у тренера и федерации полей нет — ответ их не отдаёт, а у VIP и «Спец цены» нет и самих
+  // у тренера и федерации полей нет — ответ их не отдаёт, а у VIP, «Спец цены» и дилера нет и самих
   // полей. Гостю ответ не верим, как плитке: его цена — розница или акция (ветки ниже)
   if (userRole !== 'guest') {
     const currentPrice = parseFloat(product.current_price || '');
     if (currentPrice > 0) return currentPrice;
   }
 
-  // VIP и «Спец цена» без current_price: цена роли без акции
+  // VIP, «Спец цена» и дилер без current_price: цена роли без акции
   if (isApiPricedRole(userRole)) {
     const regularPrice = parseFloat(product.regular_price || '');
     if (regularPrice > 0) return regularPrice;

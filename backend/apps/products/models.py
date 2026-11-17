@@ -29,7 +29,8 @@ def _skip_derived_field(instance: models.Model, args: tuple[Any, ...], kwargs: d
     """
     Полное сохранение существующей записи не пишет поля, которые ведёт импорт 1С или сервис акции.
 
-    `Product.is_promo`, `ProductVariant.promo_price` и `ProductVariant.special_price` меняют
+    `Product.is_promo`, `ProductVariant.promo_price` и снимаемые импортом цены ролей
+    (`RESETTABLE_ROLE_PRICE_FIELDS`: `special_price`, `dealer_price`) меняют
     импорт 1С и `services/promo.py` (`update_fields` или `QuerySet.update`). Экземпляр,
     загруженный до их смены (форма админки, инлайн товара), иначе вернул бы в БД устаревшее
     значение при правке любого другого поля. Создание, явный `update_fields` и отложенные
@@ -941,6 +942,7 @@ class PriceType(models.Model):
                 ("federation_price", "Цена для представителя федерации"),
                 ("vip_price", "Цена VIP"),
                 ("special_price", "Специальная цена"),
+                ("dealer_price", "Дилерская цена"),
                 (
                     "rrp",
                     "Рекомендованная розничная цена",
@@ -1208,6 +1210,21 @@ class ProductVariant(models.Model):
             ),
         ),
     )
+    dealer_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Дилерская цена",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text=(
+                "Цена для роли dealer (вид цен «Дилерская цена» из 1С). Нет цены — «Опт 1», затем розница. "
+                "Ставит и снимает только импорт 1С."
+            ),
+        ),
+    )
     rrp = cast(
         Decimal | None,
         models.DecimalField(
@@ -1414,7 +1431,7 @@ class ProductVariant(models.Model):
                 condition=models.Q(opt4_price__gte=0) | models.Q(opt4_price__isnull=True),
                 name="products_opt4_price_positive",
             ),
-            # Цены VIP и спеццена приходят из 1С и не бывают отрицательными
+            # Цены VIP, спеццена и дилерская цена приходят из 1С и не бывают отрицательными
             models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
                 condition=models.Q(vip_price__gte=0) | models.Q(vip_price__isnull=True),
                 name="products_vip_price_positive",
@@ -1422,6 +1439,10 @@ class ProductVariant(models.Model):
             models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
                 condition=models.Q(special_price__gte=0) | models.Q(special_price__isnull=True),
                 name="products_special_price_positive",
+            ),
+            models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
+                condition=models.Q(dealer_price__gte=0) | models.Q(dealer_price__isnull=True),
+                name="products_dealer_price_positive",
             ),
         ]
 
@@ -1431,10 +1452,11 @@ class ProductVariant(models.Model):
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         """
-        Полное сохранение существующего варианта не пишет `promo_price` и `special_price`.
+        Полное сохранение существующего варианта не пишет `promo_price` и снимаемые цены ролей.
 
         Акционную цену ставит и снимает только импорт 1С (`update_fields=["promo_price"]`)
-        и `services/promo.py`, спеццену — только импорт 1С (`update_fields=["special_price", ...]`).
+        и `services/promo.py`, спеццену и дилерскую цену (`RESETTABLE_ROLE_PRICE_FIELDS`) —
+        только импорт 1С (`update_fields=["special_price", ...]`).
         Экземпляр, загруженный до сброса (форма админки, инлайн товара), иначе вернул бы в БД
         устаревшую цену при правке любого другого поля. `vip_price` правится в админке как
         `opt1–4`, поэтому полное сохранение его пишет.
@@ -1443,7 +1465,11 @@ class ProductVariant(models.Model):
         блокировками и пересчётом флага «Акция» (`signals.py`): упал пересчёт — откатится и
         сама запись. В автокоммите `UPDATE` иначе фиксировался бы до сигнала `post_save`.
         """
-        _skip_derived_field(self, args, kwargs, "promo_price", "special_price")
+        # Ленивый импорт: `pricing_policy` ссылается на эту модель под TYPE_CHECKING,
+        # импорт на уровне модуля дал бы цикл импорта.
+        from apps.products.pricing_policy import RESETTABLE_ROLE_PRICE_FIELDS
+
+        _skip_derived_field(self, args, kwargs, "promo_price", *RESETTABLE_ROLE_PRICE_FIELDS)
         update_fields = None if args else kwargs.get("update_fields")
         writes_flag_source = update_fields is None or any(
             name in update_fields for name in ("is_active", "product", "product_id")

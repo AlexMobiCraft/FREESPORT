@@ -140,6 +140,7 @@ const B2B_ROLES: Array<User['role']> = [
   'federation_rep',
   'vip',
   'special_price',
+  'dealer',
   'admin',
 ];
 

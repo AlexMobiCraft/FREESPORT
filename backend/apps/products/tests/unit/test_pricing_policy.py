@@ -14,7 +14,12 @@ from rest_framework.test import APIRequestFactory
 from apps.products.factories import ProductFactory, ProductVariantFactory
 from apps.products.models import ProductVariant
 from apps.products.pricing_policy import (
+    ASSIGNED_PRICE_ROLES,
+    HIDDEN_ROLE_PRICE_FIELDS,
     INFO_PRICE_FIELDS,
+    INFO_PRICE_ROLES,
+    PRICE_TYPE_ROLES,
+    RESETTABLE_ROLE_PRICE_FIELDS,
     ROLE_PRICE_FALLBACKS,
     ROLE_PRICE_FIELDS,
     WHOLESALE_PRICE_FIELDS,
@@ -30,6 +35,9 @@ from apps.products.serializers import ProductDetailSerializer, ProductListSerial
 from apps.users.models import User
 
 pytestmark = [pytest.mark.unit, pytest.mark.django_db]
+
+# Роли с цепочкой «своё поле → «Опт 1» → розница»: роль и её поле
+OPT1_FALLBACK_ROLES = [("special_price", "special_price"), ("dealer", "dealer_price")]
 
 # Роли, дающие B2B-уровень цен при наличии верификации
 B2B_ROLES = User.B2B_ROLES
@@ -300,10 +308,11 @@ class TestRolePriceChain:
         assert role_price_fields("trainer") == ("trainer_price",)
         assert role_price_fields("vip") == ("vip_price",)
 
-    def test_special_price_falls_back_to_opt1(self):
-        """Спеццена: своё поле, затем Опт 1; розница — последняя ступень вне цепочки"""
-        assert role_price_fields("special_price") == ("special_price", "opt1_price")
-        assert ROLE_PRICE_FALLBACKS == {"special_price": "opt1_price"}
+    @pytest.mark.parametrize(("role", "field"), OPT1_FALLBACK_ROLES)
+    def test_role_price_falls_back_to_opt1(self, role, field):
+        """Спеццена и дилер: своё поле, затем Опт 1; розница — последняя ступень вне цепочки"""
+        assert role_price_fields(role) == (field, "opt1_price")
+        assert ROLE_PRICE_FALLBACKS == {"special_price": "opt1_price", "dealer": "opt1_price"}
 
     @pytest.mark.parametrize("role", ["retail", "unregistered", "admin", "no-such-role"])
     def test_roles_without_own_price_have_empty_chain(self, role):
@@ -315,12 +324,13 @@ class TestRolePriceChain:
             for field in role_price_fields(role):
                 assert hasattr(ProductVariant(), field), f"{role}: нет поля {field}"
 
+    @pytest.mark.parametrize(("role", "field"), OPT1_FALLBACK_ROLES)
     @pytest.mark.parametrize("value", [None, Decimal("0.00"), Decimal("-5.00")])
-    def test_price_is_set_only_when_strictly_positive(self, value):
+    def test_price_is_set_only_when_strictly_positive(self, value, role, field):
         """NULL, 0 и отрицательное — «цены нет»: берётся следующая ступень цепочки"""
-        variant = ProductVariant(retail_price=Decimal("1200.00"), opt1_price=Decimal("1000.00"), special_price=value)
+        variant = ProductVariant(retail_price=Decimal("1200.00"), opt1_price=Decimal("1000.00"), **{field: value})
 
-        assert resolve_role_price(variant, "special_price") == PricedField(Decimal("1000.00"), "opt1_price")
+        assert resolve_role_price(variant, role) == PricedField(Decimal("1000.00"), "opt1_price")
 
     def test_role_price_reports_own_field(self):
         variant = ProductVariant(retail_price=Decimal("1200.00"), opt2_price=Decimal("900.00"))
@@ -366,11 +376,19 @@ class TestResolveUserPrice:
 
         assert resolve_user_price(variant, user) == PricedField(Decimal("800.00"), "promo_price")
 
-    def test_special_price_fallback_field(self):
-        variant = self._variant(opt1_price=Decimal("1000.00"), special_price=None)
-        user = _make_user("special_price", is_verified=True)
+    @pytest.mark.parametrize(("role", "field"), OPT1_FALLBACK_ROLES)
+    def test_role_price_fallback_field(self, role, field):
+        """Нет цены роли — источник «Опт 1»: заказ пишет в 1С вид цены «Опт 1»"""
+        variant = self._variant(opt1_price=Decimal("1000.00"), **{field: None})
+        user = _make_user(role, is_verified=True)
 
         assert resolve_user_price(variant, user) == PricedField(Decimal("1000.00"), "opt1_price")
+
+    def test_dealer_price_reports_own_field(self):
+        variant = self._variant(opt1_price=Decimal("570.00"), dealer_price=Decimal("520.00"))
+        user = _make_user("dealer", is_verified=True)
+
+        assert resolve_user_price(variant, user) == PricedField(Decimal("520.00"), "dealer_price")
 
     def test_guest_and_unverified_b2b_get_retail_field(self):
         variant = self._variant(opt1_price=Decimal("1000.00"))
@@ -397,6 +415,7 @@ class TestResolveUserPrice:
             ({"opt2_price": Decimal("700.00"), "promo_price": Decimal("800.00")}, "wholesale_level2"),
             ({"promo_price": Decimal("0.00")}, "retail"),
             ({"special_price": Decimal("850.00"), "promo_price": Decimal("850.00")}, "special_price"),
+            ({"dealer_price": Decimal("520.00"), "promo_price": Decimal("480.00")}, "dealer"),
         ],
     )
     def test_get_price_for_user_returns_resolved_price(self, prices, role):
@@ -428,62 +447,106 @@ class TestVipAndSpecialPriceForUser:
 
         assert variant.get_price_for_user(_make_user("vip", is_verified=True)) == self.RETAIL
 
-    def test_special_price_pays_special_price(self):
-        variant = self._variant(special_price=Decimal("800.00"))
+    @pytest.mark.parametrize(("role", "field"), OPT1_FALLBACK_ROLES)
+    def test_role_pays_own_price(self, role, field):
+        variant = self._variant(**{field: Decimal("800.00")})
 
-        assert variant.get_price_for_user(_make_user("special_price", is_verified=True)) == Decimal("800.00")
+        assert variant.get_price_for_user(_make_user(role, is_verified=True)) == Decimal("800.00")
 
-    def test_special_price_applies_even_when_above_opt1(self):
-        """Спеццена применяется как есть, даже выше «Опт 1»"""
-        variant = self._variant(special_price=Decimal("1100.00"))
+    @pytest.mark.parametrize(("role", "field"), OPT1_FALLBACK_ROLES)
+    def test_role_price_applies_even_when_above_opt1(self, role, field):
+        """Цена роли применяется как есть, даже выше «Опт 1»"""
+        variant = self._variant(**{field: Decimal("1100.00")})
 
-        assert variant.get_price_for_user(_make_user("special_price", is_verified=True)) == Decimal("1100.00")
+        assert variant.get_price_for_user(_make_user(role, is_verified=True)) == Decimal("1100.00")
 
-    @pytest.mark.parametrize("special_price", [None, Decimal("0.00")])
-    def test_without_special_price_pays_opt1(self, special_price):
-        variant = self._variant(special_price=special_price)
+    @pytest.mark.parametrize(("role", "field"), OPT1_FALLBACK_ROLES)
+    @pytest.mark.parametrize("empty", [None, Decimal("0.00")])
+    def test_without_role_price_pays_opt1(self, empty, role, field):
+        variant = self._variant(**{field: empty})
 
-        assert variant.get_price_for_user(_make_user("special_price", is_verified=True)) == self.OPT1
+        assert variant.get_price_for_user(_make_user(role, is_verified=True)) == self.OPT1
 
-    def test_without_special_price_and_opt1_pays_retail(self):
-        variant = ProductVariantFactory(retail_price=self.RETAIL, opt1_price=None, special_price=None)
+    @pytest.mark.parametrize(("role", "field"), OPT1_FALLBACK_ROLES)
+    def test_without_role_price_and_opt1_pays_retail(self, role, field):
+        variant = ProductVariantFactory(retail_price=self.RETAIL, opt1_price=None, **{field: None})
 
-        assert variant.get_price_for_user(_make_user("special_price", is_verified=True)) == self.RETAIL
+        assert variant.get_price_for_user(_make_user(role, is_verified=True)) == self.RETAIL
 
-    @pytest.mark.parametrize("role", ["vip", "special_price"])
+    @pytest.mark.parametrize("role", ["vip", "special_price", "dealer"])
     def test_unverified_pays_retail(self, role):
-        variant = self._variant(vip_price=Decimal("900.00"), special_price=Decimal("800.00"))
+        variant = self._variant(
+            vip_price=Decimal("900.00"), special_price=Decimal("800.00"), dealer_price=Decimal("520.00")
+        )
 
         assert variant.get_price_for_user(_make_user(role, is_verified=False)) == self.RETAIL
 
     def test_other_roles_do_not_see_vip_and_special_prices(self):
-        variant = self._variant(vip_price=Decimal("900.00"), special_price=Decimal("800.00"))
+        variant = self._variant(
+            vip_price=Decimal("900.00"), special_price=Decimal("800.00"), dealer_price=Decimal("520.00")
+        )
 
         assert variant.get_price_for_user(_make_user("wholesale_level1", is_verified=True)) == self.OPT1
         assert variant.get_price_for_user(None) == self.RETAIL
 
-    def test_regular_price_ignores_promo(self):
+    @pytest.mark.parametrize(("role", "field"), OPT1_FALLBACK_ROLES)
+    def test_regular_price_ignores_promo(self, role, field):
         """regular_price — цена роли без акции, зачёркнутая цена строится от неё"""
-        variant = self._variant(special_price=Decimal("800.00"), promo_price=Decimal("700.00"))
-        user = _make_user("special_price", is_verified=True)
+        variant = self._variant(**{field: Decimal("800.00")}, promo_price=Decimal("700.00"))
+        user = _make_user(role, is_verified=True)
 
         assert variant.get_regular_price_for_user(user) == Decimal("800.00")
         assert variant.get_price_for_user(user) == Decimal("700.00")
+
+    @pytest.mark.parametrize(("promo", "expected"), [(Decimal("480.00"), "480.00"), (Decimal("600.00"), "520.00")])
+    def test_dealer_pays_lower_of_dealer_and_promo_price(self, promo, expected):
+        """Матрица I/O: дилер 520, акция 480 → 480; акция 600 → 520"""
+        variant = ProductVariantFactory(
+            retail_price=Decimal("1000.00"),
+            opt1_price=Decimal("570.00"),
+            dealer_price=Decimal("520.00"),
+            promo_price=promo,
+        )
+
+        assert variant.get_price_for_user(_make_user("dealer", is_verified=True)) == Decimal(expected)
 
 
 class TestVipAndSpecialPriceVisibility:
     """Обе роли — B2B: оптовые поля и РРЦ/МРЦ видны после верификации"""
 
-    @pytest.mark.parametrize("role", ["vip", "special_price"])
+    @pytest.mark.parametrize("role", ["vip", "special_price", "dealer"])
     def test_verified_role_sees_wholesale_and_info_prices(self, role):
         user = _make_user(role, is_verified=True)
 
         assert can_see_wholesale_prices(user) is True
         assert can_see_info_prices(user) is True
 
-    @pytest.mark.parametrize("role", ["vip", "special_price"])
+    @pytest.mark.parametrize("role", ["vip", "special_price", "dealer"])
     def test_unverified_role_sees_nothing(self, role):
         user = _make_user(role, is_verified=False)
 
         assert can_see_wholesale_prices(user) is False
         assert can_see_info_prices(user) is False
+
+
+class TestRolesWithPriceFrom1C:
+    """Наборы «ролей с ценой из 1С» выводятся из одной карты `PRICE_TYPE_ROLES`"""
+
+    def test_dealer_price_type_maps_to_dealer_role(self):
+        assert PRICE_TYPE_ROLES["dealer_price"] == "dealer"
+        assert ROLE_PRICE_FIELDS["dealer"] == "dealer_price"
+
+    def test_assigned_roles_are_the_roles_of_price_types(self):
+        assert ASSIGNED_PRICE_ROLES == frozenset({"vip", "special_price", "dealer"})
+        assert ASSIGNED_PRICE_ROLES == frozenset(PRICE_TYPE_ROLES.values())
+
+    def test_hidden_fields_are_the_fields_of_price_types(self):
+        assert set(HIDDEN_ROLE_PRICE_FIELDS) == {"vip_price", "special_price", "dealer_price"}
+
+    def test_resettable_fields(self):
+        """Импорт снимает спеццену и дилерскую цену; VIP-цену — нет"""
+        assert RESETTABLE_ROLE_PRICE_FIELDS == ("special_price", "dealer_price")
+
+    def test_dealer_sees_info_prices_and_is_b2b(self):
+        assert "dealer" in INFO_PRICE_ROLES
+        assert "dealer" in User.B2B_ROLES

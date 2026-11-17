@@ -1007,6 +1007,7 @@ class TestClientRole:
             "federation_rep",
             "vip",
             "special_price",
+            "dealer",
         ]
 
     @pytest.mark.parametrize("forged_role", ["admin", "unregistered"])

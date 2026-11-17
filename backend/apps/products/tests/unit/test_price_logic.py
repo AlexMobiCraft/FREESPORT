@@ -278,6 +278,43 @@ class TestOpt4PriceConstraint:
 
 
 @pytest.mark.unit
+@pytest.mark.django_db
+class TestDealerPriceField:
+    """Поле `dealer_price` (spec-role-dealer-price): CHECK ≥ 0 и choice вида цен."""
+
+    def test_negative_dealer_price_rejected_by_db(self, product):
+        with pytest.raises(IntegrityError):
+            with transaction.atomic():
+                ProductVariant.objects.create(
+                    product=product,
+                    sku="SKU-DEALER-NEG",
+                    onec_id="var-dealer-neg",
+                    retail_price=Decimal("100.00"),
+                    dealer_price=Decimal("-1"),
+                    stock_quantity=0,
+                )
+
+    def test_dealer_price_choice_present(self):
+        field = PriceType._meta.get_field("product_field")
+        assert field.choices is not None
+        assert ("dealer_price", "Дилерская цена") in field.choices
+
+    def test_unverified_dealer_pays_retail(self, variant):
+        """Матрица I/O: роль `dealer` без верификации платит розницу."""
+        user = User.objects.create_user(
+            email="dealer-unverified@example.com", password="password", role="dealer", is_verified=False
+        )
+        variant.retail_price = Decimal("1000.00")
+        variant.opt1_price = Decimal("570.00")
+        variant.dealer_price = Decimal("520.00")
+        # Полное сохранение `dealer_price` не пишет (её ведёт импорт 1С): поля — явно
+        variant.save(update_fields=["retail_price", "opt1_price", "dealer_price"])
+        variant.refresh_from_db()
+
+        assert variant.get_price_for_user(user) == Decimal("1000.00")
+
+
+@pytest.mark.unit
 class TestPriceTypeOpt4Choice:
     """Choice opt4_price в PriceType.product_field (AC3)."""
 

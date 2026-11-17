@@ -115,7 +115,7 @@ describe('isB2BRole', () => {
     expect(isB2BRole('unregistered')).toBe(false);
   });
 
-  it.each(['vip', 'special_price'] as const)('относит %s к B2B (РРЦ/МРЦ, оптовые условия)', role => {
+  it.each(['vip', 'special_price', 'dealer'] as const)('относит %s к B2B (РРЦ/МРЦ, оптовые условия)', role => {
     expect(isB2BRole(role)).toBe(true);
   });
 
@@ -125,7 +125,7 @@ describe('isB2BRole', () => {
 });
 
 describe('isApiPricedRole', () => {
-  it.each(['vip', 'special_price'] as const)('%s берёт цену из API итогом', role => {
+  it.each(['vip', 'special_price', 'dealer'] as const)('%s берёт цену из API итогом', role => {
     expect(isApiPricedRole(role)).toBe(true);
   });
 
@@ -298,16 +298,16 @@ describe('getProductDisplayPrice', () => {
       promo_price: null,
     };
 
-    it.each(['vip', 'special_price'] as const)('без варианта — current_price для %s', role => {
+    it.each(['vip', 'special_price', 'dealer'] as const)('без варианта — current_price для %s', role => {
       expect(getProductDisplayPrice(roleProduct, role, null)).toBe(900);
     });
 
-    it.each(['vip', 'special_price'] as const)('current_price с акцией для %s', role => {
+    it.each(['vip', 'special_price', 'dealer'] as const)('current_price с акцией для %s', role => {
       const promo = { ...roleProduct, current_price: '700.00', promo_price: '700.00' };
       expect(getProductDisplayPrice(promo, role)).toBe(700);
     });
 
-    it.each(['vip', 'special_price'] as const)(
+    it.each(['vip', 'special_price', 'dealer'] as const)(
       'без current_price — regular_price, затем розница для %s',
       role => {
         const onlyRegular = { ...roleProduct, current_price: '' };
@@ -318,7 +318,7 @@ describe('getProductDisplayPrice', () => {
       }
     );
 
-    it.each(['vip', 'special_price'] as const)('выбранный вариант задаёт цену для %s', role => {
+    it.each(['vip', 'special_price', 'dealer'] as const)('выбранный вариант задаёт цену для %s', role => {
       const variant = { current_price: '850.00', promo_price: null };
       expect(getProductDisplayPrice(roleProduct, role, variant)).toBe(850);
     });
@@ -327,6 +327,7 @@ describe('getProductDisplayPrice', () => {
       expect(getProductDisplayPrice(roleProduct, 'guest')).toBe(1200);
       expect(getPriceForRole(roleProduct.price, 'vip')).toBe(1200);
       expect(getPriceForRole(roleProduct.price, 'special_price')).toBe(1200);
+      expect(getPriceForRole(roleProduct.price, 'dealer')).toBe(1200);
     });
   });
 

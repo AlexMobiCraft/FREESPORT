@@ -626,6 +626,20 @@ class TestRoleChainInPriceFilters:
         assert variant.id in self._matched("special_price", min_price=1100)
         assert variant.id not in self._matched("special_price", max_price=1100)
 
+    @pytest.mark.parametrize("empty", [None, Decimal("0.00")])
+    def test_dealer_role_without_dealer_price_filters_by_opt1(self, empty):
+        """Дилерской цены нет, «Опт 1» 570: при max_price=600 товар в выдаче (строка матрицы спеки)"""
+        variant = self._variant(dealer_price=empty, opt1_price=Decimal("570.00"))
+
+        assert variant.id in self._matched("dealer", max_price=600)
+        assert variant.id not in self._matched("dealer", min_price=600)
+
+    def test_dealer_role_filters_by_dealer_price(self):
+        variant = self._variant(dealer_price=Decimal("520.00"), opt1_price=Decimal("570.00"))
+
+        assert variant.id in self._matched("dealer", max_price=550)
+        assert variant.id not in self._matched("dealer", min_price=550)
+
     def test_vip_has_no_fallback_to_opt1(self):
         """У VIP запасного поля нет: без `vip_price` фильтр смотрит на розницу, а не на «Опт 1»"""
         variant = self._variant(vip_price=None, opt1_price=Decimal("800.00"))

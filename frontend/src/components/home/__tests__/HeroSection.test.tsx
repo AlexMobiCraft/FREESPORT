@@ -373,9 +373,9 @@ describe('HeroSection Component', () => {
     });
   });
 
-  // Роли vip и special_price назначает менеджер или 1С, но баннер у них оптовый, как у остальных B2B.
+  // Роли vip, special_price и dealer назначает менеджер или 1С, но баннер у них оптовый, как у остальных B2B.
   // Без условия для них резервный баннер откатился бы на универсальный, гостевой.
-  describe.each(['vip', 'special_price'] as const)(
+  describe.each(['vip', 'special_price', 'dealer'] as const)(
     'Резервный оптовый баннер для роли %s',
     role => {
       it.each([

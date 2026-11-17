@@ -89,7 +89,7 @@ describe('authSelectors.useIsB2BUser', () => {
     localStorage.clear();
   });
 
-  test.each(['vip', 'special_price', 'wholesale_level1', 'trainer'] as const)(
+  test.each(['vip', 'special_price', 'dealer', 'wholesale_level1', 'trainer'] as const)(
     'верифицированная роль %s — B2B',
     role => {
       useAuthStore.getState().setUser(makeUser(role, true));
@@ -100,7 +100,7 @@ describe('authSelectors.useIsB2BUser', () => {
     }
   );
 
-  test.each(['vip', 'special_price'] as const)(
+  test.each(['vip', 'special_price', 'dealer'] as const)(
     'неверифицированная роль %s считается розничной',
     role => {
       useAuthStore.getState().setUser(makeUser(role, false));

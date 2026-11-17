@@ -132,15 +132,15 @@ class TestUserRegistrationSerializer:
 
     def test_self_service_roles_follow_the_flag(self):
         """Флаг — единственный переключатель состава ролей саморегистрации."""
-        # `vip` и `special_price` — B2B-роли, но назначаются менеджером или 1С.
-        assigned_by_manager = {"vip", "special_price"}
+        # `vip`, `special_price` и `dealer` — B2B-роли, но назначаются менеджером или 1С.
+        assigned_by_manager = {"vip", "special_price", "dealer"}
         self_service = frozenset(User.B2B_ROLES) - assigned_by_manager
         assert get_self_service_roles() == self_service
 
         with override_settings(REGISTRATION_ALLOW_RETAIL=True):
             assert get_self_service_roles() == self_service | {"retail"}
 
-    @pytest.mark.parametrize("service_role", ["admin", "unregistered", "vip", "special_price"])
+    @pytest.mark.parametrize("service_role", ["admin", "unregistered", "vip", "special_price", "dealer"])
     def test_service_roles_are_rejected(self, user_factory, service_role):
         """
         SELF_SERVICE_ROLES — белый список: служебные роли заявитель назначить

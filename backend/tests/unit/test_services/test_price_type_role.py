@@ -201,12 +201,14 @@ class TestVipAndSpecialPriceRoles:
 
     GUID_VIP = "0d0d0001-0001-11f0-81c3-00155d3cae02"
     GUID_SPECIAL = "0d0d0002-0001-11f0-81c3-00155d3cae02"
+    GUID_DEALER = "190b6b22-bcac-11ea-81c4-00155d3cae02"
 
     @pytest.mark.parametrize(
         ("guid", "name", "field", "role"),
         [
             (GUID_VIP, "VIP цены", "vip_price", "vip"),
             (GUID_SPECIAL, "СПЕЦЦЕНА", "special_price", "special_price"),
+            (GUID_DEALER, "Дилерская цена", "dealer_price", "dealer"),
         ],
     )
     def test_agreement_resolves_to_the_new_role(self, price_types, guid, name, field, role):
@@ -231,7 +233,7 @@ class TestVipAndSpecialPriceRoles:
         """Роль вида цен обязана входить в B2B-роли: иначе привязка её не применит."""
         from apps.users.models import User
 
-        assert {"vip", "special_price"} <= set(User.B2B_ROLES)
+        assert {"vip", "special_price", "dealer"} <= set(User.B2B_ROLES)
 
 
 class TestPriceTypeRoleMapLoading:

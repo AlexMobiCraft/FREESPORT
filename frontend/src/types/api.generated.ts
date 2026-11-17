@@ -3012,6 +3012,7 @@ export interface components {
      *     * `federation_rep` - Представитель федерации
      *     * `vip` - VIP
      *     * `special_price` - Спец цена
+     *     * `dealer` - Дилер
      *     * `admin` - Администратор
      *     * `unregistered` - Не зарегистрирован на портале
      * @enum {string}
@@ -3026,6 +3027,7 @@ export interface components {
       | 'federation_rep'
       | 'vip'
       | 'special_price'
+      | 'dealer'
       | 'admin'
       | 'unregistered';
     /** @description Serializer для регистрации новых пользователей */

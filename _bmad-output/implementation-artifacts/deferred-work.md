@@ -1317,3 +1317,18 @@
 ## Закрыто: проверка заказа A на test_base (2026-11-14)
 
 - Совместимость нового XML с ненастроенным узлом БУС подтверждена загрузкой на `test_base` (БУС 8.1.0.40): заказ 9000126006 при фиксированных «Соглашение» = «Стандартное» и `Товары.ВидЦены` = пусто загружен новым документом СМУТ-025846 — `ВидЦены` пуст, соглашение «Стандартное», цены и суммы как на сайте, ошибок в журнале БУС нет. Записи выше о непроверенном заказе A закрыты. Открытым остаётся только контрольный заказ на проде (БУС 8.1.0.45).
+
+## Deferred from: build review of spec-role-dealer-price.md (2026-11-16)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-role-dealer-price.md`
+  summary: Списки ролей на frontend (`isB2B` в секциях главной и каталоге, `canSeeRrp`, `B2B_ROLES` в `authStore`, `validRoles` в `server-auth`, `isB2BRole`, `isApiPricedRole`) не сведены к общим константам — каждая новая роль требует ~10 точечных правок.
+  evidence: роль `dealer` дописана вручную в 10+ местах `frontend/src`; на backend те же наборы выводятся из `PRICE_TYPE_ROLES`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-role-dealer-price.md`
+  summary: Нет тестов на роли с ценой из 1С в `HitsSection`, `NewArrivalsSection`, `PromoSection`, `SaleSection` и `CatalogPageClient` — потеря роли в их списке `isB2B` не ловится.
+  evidence: в `frontend/src/components/home/__tests__` и тестах каталога нет упоминаний `vip`/`special_price`/`dealer`; пробел существовал до правки.
+- source_spec: `_bmad-output/implementation-artifacts/spec-role-dealer-price.md`
+  summary: При двух активных `PriceType` с `product_field=dealer_price` (или `special_price`) заказ пишет в `ВидЦены` строки вид, первый по `onec_name, pk` (`order_create.py:261`), а импорт берёт цену вида с поздним `created_at` — GUID вида и цена в строке могут разойтись.
+  evidence: известное поведение, вынесенное спекой в Never; проявится только после пересоздания вида цен в 1С, импорт тогда пишет warning «Две цены …».
+- source_spec: `_bmad-output/implementation-artifacts/spec-role-dealer-price.md`
+  summary: В документации (`docs/PROJECT_INFO.md`, `docs/architecture/…/role-based-pricing-pattern.md`, `docs/integrations/1c/`) нет ролей с ценой из 1С (`vip`, `special_price`, `dealer`), соответствия «вид цен → поле → роль» и порядка выката «код → белый список БУС → полная выгрузка».
+  evidence: поиск по `docs/` не находит этих ролей; порядок выката записан только в спеке.

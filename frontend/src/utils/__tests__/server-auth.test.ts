@@ -42,6 +42,7 @@ describe('getUserRole', () => {
     'federation_rep',
     'vip',
     'special_price',
+    'dealer',
     'admin',
     'unregistered',
   ])('отдаёт роль %s из профиля', async role => {
