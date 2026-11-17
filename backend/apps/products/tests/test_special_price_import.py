@@ -1,5 +1,6 @@
 """
-Виды цен «VIP цены» и «СПЕЦЦЕНА» из 1С (spec-roles-vip-special-price).
+Виды цен «VIP цены», «СПЕЦЦЕНА» (spec-roles-vip-special-price) и «Дилерская цена»
+(spec-role-dealer-price) из 1С.
 
 Импорт проверяется на уровне `VariantImportProcessor` со словарями, которые отдаёт
 парсер: в реальных выгрузках этих видов цен пока нет, синтетические XML для тестов
@@ -32,6 +33,9 @@ RETAIL_ID = "price-type-retail"
 VIP_ID = "0b0b0001-0001-11f0-81c3-00155d3cae02"
 SPECIAL_ID = "0b0b0002-0001-11f0-81c3-00155d3cae02"
 SPECIAL_NEW_ID = "0b0b0003-0001-11f1-81c3-00155d3cae02"
+DEALER_ID = "190b6b22-bcac-11ea-81c4-00155d3cae02"
+DEALER_NEW_ID = "0b0b0004-0001-11f1-81c3-00155d3cae02"
+DEALER_NAME = "Дилерская цена"
 
 
 @pytest.fixture
@@ -332,5 +336,123 @@ class TestAdmin:
 
         role_values = {value for value, _ in cast(Any, form.fields["user_role"]).choices}
         field_values = {value for value, _ in cast(Any, form.fields["product_field"]).choices}
-        assert {"vip", "special_price"} <= role_values
-        assert {"vip_price", "special_price"} <= field_values
+        assert {"vip", "special_price", "dealer"} <= role_values
+        assert {"vip_price", "special_price", "dealer_price"} <= field_values
+
+    def test_dealer_price_is_readonly_shown_and_not_in_form(self):
+        """Дилерскую цену, как спеццену, ставит и снимает только импорт 1С."""
+        model_admin = ProductVariantAdmin(ProductVariant, AdminSite())
+        request = self._request()
+
+        fields = [name for _, options in model_admin.get_fieldsets(request) for name in options["fields"]]
+        assert "dealer_price" in model_admin.get_readonly_fields(request)
+        assert "dealer_price" in fields
+        assert "dealer_price" not in model_admin.get_form(request)().fields
+
+
+@pytest.fixture
+def dealer_type(retail_type: PriceType) -> PriceType:
+    return price_type(DEALER_ID, DEALER_NAME, "dealer_price", user_role="dealer")
+
+
+class TestDealerPriceTypes:
+    """Справочник: «Дилерская цена» → `dealer_price`, роль `dealer`."""
+
+    def test_new_type_gets_field_and_role(self, processor):
+        processor.process_price_types([type_data(DEALER_ID, DEALER_NAME, "dealer_price")])
+
+        dealer = PriceType.objects.get(onec_id=DEALER_ID)
+        assert (dealer.product_field, dealer.user_role, dealer.is_active) == ("dealer_price", "dealer", True)
+
+    def test_existing_type_with_empty_field_and_role_is_filled(self, processor):
+        """Вид попал в выгрузку раньше кода: запись с пустыми полем и ролью дописывается."""
+        PriceType.objects.create(onec_id=DEALER_ID, onec_name=DEALER_NAME, product_field="", user_role="")
+
+        processor.process_price_types([type_data(DEALER_ID, DEALER_NAME, "dealer_price")])
+
+        price = PriceType.objects.get(onec_id=DEALER_ID)
+        assert (price.product_field, price.user_role) == ("dealer_price", "dealer")
+
+
+class TestDealerPriceUpdate:
+    """Дилерская цена пишется и снимается тем же механизмом, что спеццена."""
+
+    def test_dealer_price_is_written(self, processor, dealer_type):
+        variant = make_variant(opt1_price=Decimal("570.00"))
+
+        processor.update_variant_prices(offer(variant, **{RETAIL_ID: "1000", DEALER_ID: "520"}))
+
+        variant.refresh_from_db()
+        assert variant.dealer_price == Decimal("520.00")
+        assert (variant.retail_price, variant.opt1_price) == (Decimal("1000.00"), Decimal("570.00"))
+
+    def test_dealer_price_is_removed_when_package_has_no_dealer_type(self, processor, dealer_type):
+        """Цену убрали в 1С: пакет цен без «Дилерской цены» → NULL, дальше «Опт 1»."""
+        variant = make_variant(dealer_price=Decimal("520.00"))
+
+        processor.update_variant_prices(offer(variant, **{RETAIL_ID: "1000"}))
+
+        variant.refresh_from_db()
+        assert variant.dealer_price is None
+
+    @pytest.mark.parametrize("value", ["0", "-5"])
+    def test_non_positive_dealer_price_is_null(self, processor, dealer_type, value):
+        variant = make_variant(dealer_price=Decimal("520.00"))
+
+        processor.update_variant_prices(offer(variant, **{RETAIL_ID: "1000", DEALER_ID: value}))
+
+        variant.refresh_from_db()
+        assert variant.dealer_price is None
+
+    def test_offer_outside_of_package_is_untouched(self, processor, dealer_type):
+        outside = make_variant(dealer_price=Decimal("520.00"))
+        inside = make_variant(dealer_price=Decimal("530.00"))
+
+        processor.update_variant_prices(offer(inside, **{RETAIL_ID: "1000"}))
+
+        inside.refresh_from_db()
+        outside.refresh_from_db()
+        assert inside.dealer_price is None
+        assert outside.dealer_price == Decimal("520.00")
+
+    def test_both_prices_in_offer_take_the_later_type_and_warn(self, processor, dealer_type, caplog):
+        """Старый вид 520, новый (позже по `created_at`) 540: берётся 540, warning с полем и видом 1С."""
+        new_type = price_type(DEALER_NEW_ID, DEALER_NAME, "dealer_price", user_role="dealer")
+        variant = make_variant()
+
+        with caplog.at_level(logging.WARNING, logger=LOGGER):
+            processor.update_variant_prices(
+                offer(variant, **{RETAIL_ID: "1000", DEALER_ID: "520", DEALER_NEW_ID: "540"})
+            )
+
+        variant.refresh_from_db()
+        assert variant.dealer_price == Decimal("540.00")
+        assert new_type.created_at > dealer_type.created_at
+        message = next(r.getMessage() for r in caplog.records if "Две цены dealer_price" in r.getMessage())
+        assert variant.sku in message
+        assert f"{DEALER_ID}=520" in message
+        assert f"{DEALER_NEW_ID}=540" in message
+        assert f"«{DEALER_NAME}»" in message
+        assert processor.stats["warnings"] == 1
+
+    def test_special_and_dealer_prices_are_resolved_independently(self, processor, special_type, dealer_type):
+        """Пакет со спецценой, но без дилерской: спеццена пишется, дилерская снимается."""
+        variant = make_variant(special_price=Decimal("800.00"), dealer_price=Decimal("520.00"))
+
+        processor.update_variant_prices(offer(variant, **{RETAIL_ID: "1000", SPECIAL_ID: "750"}))
+
+        variant.refresh_from_db()
+        assert (variant.special_price, variant.dealer_price) == (Decimal("750.00"), None)
+
+    def test_types_and_prices_flow(self, processor):
+        """Справочник и цены одним проходом, как в `import_products_from_1c`."""
+        processor.process_price_types(
+            [type_data(RETAIL_ID, "РРЦ", "retail_price"), type_data(DEALER_ID, DEALER_NAME, "dealer_price")]
+        )
+        variant = make_variant()
+
+        processor.update_variant_prices(offer(variant, **{RETAIL_ID: "1000", DEALER_ID: "520"}))
+
+        variant.refresh_from_db()
+        assert variant.dealer_price == Decimal("520.00")
+        assert PriceType.objects.get(onec_id=DEALER_ID).user_role == "dealer"

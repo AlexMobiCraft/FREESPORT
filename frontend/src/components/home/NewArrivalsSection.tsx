@@ -48,6 +48,7 @@ export const NewArrivalsSection: React.FC = () => {
     'federation_rep',
     'vip',
     'special_price',
+    'dealer',
     'admin',
   ].includes(userRole);
 

@@ -21,6 +21,7 @@ export interface User {
     | 'federation_rep'
     | 'vip'
     | 'special_price'
+    | 'dealer'
     | 'admin';
   company_name?: string;
   tax_id?: string;

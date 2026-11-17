@@ -69,7 +69,7 @@ export default function ProductInfo({
 
   const stockStatus = getStockStatus();
 
-  // RRP видят только оптовики (1-4), тренеры, VIP, «Спец цена» и админы
+  // RRP видят только оптовики (1-4), тренеры, VIP, «Спец цена», дилеры и админы
   const canSeeRrp = [
     'wholesale_level1',
     'wholesale_level2',
@@ -78,6 +78,7 @@ export default function ProductInfo({
     'trainer',
     'vip',
     'special_price',
+    'dealer',
     'admin',
   ].includes(userRole);
 

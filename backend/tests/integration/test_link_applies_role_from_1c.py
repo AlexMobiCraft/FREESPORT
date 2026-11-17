@@ -31,12 +31,13 @@ pytestmark = [pytest.mark.django_db, pytest.mark.data_dependent]
 # Роль, которую сценарий назначает виду цен из снимка, и поле варианта этого вида.
 # Выбрана так, чтобы отличаться от исходной роли заявителя (wholesale_level1) и
 # оставаться в User.B2B_ROLES: только тогда смена роли доказывает работу сервиса.
-# `special_price` и `vip` — роли, которые 1С назначает по видам цен «СПЕЦЦЕНА» и
-# «VIP цены» (spec-roles-vip-special-price).
+# `special_price`, `vip` и `dealer` — роли, которые 1С назначает по видам цен «СПЕЦЦЕНА»,
+# «VIP цены» и «Дилерская цена» (spec-roles-vip-special-price, spec-role-dealer-price).
 EXPECTED_ROLES = [
     pytest.param("wholesale_level2", "opt2_price", "Опт 2 (150-300 тыс.руб в квартал)", id="wholesale_level2"),
     pytest.param("special_price", "special_price", "СПЕЦЦЕНА", id="special_price"),
     pytest.param("vip", "vip_price", "VIP цены", id="vip"),
+    pytest.param("dealer", "dealer_price", "Дилерская цена", id="dealer"),
 ]
 
 

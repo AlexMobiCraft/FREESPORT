@@ -47,6 +47,7 @@ export const SaleSection: React.FC = () => {
     'federation_rep',
     'vip',
     'special_price',
+    'dealer',
     'admin',
   ].includes(userRole);
 

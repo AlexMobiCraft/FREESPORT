@@ -97,9 +97,9 @@ function mockUserWithoutBanners(role: User['role'], failure: 'error' | 'empty') 
   });
 }
 
-// Роли vip и special_price назначает менеджер или 1С, но резервный баннер у них оптовый, как у
+// Роли vip, special_price и dealer назначает менеджер или 1С, но резервный баннер у них оптовый, как у
 // остальных B2B. Без условия для них баннер откатился бы на универсальный, гостевой.
-describe.each(['vip', 'special_price'] as const)(
+describe.each(['vip', 'special_price', 'dealer'] as const)(
   'ElectricHeroSection: резервный оптовый баннер для роли %s',
   role => {
     beforeEach(() => {

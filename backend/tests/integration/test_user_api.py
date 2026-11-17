@@ -181,14 +181,15 @@ def test_user_roles_endpoint(api_client):
     assert "retail" not in keys
     assert "admin" not in keys
     assert "unregistered" not in keys
-    # VIP и «Спец цена» назначает менеджер или 1С по виду цен соглашения, а не заявитель
+    # VIP, «Спец цена» и «Дилер» назначает менеджер или 1С по виду цен соглашения, а не заявитель
     assert "vip" not in keys
     assert "special_price" not in keys
+    assert "dealer" not in keys
 
 
-@pytest.mark.parametrize("role", ["vip", "special_price"])
+@pytest.mark.parametrize("role", ["vip", "special_price", "dealer"])
 def test_registration_with_assigned_role_is_rejected(api_client, role):
-    """POST /auth/register/ с ролью VIP / «Спец цена» отклоняется, как с ролью admin."""
+    """POST /auth/register/ с ролью VIP / «Спец цена» / «Дилер» отклоняется, как с ролью admin."""
     data = {
         "email": f"assigned-{role}@example.com",
         "password": TEST_USER_PASSWORD,
@@ -210,7 +211,7 @@ def test_registration_with_assigned_role_is_rejected(api_client, role):
     assert not User.objects.filter(email=data["email"]).exists()
 
 
-@pytest.mark.parametrize("role", ["vip", "special_price"])
+@pytest.mark.parametrize("role", ["vip", "special_price", "dealer"])
 def test_profile_role_cannot_be_self_assigned(api_client, create_user_and_get_token, role):
     """PATCH /users/profile/ роль не меняет: уровень цен клиент себе не назначает."""
     email = f"self-assign-{role}@example.com"
@@ -240,3 +241,4 @@ def test_user_roles_endpoint_follows_retail_flag(api_client):
     assert "unregistered" not in keys
     assert "vip" not in keys
     assert "special_price" not in keys
+    assert "dealer" not in keys

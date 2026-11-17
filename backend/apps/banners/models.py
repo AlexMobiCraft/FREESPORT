@@ -15,16 +15,18 @@ from django.db import models
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 
+from apps.products.pricing_policy import ASSIGNED_PRICE_ROLES
+
 if TYPE_CHECKING:
     from apps.users.models import User
 
 
 UNSAFE_CTA_SCHEMES = ("javascript:", "data:", "vbscript:")
 
-# Роли с оптовыми условиями, чьё имя не начинается с «wholesale»: VIP и «Спец цена»
-# видят баннеры «для оптовиков» (`show_to_wholesale`). Без этого `Banner.get_for_user`
-# и `services._get_role_filter` сочли бы их розницей или гостем.
-WHOLESALE_LIKE_ROLES = frozenset({"vip", "special_price"})
+# Роли с оптовыми условиями, чьё имя не начинается с «wholesale»: роли с ценой из 1С
+# (VIP, «Спец цена», «Дилер») видят баннеры «для оптовиков» (`show_to_wholesale`).
+# Без этого `Banner.get_for_user` и `services._get_role_filter` сочли бы их розницей или гостем.
+WHOLESALE_LIKE_ROLES = ASSIGNED_PRICE_ROLES
 
 # ИНН: 10 цифр у юрлиц, 12 — у ИП и физлиц. Контрольная сумма не проверяется намеренно:
 # реквизиты вводит менеджер вручную, ложное отклонение валидного ИНН дороже опечатки.

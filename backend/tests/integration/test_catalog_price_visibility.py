@@ -342,22 +342,25 @@ class TestUnverifiedB2BOrderPrice:
 
 class TestVipAndSpecialPriceRoles:
     """
-    Роли «VIP» и «Спец цена»: итоговая цена и РРЦ/МРЦ видны после верификации,
-    сырых `vip_price` / `special_price` нет ни в одном ответе.
+    Роли «VIP», «Спец цена» и «Дилер»: итоговая цена и РРЦ/МРЦ видны после верификации,
+    сырых `vip_price` / `special_price` / `dealer_price` нет ни в одном ответе.
     """
 
     VIP_PRICE = Decimal("850.00")
     SPECIAL_PRICE = Decimal("750.00")
-    RAW_KEYS = {"vip_price", "special_price"}
+    DEALER_PRICE = Decimal("720.00")
+    RAW_KEYS = {"vip_price", "special_price", "dealer_price"}
 
     @pytest.fixture
     def priced_product(self, product):
-        product.variants.update(vip_price=self.VIP_PRICE, special_price=self.SPECIAL_PRICE)
+        product.variants.update(
+            vip_price=self.VIP_PRICE, special_price=self.SPECIAL_PRICE, dealer_price=self.DEALER_PRICE
+        )
         return product
 
     @pytest.mark.parametrize(
         "role, expected",
-        [("vip", VIP_PRICE), ("special_price", SPECIAL_PRICE)],
+        [("vip", VIP_PRICE), ("special_price", SPECIAL_PRICE), ("dealer", DEALER_PRICE)],
     )
     def test_verified_client_sees_own_price_and_info_prices(self, api_client, priced_product, role, expected):
         api_client.force_authenticate(user=_make_user(role, is_verified=True))
@@ -374,7 +377,7 @@ class TestVipAndSpecialPriceRoles:
         assert detail.data["msrp"] == 1300.0
         _assert_wholesale_visible(detail.data, "карточка товара")
 
-    @pytest.mark.parametrize("role", ["vip", "special_price"])
+    @pytest.mark.parametrize("role", ["vip", "special_price", "dealer"])
     def test_unverified_client_sees_retail_and_no_wholesale(self, api_client, priced_product, role):
         api_client.force_authenticate(user=_make_user(role, is_verified=False))
 
@@ -386,7 +389,9 @@ class TestVipAndSpecialPriceRoles:
         assert "rrp" not in detail.data
         assert "msrp" not in detail.data
 
-    @pytest.mark.parametrize("role_spec", [None, ("vip", True), ("special_price", True), ("wholesale_level1", True)])
+    @pytest.mark.parametrize(
+        "role_spec", [None, ("vip", True), ("special_price", True), ("dealer", True), ("wholesale_level1", True)]
+    )
     def test_raw_prices_are_never_serialized(self, api_client, priced_product, role_spec):
         _authenticate(api_client, role_spec)
 

@@ -967,6 +967,7 @@ class UserAdmin(BaseUserAdmin):
             "federation_rep": "#fd7e14",  # оранжевый
             "vip": "#ffc107",  # жёлтый
             "special_price": "#20c997",  # бирюзовый
+            "dealer": "#795548",  # коричневый
             "admin": "#dc3545",  # красный
         }
         color = role_colors.get(obj.role, "#6c757d")

@@ -46,6 +46,8 @@ OPT1_GUID = "90d2c899-b3f2-11ea-81c3-00155d3cae02"
 OPT1_NAME = "Опт 1 B"
 OPT2_GUID = "a91bdb02-b3f2-11ea-81c3-00155d3cae02"
 OPT2_NAME = "Опт 2 B"
+DEALER_GUID = "190b6b22-bcac-11ea-81c4-00155d3cae02"
+DEALER_NAME = "Дилерская цена"
 DEFAULT_AGREEMENT = "Стандартное"
 
 
@@ -77,6 +79,9 @@ def price_types(db):
         "retail": PriceType.objects.create(onec_id=RRP_GUID, onec_name=RRP_NAME, product_field="retail_price"),
         "opt1": PriceType.objects.create(onec_id=OPT1_GUID, onec_name=OPT1_NAME, product_field="opt1_price"),
         "opt2": PriceType.objects.create(onec_id=OPT2_GUID, onec_name=OPT2_NAME, product_field="opt2_price"),
+        "dealer": PriceType.objects.create(
+            onec_id=DEALER_GUID, onec_name=DEALER_NAME, product_field="dealer_price", user_role="dealer"
+        ),
     }
 
 
@@ -100,6 +105,7 @@ def _variant(**prices):
         "trainer_price": None,
         "federation_price": None,
         "special_price": None,
+        "dealer_price": None,
         "promo_price": None,
         "vat_rate": Decimal("22"),
         "stock_quantity": 100,
@@ -226,6 +232,20 @@ class TestPriceTypeSnapshotOnCheckout:
                 "950.00",
                 ("opt1_price", OPT1_GUID, OPT1_NAME),
                 id="special-without-own",
+            ),
+            pytest.param(
+                "dealer",
+                {"dealer_price": Decimal("520.00"), "opt1_price": Decimal("570.00")},
+                "520.00",
+                ("dealer_price", DEALER_GUID, DEALER_NAME),
+                id="dealer-own",
+            ),
+            pytest.param(
+                "dealer",
+                {"opt1_price": Decimal("570.00")},
+                "570.00",
+                ("opt1_price", OPT1_GUID, OPT1_NAME),
+                id="dealer-without-own",
             ),
         ],
     )

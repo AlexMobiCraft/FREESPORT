@@ -167,26 +167,28 @@ class TestUnverifiedB2BPriceFilters:
 
 
 class TestFallbackFieldFilters:
-    """Роль `special_price` без спеццены платит «Опт 1»: выдача и карточка согласованы"""
+    """Роли `special_price` и `dealer` без своей цены платят «Опт 1»: выдача и карточка согласованы"""
 
-    def test_missing_special_price_filters_and_shows_opt1(self, api_client):
+    @pytest.mark.parametrize(("role", "field"), [("special_price", "special_price"), ("dealer", "dealer_price")])
+    def test_missing_special_price_filters_and_shows_opt1(self, api_client, role, field):
         product = ProductFactory(
-            retail_price=RETAIL_PRICE, stock_quantity=50, special_price=None, opt1_price=Decimal("800.00")
+            retail_price=RETAIL_PRICE, stock_quantity=50, **{field: None}, opt1_price=Decimal("800.00")
         )
-        _authenticate(api_client, "special_price")
+        _authenticate(api_client, role)
 
         assert _current_price(api_client, product) == 800.0
         assert product.slug in _slugs(api_client, product, max_price=900)
         assert product.slug not in _slugs(api_client, product, min_price=BELOW_RETAIL)
 
-    def test_special_price_above_opt1_is_the_shown_price(self, api_client):
+    @pytest.mark.parametrize(("role", "field"), [("special_price", "special_price"), ("dealer", "dealer_price")])
+    def test_special_price_above_opt1_is_the_shown_price(self, api_client, role, field):
         product = ProductFactory(
             retail_price=RETAIL_PRICE,
             stock_quantity=50,
-            special_price=Decimal("1100.00"),
+            **{field: Decimal("1100.00")},
             opt1_price=Decimal("1000.00"),
         )
-        _authenticate(api_client, "special_price")
+        _authenticate(api_client, role)
 
         assert _current_price(api_client, product) == 1100.0
         assert product.slug in _slugs(api_client, product, min_price=1050)

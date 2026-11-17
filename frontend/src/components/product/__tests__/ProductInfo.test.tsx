@@ -181,7 +181,7 @@ describe('ProductInfo', () => {
       regular_price: '10000.00',
       promo_price: null,
     };
-    const roles = ['vip', 'special_price'] as const;
+    const roles = ['vip', 'special_price', 'dealer'] as const;
 
     it.each(roles)('без варианта показывает цену из API, а не розницу для %s', role => {
       const { container } = render(<ProductInfo product={rolePriced} userRole={role} />);

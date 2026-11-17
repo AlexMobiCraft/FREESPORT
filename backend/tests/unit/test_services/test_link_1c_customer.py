@@ -442,11 +442,12 @@ class TestLinkAppliesPriceTypeAndRole:
         [
             ("0c0c0003-0001-11f0-81c3-00155d3cae02", "special_price", "special_price"),
             ("0c0c0004-0001-11f0-81c3-00155d3cae02", "vip", "vip_price"),
+            ("190b6b22-bcac-11ea-81c4-00155d3cae02", "dealer", "dealer_price"),
         ],
-        ids=["special_price", "vip"],
+        ids=["special_price", "vip", "dealer"],
     )
-    def test_applies_vip_and_special_price_roles(self, guid, role, product_field):
-        """Привязка по соглашению «СПЕЦЦЕНА» / «VIP цены» выдаёт роль special_price / vip сразу."""
+    def test_applies_roles_with_price_from_1c(self, guid, role, product_field):
+        """Привязка по соглашению «СПЕЦЦЕНА» / «VIP цены» / «Дилерская цена» выдаёт роль сразу."""
         self.ensure_price_type(guid, role, product_field=product_field)
         tax_id = unique_tax_id()
         source = make_1c_record(tax_id, onec_price_type_id=guid)
@@ -458,9 +459,9 @@ class TestLinkAppliesPriceTypeAndRole:
         assert linked.onec_price_type_id == guid
         assert linked.role == role
 
-    @pytest.mark.parametrize("role", ["vip", "special_price"])
+    @pytest.mark.parametrize("role", ["vip", "special_price", "dealer"])
     def test_vip_and_special_price_accounts_are_valid_link_targets(self, role):
-        """Аккаунт с ролью VIP / «Спец цена» — B2B: менеджер вправе привязать к нему запись 1С."""
+        """Аккаунт с ролью VIP / «Спец цена» / «Дилер» — B2B: менеджер вправе привязать к нему запись 1С."""
         tax_id = unique_tax_id()
         source = make_1c_record(tax_id)
         target = make_applicant(tax_id, role=role)

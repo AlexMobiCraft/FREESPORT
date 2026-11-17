@@ -133,6 +133,7 @@ function getProductPrice(product: Product, userRole: UserRole): number {
       );
     case 'vip':
     case 'special_price':
+    case 'dealer':
       // API сырых цен этих ролей не отдаёт: цена роли без акции приходит в regular_price
       return parseFloat(product.regular_price ?? '') || product.retail_price;
     default:

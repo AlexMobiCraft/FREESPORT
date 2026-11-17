@@ -5300,6 +5300,7 @@ components:
       - federation_rep
       - vip
       - special_price
+      - dealer
       - admin
       - unregistered
       type: string
@@ -5313,6 +5314,7 @@ components:
         * `federation_rep` - Представитель федерации
         * `vip` - VIP
         * `special_price` - Спец цена
+        * `dealer` - Дилер
         * `admin` - Администратор
         * `unregistered` - Не зарегистрирован на портале
     UserRegistrationRequest:

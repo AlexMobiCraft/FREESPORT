@@ -117,6 +117,7 @@ class TestUserModel:
             ("federation_rep", True),
             ("vip", True),
             ("special_price", True),
+            ("dealer", True),
             # B2C роли
             ("retail", False),
             ("admin", False),
@@ -143,6 +144,7 @@ class TestUserModel:
             ("federation_rep", False),
             ("vip", False),
             ("special_price", False),
+            ("dealer", False),
             ("admin", False),
         ],
     )
@@ -167,6 +169,7 @@ class TestUserModel:
             ("federation_rep", None),
             ("vip", None),
             ("special_price", None),
+            ("dealer", None),
             ("admin", None),
         ],
     )
@@ -189,6 +192,7 @@ class TestUserModel:
             "federation_rep",
             "vip",
             "special_price",
+            "dealer",
             "admin",
         ],
     )
@@ -834,14 +838,14 @@ class TestWholesaleLevel4Role:
 @pytest.mark.unit
 class TestVipAndSpecialPriceRoles:
     """
-    Роли «VIP» и «Спец цена»: свои цены из 1С, B2B-функции, но не оптовые уровни
+    Роли «VIP», «Спец цена» и «Дилер»: свои цены из 1С, B2B-функции, но не оптовые уровни
     """
 
-    ROLES = ("vip", "special_price")
+    ROLES = ("vip", "special_price", "dealer")
 
     @pytest.mark.parametrize(
         "role, label",
-        [("vip", "VIP"), ("special_price", "Спец цена")],
+        [("vip", "VIP"), ("special_price", "Спец цена"), ("dealer", "Дилер")],
     )
     def test_role_present_in_choices(self, role, label):
         """Роль есть в ROLE_CHOICES с ожидаемой подписью"""
@@ -872,7 +876,7 @@ class TestVipAndSpecialPriceRoles:
     @pytest.mark.django_db
     @pytest.mark.parametrize(
         "role, label",
-        [("vip", "VIP"), ("special_price", "Спец цена")],
+        [("vip", "VIP"), ("special_price", "Спец цена"), ("dealer", "Дилер")],
     )
     def test_role_display(self, role, label):
         """get_role_display возвращает подпись роли"""

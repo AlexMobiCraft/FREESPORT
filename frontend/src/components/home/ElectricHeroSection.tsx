@@ -16,6 +16,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
+import { isApiPricedRole } from '@/utils/pricing';
 import { ElectricButton } from '@/components/ui/Button/ElectricButton';
 import bannersService from '@/services/bannersService';
 import type { Banner } from '@/types/banners';
@@ -136,8 +137,7 @@ export const ElectricHeroSection = () => {
       user?.role === 'wholesale_level2' ||
       user?.role === 'wholesale_level3' ||
       user?.role === 'wholesale_level4' ||
-      user?.role === 'vip' ||
-      user?.role === 'special_price'
+      isApiPricedRole(user?.role)
     ) {
       return STATIC_BANNERS[0];
     }

@@ -629,6 +629,8 @@ class TestPriceForUser:
             ("special_price", "special_price", "700.00", "700.00"),
             ("vip", "vip_price", "900.00", "800.00"),
             ("vip", "vip_price", "750.00", "750.00"),
+            ("dealer", "dealer_price", "850.00", "800.00"),
+            ("dealer", "dealer_price", "700.00", "700.00"),
         ],
     )
     def test_client_pays_the_lower_of_role_and_promo_price(self, role, field, regular, expected):
@@ -725,9 +727,11 @@ class TestApi:
             assert data["promo_price"] == "800.00"
             assert data["current_price"] == "800.00"
 
-    @pytest.mark.parametrize("role, field", [("vip", "vip_price"), ("special_price", "special_price")])
+    @pytest.mark.parametrize(
+        "role, field", [("vip", "vip_price"), ("special_price", "special_price"), ("dealer", "dealer_price")]
+    )
     def test_list_shows_variant_with_only_role_price(self, role, field):
-        """Вариант, у которого положительна только цена VIP или спеццена, доходит до списка."""
+        """Вариант, у которого положительна только цена роли с ценой из 1С, доходит до списка."""
         from apps.products.serializers import ProductListSerializer
 
         variant = make_variant(retail_price=Decimal("0"), **{field: Decimal("900.00")})
@@ -1499,41 +1503,48 @@ class TestStaleVariantSaveKeepsPromoPrice:
         assert stored.size_value == "M"
 
 
-class TestStaleVariantSaveKeepsSpecialPrice:
-    """Сохранение устаревшего экземпляра варианта не возвращает спеццену, которую снял импорт."""
+# Снимаемые импортом цены ролей (`RESETTABLE_ROLE_PRICE_FIELDS`)
+RESETTABLE_FIELDS = ["special_price", "dealer_price"]
 
-    def test_full_save_does_not_write_special_price(self):
-        variant = make_variant(special_price=Decimal("800.00"), opt1_price=Decimal("1000.00"))
+
+class TestStaleVariantSaveKeepsResettableRolePrice:
+    """Сохранение устаревшего экземпляра варианта не возвращает цену роли, которую снял импорт."""
+
+    @pytest.mark.parametrize("field", RESETTABLE_FIELDS)
+    def test_full_save_does_not_write_resettable_role_price(self, field):
+        variant = make_variant(**{field: Decimal("800.00")}, opt1_price=Decimal("1000.00"))
         stale = ProductVariant.objects.get(pk=variant.pk)
 
-        ProductVariant.objects.filter(pk=variant.pk).update(special_price=None)  # пакет цен без «СПЕЦЦЕНА»
+        ProductVariant.objects.filter(pk=variant.pk).update(**{field: None})  # пакет цен без вида поля
         stale.vip_price = Decimal("900.00")
         stale.save()
 
         stored = ProductVariant.objects.get(pk=variant.pk)
         assert stored.vip_price == Decimal("900.00")
-        assert stored.special_price is None
+        assert getattr(stored, field) is None
 
-    def test_admin_save_model_does_not_write_special_price(self):
-        variant = make_variant(special_price=Decimal("800.00"))
+    @pytest.mark.parametrize("field", RESETTABLE_FIELDS)
+    def test_admin_save_model_does_not_write_resettable_role_price(self, field):
+        variant = make_variant(**{field: Decimal("800.00")})
         stale = ProductVariant.objects.get(pk=variant.pk)
-        ProductVariant.objects.filter(pk=variant.pk).update(special_price=None)
+        ProductVariant.objects.filter(pk=variant.pk).update(**{field: None})
 
         stale.stock_quantity = 99
         ProductVariantAdmin(ProductVariant, AdminSite()).save_model(admin_request(), stale, form=None, change=True)
 
         stored = ProductVariant.objects.get(pk=variant.pk)
         assert stored.stock_quantity == 99
-        assert stored.special_price is None
+        assert getattr(stored, field) is None
 
-    def test_creation_and_explicit_update_fields_still_write_special_price(self):
-        variant = make_variant(special_price=Decimal("800.00"))
-        assert ProductVariant.objects.get(pk=variant.pk).special_price == Decimal("800.00")
+    @pytest.mark.parametrize("field", RESETTABLE_FIELDS)
+    def test_creation_and_explicit_update_fields_still_write_resettable_role_price(self, field):
+        variant = make_variant(**{field: Decimal("800.00")})
+        assert getattr(ProductVariant.objects.get(pk=variant.pk), field) == Decimal("800.00")
 
-        variant.special_price = Decimal("750.00")
-        variant.save(update_fields=["special_price"])
+        setattr(variant, field, Decimal("750.00"))
+        variant.save(update_fields=[field])
 
-        assert ProductVariant.objects.get(pk=variant.pk).special_price == Decimal("750.00")
+        assert getattr(ProductVariant.objects.get(pk=variant.pk), field) == Decimal("750.00")
 
     def test_full_save_still_writes_vip_price(self):
         """`vip_price` правится в админке как `opt1–4`: полное сохранение его пишет."""

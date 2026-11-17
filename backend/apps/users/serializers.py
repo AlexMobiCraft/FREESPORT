@@ -20,6 +20,7 @@ from apps.common.consent_texts import MAX_VERSION_LENGTH, is_current_consent_tex
 from apps.common.models import UserConsent
 from apps.common.serializers import CONSENT_TEXT_OUTDATED, consent_text_outdated_error
 from apps.orders.models import Order
+from apps.products.pricing_policy import ASSIGNED_PRICE_ROLES
 from apps.products.utils.images import product_main_image_url
 
 from .models import Address, Company, Favorite, User
@@ -43,7 +44,7 @@ PHONE_REQUIRED_MESSAGE = "Укажите номер телефона."
 INVALID_SELF_SERVICE_ROLE_MESSAGE = "Недопустимая роль для регистрации."
 
 # B2B-роли с собственной ценой из 1С: назначает менеджер или 1С, не заявитель.
-ASSIGNED_ROLES = frozenset({"vip", "special_price"})
+ASSIGNED_ROLES = ASSIGNED_PRICE_ROLES
 
 
 def get_self_service_roles() -> frozenset[str]:
@@ -56,7 +57,7 @@ def get_self_service_roles() -> frozenset[str]:
 
     Базой служит `User.B2B_ROLES` — тот же источник истины, что у `is_b2b_user`
     и admin-действий, иначе списки разошлись бы при добавлении новой роли.
-    `vip` и `special_price` из него вычитаются: их назначает менеджер или 1С по
+    Роли с ценой из 1С (`vip`, `special_price`, `dealer`) из него вычитаются: их назначает менеджер или 1С по
     виду цен соглашения, самовыбор дал бы клиенту чужой уровень цен.
     Розница добавляется флагом `REGISTRATION_ALLOW_RETAIL`: сейчас она выключена
     (портал — B2B-площадка), но отключение временное, поэтому включение не должно

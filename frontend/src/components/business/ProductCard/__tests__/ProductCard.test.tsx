@@ -598,8 +598,8 @@ describe('ProductCard', () => {
     });
   });
 
-  describe('Роли VIP и «Спец цена»', () => {
-    // API сырых vip_price / special_price не отдаёт: цена роли приходит в regular_price,
+  describe('Роли VIP, «Спец цена» и «Дилер»', () => {
+    // API сырых vip_price / special_price / dealer_price не отдаёт: цена роли приходит в regular_price,
     // итог (с акцией) — в current_price
     const rolePriced: Product = {
       ...mockProduct,
@@ -608,7 +608,7 @@ describe('ProductCard', () => {
       regular_price: '900.00',
       promo_price: null,
     };
-    const roles = ['vip', 'special_price'] as const;
+    const roles = ['vip', 'special_price', 'dealer'] as const;
     const layouts = ['grid', 'list', 'compact'] as const;
 
     it.each(roles)('shows the price of the role from regular_price for %s', role => {

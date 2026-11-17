@@ -477,22 +477,22 @@ class TestVipAndSpecialPriceRoleFilter:
     фильтр: без правки авторизованный VIP видел бы баннеры для анонимов.
     """
 
-    @pytest.mark.parametrize("role", ["vip", "special_price"])
+    @pytest.mark.parametrize("role", ["vip", "special_price", "dealer"])
     def test_role_gets_wholesale_filter(self, role):
         q_str = str(_get_role_filter(role))
         assert "show_to_authenticated" in q_str
         assert "show_to_wholesale" in q_str
 
-    @pytest.mark.parametrize("role", ["vip", "special_price"])
+    @pytest.mark.parametrize("role", ["vip", "special_price", "dealer"])
     def test_role_is_not_treated_as_guest(self, role):
         assert "show_to_guests" not in str(_get_role_filter(role))
 
-    @pytest.mark.parametrize("role", ["vip", "special_price"])
+    @pytest.mark.parametrize("role", ["vip", "special_price", "dealer"])
     def test_role_filter_matches_wholesale(self, role):
         assert _get_role_filter(role) == _get_role_filter("wholesale_level1")
 
     @pytest.mark.django_db
-    @pytest.mark.parametrize("role", ["vip", "special_price"])
+    @pytest.mark.parametrize("role", ["vip", "special_price", "dealer"])
     def test_get_for_user_shows_wholesale_banner(self, role):
         """Модельный путь `Banner.get_for_user` согласован с сервисным фильтром."""
         user = User.objects.create_user(email=f"{role}-banner@example.com", password="testpass123", role=role)
