@@ -75,3 +75,20 @@ class UnsubscribeRateThrottle(ProxyAwareThrottleIdentMixin, SimpleRateThrottle):
             "scope": self.scope,
             "ident": self.get_ident(request),
         }
+
+
+class SiteEventsThrottle(ProxyAwareThrottleIdentMixin, SimpleRateThrottle):
+    """
+    Лимит приёма событий сайта (показы и клики баннеров) с одного IP.
+
+    IP живёт только в ключе кэша на время окна лимита — в БД не попадает.
+    """
+
+    scope = "site_events"
+
+    def get_cache_key(self, request, view):
+        """Сформировать cache key: SimpleRateThrottle оставляет этот метод abstract."""
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": self.get_ident(request),
+        }

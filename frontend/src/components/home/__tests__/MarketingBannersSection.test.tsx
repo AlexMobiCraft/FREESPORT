@@ -12,14 +12,25 @@
  * - Reliability: image_url pre-check
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { MarketingBannersSection, MarketingBannerErrorBoundary } from '../MarketingBannersSection';
 import bannersService from '@/services/bannersService';
+import { trackBannerClick, trackBannerView } from '@/services/siteEvents';
+import {
+  installIntersectionObserverMock,
+  type IntersectionObserverMockControls,
+} from '@/__mocks__/intersectionObserver';
 import type { Banner } from '@/types/banners';
 
 // Mock bannersService
 vi.mock('@/services/bannersService');
+
+// Счётчик показов и кликов для ОРД — проверяется вызов, а не сеть
+vi.mock('@/services/siteEvents', () => ({
+  trackBannerView: vi.fn(),
+  trackBannerClick: vi.fn(),
+}));
 
 // Mock Next.js Link
 vi.mock('next/link', () => ({
@@ -982,3 +993,131 @@ describe('MarketingBannersSection', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Счётчик показов и кликов (отчётность в ОРД)
+// ---------------------------------------------------------------------------
+
+const auxClick = (element: Element, button: number) => {
+  act(() => {
+    element.dispatchEvent(new MouseEvent('auxclick', { bubbles: true, cancelable: true, button }));
+  });
+};
+
+describe('MarketingBannersSection — показы и клики', () => {
+  let io: IntersectionObserverMockControls;
+
+  const renderLoaded = async () => {
+    vi.mocked(bannersService.getActive).mockResolvedValue(mockMarketingBanners);
+    render(<MarketingBannersSection />);
+    await waitFor(() => {
+      expect(screen.getAllByTestId('marketing-banner-slide')).toHaveLength(2);
+    });
+    vi.useFakeTimers();
+    return screen.getAllByTestId('marketing-banner-slide');
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    io = installIntersectionObserverMock();
+    vi.mocked(useBannerCarousel).mockReturnValue({
+      emblaRef: vi.fn(),
+      selectedIndex: 0,
+      scrollSnaps: [0, 1],
+      canScrollPrev: false,
+      canScrollNext: true,
+      scrollNext: vi.fn(),
+      scrollPrev: vi.fn(),
+      onDotButtonClick: mockOnDotButtonClick,
+      scrollTo: vi.fn(),
+      pauseAutoplay: vi.fn(),
+      resumeAutoplay: vi.fn(),
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('наблюдает каждый слайд отдельно', async () => {
+    const slides = await renderLoaded();
+
+    for (const slide of slides) {
+      expect(io.observersOf(slide)).toHaveLength(1);
+    }
+  });
+
+  it('засчитывает показ видимого слайда с загруженной картинкой через 1 с', async () => {
+    const [first] = await renderLoaded();
+
+    fireEvent.load(screen.getByAltText('Летняя распродажа баннер'));
+    act(() => io.setIntersection(first, 1));
+    act(() => vi.advanceTimersByTime(999));
+    expect(trackBannerView).not.toHaveBeenCalled();
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(trackBannerView).toHaveBeenCalledTimes(1);
+    expect(trackBannerView).toHaveBeenCalledWith(10);
+  });
+
+  it('не засчитывает показ, пока картинка не загрузилась', async () => {
+    const [first] = await renderLoaded();
+
+    act(() => io.setIntersection(first, 1));
+    act(() => vi.advanceTimersByTime(3000));
+
+    expect(trackBannerView).not.toHaveBeenCalled();
+  });
+
+  it('слайд, обрезанный каруселью (IO не сообщает пересечение), не засчитывается', async () => {
+    const [first, second] = await renderLoaded();
+
+    fireEvent.load(screen.getByAltText('Летняя распродажа баннер'));
+    fireEvent.load(screen.getByAltText('Коллекция кроссовок'));
+    act(() => io.setIntersection(first, 1));
+    act(() => io.setIntersection(second, 0));
+    act(() => vi.advanceTimersByTime(3000));
+
+    expect(vi.mocked(trackBannerView).mock.calls).toEqual([[10]]);
+  });
+
+  it('повторная прокрутка в том же монтировании показ не добавляет', async () => {
+    const [first] = await renderLoaded();
+
+    fireEvent.load(screen.getByAltText('Летняя распродажа баннер'));
+    act(() => io.setIntersection(first, 1));
+    act(() => vi.advanceTimersByTime(1000));
+    act(() => io.setIntersection(first, 0));
+    act(() => io.setIntersection(first, 1));
+    act(() => vi.advanceTimersByTime(5000));
+
+    expect(trackBannerView).toHaveBeenCalledTimes(1);
+  });
+
+  it('клик по ссылке баннера отправляет click и не мешает переходу', async () => {
+    await renderLoaded();
+
+    const link = screen.getByRole('link', { name: 'Летняя распродажа' });
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    act(() => {
+      link.dispatchEvent(clickEvent);
+    });
+
+    expect(trackBannerClick).toHaveBeenCalledWith(10);
+    expect(clickEvent.defaultPrevented).toBe(false);
+  });
+
+  it('открытие средней кнопкой (auxclick) тоже считается кликом, правая кнопка — нет', async () => {
+    await renderLoaded();
+    const link = screen.getByRole('link', { name: 'Летняя распродажа' });
+
+    auxClick(link, 2);
+    expect(trackBannerClick).not.toHaveBeenCalled();
+
+    auxClick(link, 1);
+    expect(trackBannerClick).toHaveBeenCalledTimes(1);
+    expect(trackBannerClick).toHaveBeenCalledWith(10);
+  });
+});
+

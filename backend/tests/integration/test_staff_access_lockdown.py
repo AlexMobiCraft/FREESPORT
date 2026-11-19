@@ -41,6 +41,7 @@ HEALTH_URL = "/api/v1/monitoring/health/"
 FILTERS_URL = "/api/v1/catalog/filters/"
 
 _migration = importlib.import_module("apps.users.migrations.0023_staff_role_groups")
+_stat_migration = importlib.import_module("apps.banners.migrations.0009_banner_daily_stat_permissions")
 
 
 @pytest.fixture(autouse=True)
@@ -50,6 +51,7 @@ def role_groups():
     остались ли они в тестовой БД после миграций или стёрты `flush`.
     """
     _migration.create_staff_role_groups(django_apps, SimpleNamespace(connection=connection))
+    _stat_migration.grant_banner_stat_permissions(django_apps, SimpleNamespace(connection=connection))
 
 
 def make_staff_member(group_name: str, *codenames: str) -> User:

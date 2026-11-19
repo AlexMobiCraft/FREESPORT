@@ -34,6 +34,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.django_db]
 PASSWORD = "StrongPassword123!"
 
 _migration = importlib.import_module("apps.users.migrations.0023_staff_role_groups")
+_stat_migration = importlib.import_module("apps.banners.migrations.0009_banner_daily_stat_permissions")
 
 # Скрытые поля товара и бренда: ни правкой, ни чтением в разделе их нет.
 PRODUCT_HIDDEN_FIELDS = {
@@ -74,6 +75,7 @@ LABEL_ACTIONS = (
 @pytest.fixture(autouse=True)
 def role_groups():
     _migration.create_staff_role_groups(django_apps, SimpleNamespace(connection=connection))
+    _stat_migration.grant_banner_stat_permissions(django_apps, SimpleNamespace(connection=connection))
 
 
 def make_user(group_name: str | None = None, **extra) -> User:
@@ -145,9 +147,10 @@ class TestHasPermission:
 
 
 class TestRegistry:
-    def test_marketing_site_has_exactly_seven_models(self):
+    def test_marketing_site_has_exactly_eight_models(self):
         assert {model._meta.label for model in marketing_site._registry} == {
             "banners.Banner",
+            "banners.BannerDailyStat",
             "common.News",
             "common.BlogPost",
             "common.Category",

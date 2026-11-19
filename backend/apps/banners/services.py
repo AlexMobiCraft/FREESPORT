@@ -10,17 +10,19 @@ Story 32.1 Task 8-2: CACHE_KEY_PATTERN — константа паттерна �
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import Any, Optional
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import IntegrityError, connection, transaction
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from apps.users.models import User
 
-from .models import WHOLESALE_LIKE_ROLES, Banner
+from .models import WHOLESALE_LIKE_ROLES, Banner, BannerDailyStat
 
 logger = logging.getLogger(__name__)
 
@@ -223,3 +225,88 @@ def invalidate_banner_cache(banner_type: str) -> None:
         banner_type,
         len(_ALL_ROLE_KEYS),
     )
+
+
+# ---------------------------------------------------------------------------
+# Статистика показов и кликов для отчётности в ОРД
+# ---------------------------------------------------------------------------
+
+EVENT_VIEW = "view"
+EVENT_CLICK = "click"
+EVENT_KINDS = (EVENT_VIEW, EVENT_CLICK)
+
+# Одна строка на баннер: снимок и ERID берутся из самого баннера в момент события,
+# клиенту не доверяем. SELECT отбрасывает неизвестный, выключенный и вышедший из окна
+# дат баннер — тогда вставлять нечего, и событие молча теряется. Приращение — в одном
+# операторе (ON CONFLICT … SET views = t.views + EXCLUDED.views), без read-modify-write.
+# Реквизиты рекламодателя и ERID у нерекламного баннера могут остаться в БД после
+# снятия галочки — в снимок они не попадают.
+_UPSERT_DAILY_STAT_SQL = f"""
+INSERT INTO {BannerDailyStat._meta.db_table} AS t
+    (banner_id, banner_ref_id, date, erid, banner_title, advertiser_name, advertiser_inn, views, clicks)
+SELECT
+    b.id,
+    b.id,
+    %(date)s,
+    CASE WHEN b.is_advertisement THEN b.erid ELSE '' END,
+    b.title,
+    CASE WHEN b.is_advertisement THEN b.advertiser_name ELSE '' END,
+    CASE WHEN b.is_advertisement THEN b.advertiser_inn ELSE '' END,
+    %(views)s,
+    %(clicks)s
+FROM {Banner._meta.db_table} AS b
+WHERE b.id = %(banner_id)s
+    AND b.is_active
+    AND (b.start_date IS NULL OR b.start_date <= %(now)s)
+    AND (b.end_date IS NULL OR b.end_date >= %(now)s)
+ON CONFLICT (banner_ref_id, date, erid) DO UPDATE SET
+    views = t.views + EXCLUDED.views,
+    clicks = t.clicks + EXCLUDED.clicks,
+    banner_id = EXCLUDED.banner_id,
+    banner_title = EXCLUDED.banner_title,
+    advertiser_name = EXCLUDED.advertiser_name,
+    advertiser_inn = EXCLUDED.advertiser_inn
+"""
+
+
+def record_events(events: Iterable[Mapping[str, Any]]) -> int:
+    """
+    Прибавляет пачку событий «показ»/«клик» к дневной статистике баннеров.
+
+    Пачка сначала сворачивается в Python до одной пары сумм на баннер: повтор
+    одного ключа в одном операторе ON CONFLICT Postgres не принимает. Баннеры
+    обходятся по возрастанию id — параллельные пачки берут блокировки строк в одном
+    порядке и не взаимоблокируются. Каждый баннер — отдельный upsert в своей точке
+    сохранения: гонка с удалением баннера (FK-нарушение) теряет одно событие, а не
+    пачку и не транзакцию запроса.
+
+    Сутки — по часовому поясу проекта (`Europe/Moscow`).
+
+    Args:
+        events: Элементы вида ``{"banner_id": int, "kind": "view" | "click"}``.
+
+    Returns:
+        Число записанных (вставленных или обновлённых) строк статистики.
+    """
+    totals: dict[int, list[int]] = {}
+    for event in events:
+        counters = totals.setdefault(int(event["banner_id"]), [0, 0])
+        counters[0 if event["kind"] == EVENT_VIEW else 1] += 1
+
+    if not totals:
+        return 0
+
+    today = timezone.localdate()
+    now = timezone.now()
+    written = 0
+    for banner_id in sorted(totals):
+        views, clicks = totals[banner_id]
+        params: dict[str, Any] = {"date": today, "now": now, "banner_id": banner_id, "views": views, "clicks": clicks}
+        try:
+            with transaction.atomic(), connection.cursor() as cursor:
+                cursor.execute(_UPSERT_DAILY_STAT_SQL, params)
+                written += max(cursor.rowcount, 0)
+        except IntegrityError:
+            # Баннер удалили между SELECT и проверкой внешнего ключа.
+            logger.warning("Статистика баннера %s не записана: баннер удалён во время записи", banner_id)
+    return written

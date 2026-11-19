@@ -178,6 +178,7 @@ REST_FRAMEWORK = {
         "anon": "6000/min",  # Increased to fix SSR 429 errors
         "subscribe": "30/min",
         "unsubscribe": "30/min",
+        "site_events": "120/min",
         "user": "10000/day",
     },
 }
@@ -518,6 +519,8 @@ SPECTACULAR_SETTINGS = {
     "POSTPROCESSING_HOOKS": ["drf_spectacular.hooks.postprocess_schema_enums"],
     "ENUM_NAME_OVERRIDES": {
         "ValidationErrorEnum": "drf_spectacular.utils.validation_error_enum_class",
+        # Своё имя: общее `KindEnum` при втором поле `kind` переименовалось бы в хэш.
+        "SiteEventKindEnum": "apps.banners.serializers.SITE_EVENT_KIND_CHOICES",
     },
     "TAGS": [
         {"name": "Authentication", "description": "Аутентификация и JWT токены"},

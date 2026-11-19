@@ -102,3 +102,26 @@ class BannerSerializer(serializers.ModelSerializer):
         if obj.mobile_image:
             return cast(str, obj.mobile_image.url)
         return ""
+
+
+# Больше событий за одну отправку клиент не копит: очередь уходит раз в 5 секунд.
+MAX_SITE_EVENTS_PER_BATCH = 50
+_MAX_BIGINT = 2**63 - 1
+# На эти choices ссылается SPECTACULAR_SETTINGS["ENUM_NAME_OVERRIDES"] (SiteEventKindEnum).
+SITE_EVENT_KIND_CHOICES = (("view", "Показ"), ("click", "Клик"))
+
+
+class SiteEventSerializer(serializers.Serializer):
+    """Одно событие баннера: показ или клик."""
+
+    banner_id = serializers.IntegerField(min_value=1, max_value=_MAX_BIGINT)
+    kind = serializers.ChoiceField(choices=SITE_EVENT_KIND_CHOICES)
+
+
+class SiteEventsBatchSerializer(serializers.Serializer):
+    """Пачка событий баннеров, которую фронтенд отправляет одним запросом."""
+
+    # max_length у many=True есть в DRF 3.14, в djangorestframework-stubs 3.14.2 — нет.
+    events = SiteEventSerializer(
+        many=True, allow_empty=False, max_length=MAX_SITE_EVENTS_PER_BATCH  # type: ignore[call-arg]
+    )

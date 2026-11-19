@@ -438,3 +438,60 @@ class Banner(models.Model):
             queryset = queryset.filter(role_filters)
 
         return queryset
+
+
+class BannerDailyStat(models.Model):
+    """
+    Показы и клики баннера за сутки — для отчётности в ОРД (ФЗ «О рекламе», ст. 18.1).
+
+    Только дневные суммы: ни IP, ни User-Agent, ни cookie, ни пользователя строка
+    не хранит. Ключ — `(banner_ref_id, date, erid)`: копия pk баннера не обнуляется
+    при его удалении, поэтому ключ без NULL и группировка креатива не ломается.
+    Название, ERID и реквизиты рекламодателя — снимок на момент события: после
+    удаления баннера (`banner` → NULL) строка остаётся пригодной для отчёта.
+    Новый ERID в течение дня даёт новую строку.
+    """
+
+    banner = cast(
+        Optional[Banner],
+        models.ForeignKey(
+            Banner,
+            on_delete=models.SET_NULL,
+            null=True,
+            blank=True,
+            related_name="daily_stats",
+            verbose_name="Баннер",
+        ),
+    )
+    banner_ref_id = cast(
+        int,
+        models.BigIntegerField(
+            "ID баннера",
+            help_text="Копия ID баннера: сохраняется и после удаления баннера",
+        ),
+    )
+    date = models.DateField("Дата")
+    erid = cast(str, models.CharField("Токен ERID", max_length=64, blank=True, default=""))
+    banner_title = cast(str, models.CharField("Баннер", max_length=200, blank=True, default=""))
+    advertiser_name = cast(str, models.CharField("Наименование рекламодателя", max_length=255, blank=True, default=""))
+    advertiser_inn = cast(str, models.CharField("ИНН рекламодателя", max_length=12, blank=True, default=""))
+    views = cast(int, models.PositiveIntegerField("Показы", default=0))
+    clicks = cast(int, models.PositiveIntegerField("Клики", default=0))
+
+    class Meta:
+        verbose_name = "Статистика баннера"
+        verbose_name_plural = "Статистика баннеров"
+        db_table = "banner_daily_stats"
+        ordering = ["-date", "banner_title"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["banner_ref_id", "date", "erid"],
+                name="banner_daily_stat_ref_date_erid_uniq",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["date"], name="banner_daily_stat_date_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.banner_title or self.banner_ref_id} — {self.date}"

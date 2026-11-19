@@ -40,6 +40,7 @@ ADMIN_PAGE_UPLOAD = "/admin/pages/page/upload-image/"
 SAVED_URL = re.compile(r"^/media/content/images/\d{4}/\d{2}/[0-9a-f]{32}\.(png|jpg|webp|gif)$")
 
 _migration = importlib.import_module("apps.users.migrations.0023_staff_role_groups")
+_stat_migration = importlib.import_module("apps.banners.migrations.0009_banner_daily_stat_permissions")
 
 # Эталон редактора лежит у тестов фронтенда; в тест-контейнер он смонтирован по тому
 # же пути относительно backend/, что и в checkout репозитория (docker-compose.test.yml).
@@ -56,6 +57,7 @@ REFERENCE_HTML = (
 @pytest.fixture(autouse=True)
 def role_groups():
     _migration.create_staff_role_groups(django_apps, SimpleNamespace(connection=connection))
+    _stat_migration.grant_banner_stat_permissions(django_apps, SimpleNamespace(connection=connection))
 
 
 @pytest.fixture(autouse=True)

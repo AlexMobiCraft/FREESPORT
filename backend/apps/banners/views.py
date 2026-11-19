@@ -4,13 +4,22 @@ API views для баннеров
 
 from __future__ import annotations
 
-from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
-from rest_framework import permissions, viewsets
+import re
+
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema
+from rest_framework import permissions, status, viewsets
+from rest_framework.parsers import JSONParser
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.common.throttling import SiteEventsThrottle
 
 from . import services
-from .serializers import BannerSerializer
+from .serializers import BannerSerializer, SiteEventsBatchSerializer
+
+# Роботы и автоматические браузеры баннер не «видят» — их события не считаются.
+BOT_USER_AGENT_RE = re.compile(r"bot|crawl|spider|headless|lighthouse", re.IGNORECASE)
 
 
 class ActiveBannersView(viewsets.ViewSet):
@@ -115,3 +124,58 @@ class ActiveBannersView(viewsets.ViewSet):
         services.cache_banner_response(cache_key, data, ttl)
 
         return Response(data)
+
+
+class PlainTextJSONParser(JSONParser):
+    """
+    JSON в теле с `Content-Type: text/plain`.
+
+    Фронтенд шлёт события как text/plain: это CORS-safelisted тип, запрос уходит
+    без preflight, и `fetch(..., {keepalive: true})` надёжно доставляет его при
+    уходе со страницы.
+    """
+
+    media_type = "text/plain"
+
+
+class SiteEventsView(APIView):
+    """
+    Приём событий баннеров (показы и клики) для отчётности в ОРД.
+
+    Без аутентификации, cookie и CSRF: в БД попадают только дневные суммы по
+    баннеру. Путь намеренно без слов `banner`, `ad`, `promo`, `collect` —
+    их режут блокировщики рекламы.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes: list = []
+    # Явно: глобальные anon/user из DEFAULT_THROTTLE_CLASSES к endpoint не применяются.
+    throttle_classes = [SiteEventsThrottle]
+    parser_classes = [JSONParser, PlainTextJSONParser]
+
+    @extend_schema(
+        summary="Принять события баннеров",
+        description=(
+            "Пачка событий «показ» (`view`) и «клик» (`click`) баннеров, не больше 50 за запрос. "
+            "Тело — JSON с `Content-Type: application/json` или `text/plain`. "
+            "Неизвестные, выключенные и вне дат показа баннеры молча отбрасываются; "
+            "запросы роботов (по User-Agent) не учитываются. Успешный ответ 204 — без тела; "
+            "400 и 429 возвращают JSON с описанием ошибки."
+        ),
+        tags=["Banners"],
+        auth=[],
+        request=SiteEventsBatchSerializer,
+        responses={
+            204: OpenApiResponse(description="События приняты"),
+            400: OpenApiResponse(description="Невалидное тело запроса"),
+            429: OpenApiResponse(description="Превышен лимит запросов"),
+        },
+    )
+    def post(self, request: Request) -> Response:
+        if BOT_USER_AGENT_RE.search(request.META.get("HTTP_USER_AGENT", "")):
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        serializer = SiteEventsBatchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.record_events(serializer.validated_data["events"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
