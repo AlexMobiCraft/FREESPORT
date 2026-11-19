@@ -46,11 +46,13 @@ FALLBACK = ManagerRoutingRule.MATCH_FALLBACK
 INN_REGION = ManagerRoutingRule.MATCH_INN_REGION
 
 _migration = importlib.import_module("apps.users.migrations.0023_staff_role_groups")
+_stat_migration = importlib.import_module("apps.banners.migrations.0009_banner_daily_stat_permissions")
 
 
 @pytest.fixture(autouse=True)
 def role_groups():
     _migration.create_staff_role_groups(django_apps, SimpleNamespace(connection=connection))
+    _stat_migration.grant_banner_stat_permissions(django_apps, SimpleNamespace(connection=connection))
 
 
 @pytest.fixture(autouse=True)

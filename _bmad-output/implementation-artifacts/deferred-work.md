@@ -1332,3 +1332,18 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-role-dealer-price.md`
   summary: В документации (`docs/PROJECT_INFO.md`, `docs/architecture/…/role-based-pricing-pattern.md`, `docs/integrations/1c/`) нет ролей с ценой из 1С (`vip`, `special_price`, `dealer`), соответствия «вид цен → поле → роль» и порядка выката «код → белый список БУС → полная выгрузка».
   evidence: поиск по `docs/` не находит этих ролей; порядок выката записан только в спеке.
+
+## Deferred from: build clarify — статистика баннеров для ОРД (2026-11-19)
+
+- source_spec: none
+  summary: Цели Яндекс Метрики (регистрация, корзина, оформление заказа, заявка на опт, клик по телефону/email, подписка, поиск) — первая задача после статистики баннеров; до неё владелец заводит счётчик и задаёт переменную репозитория `NEXT_PUBLIC_YM_ID`.
+  evidence: решение владельца 19.11.2026 — «отдельными задачами после баннеров: сначала цели Метрики, затем мониторинг и Sentry».
+- source_spec: none
+  summary: Мониторинг доступности сайта и API с оповещениями (UptimeRobot / Яндекс Мониторинг) — ловить 502 после пересборки backend до пользователей.
+  evidence: решение владельца 19.11.2026; повторяющиеся 502 из-за DNS upstream в nginx прода.
+- source_spec: none
+  summary: Сбор ошибок frontend и backend (Sentry или самостоятельно размещённый GlitchTip — с учётом 152-ФЗ).
+  evidence: решение владельца 19.11.2026; в `backend/requirements.txt` и `frontend/package.json` средств сбора ошибок нет.
+- source_spec: `_bmad-output/implementation-artifacts/spec-banner-impressions-clicks-ord.md`
+  summary: Цель Метрики `banner_click` с параметрами `{banner_id, banner_type, erid}` при клике по баннеру — сделать в задаче «Цели Яндекс Метрики» (точка вызова — `onClick` ссылок баннеров, отправляющий событие `click` своего счётчика).
+  evidence: решение владельца 19.11.2026 убрать Метрику из спецификации статистики баннеров: для ОРД она не нужна, счётчик Метрики ещё не заведён.

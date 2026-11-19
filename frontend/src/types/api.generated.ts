@@ -1182,6 +1182,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/site-events/': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Принять события баннеров
+     * @description Пачка событий «показ» (`view`) и «клик» (`click`) баннеров, не больше 50 за запрос. Тело — JSON с `Content-Type: application/json` или `text/plain`. Неизвестные, выключенные и вне дат показа баннеры молча отбрасываются; запросы роботов (по User-Agent) не учитываются. Успешный ответ 204 — без тела; 400 и 429 возвращают JSON с описанием ошибки.
+     */
+    post: operations['site_events_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/banners/': {
     parameters: {
       query?: never;
@@ -2835,6 +2855,22 @@ export interface components {
       readonly attributes: {
         [key: string]: unknown;
       }[];
+    };
+    /**
+     * @description * `view` - Показ
+     *     * `click` - Клик
+     * @enum {string}
+     */
+    SiteEventKindEnum: 'view' | 'click';
+    /** @description Одно событие баннера: показ или клик. */
+    SiteEventRequest: {
+      /** Format: int64 */
+      banner_id: number;
+      kind: components['schemas']['SiteEventKindEnum'];
+    };
+    /** @description Пачка событий баннеров, которую фронтенд отправляет одним запросом. */
+    SiteEventsBatchRequest: {
+      events: components['schemas']['SiteEventRequest'][];
     };
     /**
      * @description * `pending` - Ожидает обработки
@@ -5262,6 +5298,43 @@ export interface operations {
         content: {
           'application/json': components['schemas']['DeliveryMethod'];
         };
+      };
+    };
+  };
+  site_events_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SiteEventsBatchRequest'];
+        'text/plain': components['schemas']['SiteEventsBatchRequest'];
+      };
+    };
+    responses: {
+      /** @description События приняты */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Невалидное тело запроса */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Превышен лимит запросов */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

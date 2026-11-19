@@ -136,6 +136,7 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
     "anon": "100000/min",
     "subscribe": "100000/min",
     "unsubscribe": "100000/min",
+    "site_events": "100000/min",
     "user": "100000/min",
 }
 

@@ -15,6 +15,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { isApiPricedRole } from '@/utils/pricing';
 import { Button } from '@/components/ui/Button/Button';
 import bannersService from '@/services/bannersService';
+import { trackBannerClick } from '@/services/siteEvents';
+import { useBannerViewTracking } from '@/hooks/useBannerViewTracking';
 import type { Banner } from '@/types/banners';
 
 interface BannerContent {
@@ -61,6 +63,16 @@ const HeroSection = () => {
   const [error, setError] = useState<Error | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [sectionElement, setSectionElement] = useState<HTMLElement | null>(null);
+  // id баннера, чья картинка загрузилась. Не булев флаг: <Image> один, при смене баннера
+  // меняется только src, и флаг остался бы true от прошлого баннера.
+  const [loadedId, setLoadedId] = useState<number | null>(null);
+
+  // Показ для ОРД: секция видна ≥ 50 % не меньше 1 с, картинка текущего баннера загружена.
+  // Статические fallback-баннеры (без id) не учитываются.
+  const activeBannerId =
+    !isLoading && !error && banners.length > 0 ? banners[currentIndex]?.id : undefined;
+  useBannerViewTracking(sectionElement, activeBannerId, loadedId);
 
   // Загрузка баннеров из API
   useEffect(() => {
@@ -196,6 +208,7 @@ const HeroSection = () => {
 
   return (
     <section
+      ref={setSectionElement}
       className="relative overflow-hidden text-gray-900 md:min-h-[400px]"
       aria-label="Hero section"
       onMouseEnter={() => setIsPaused(true)}
@@ -210,7 +223,14 @@ const HeroSection = () => {
             </p>
           </div>
           <div className="flex justify-center md:justify-start md:mt-auto">
-            <Link href={currentBanner.cta_link}>
+            <Link
+              href={currentBanner.cta_link}
+              onClick={() => trackBannerClick(currentBanner.id)}
+              // Средняя кнопка открывает ссылку в новой вкладке событием auxclick, а не click
+              onAuxClick={event => {
+                if (event.button === 1) trackBannerClick(currentBanner.id);
+              }}
+            >
               <Button
                 variant="primary"
                 size="large"
@@ -231,6 +251,8 @@ const HeroSection = () => {
               className="rounded-[32px] object-cover shadow-[0_35px_120px_rgba(0,0,0,0.15)]"
               priority
               unoptimized
+              onLoad={() => setLoadedId(currentBanner.id)}
+              onError={() => setLoadedId(null)}
             />
             <div className="pointer-events-none absolute inset-0 rounded-[32px] ring-1 ring-gray-900/5" />
           </div>

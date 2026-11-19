@@ -2279,6 +2279,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeliveryMethod'
           description: ''
+  /site-events/:
+    post:
+      operationId: site_events_create
+      description: 'Пачка событий «показ» (`view`) и «клик» (`click`) баннеров, не
+        больше 50 за запрос. Тело — JSON с `Content-Type: application/json` или `text/plain`.
+        Неизвестные, выключенные и вне дат показа баннеры молча отбрасываются; запросы
+        роботов (по User-Agent) не учитываются. Успешный ответ 204 — без тела; 400
+        и 429 возвращают JSON с описанием ошибки.'
+      summary: Принять события баннеров
+      tags:
+      - Banners
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SiteEventsBatchRequest'
+          text/plain:
+            schema:
+              $ref: '#/components/schemas/SiteEventsBatchRequest'
+        required: true
+      responses:
+        '204':
+          description: События приняты
+        '400':
+          description: Невалидное тело запроса
+        '429':
+          description: Превышен лимит запросов
   /banners/:
     get:
       operationId: banners_list
@@ -4981,6 +5008,38 @@ components:
       - sku
       - stock_quantity
       - stock_range
+    SiteEventKindEnum:
+      enum:
+      - view
+      - click
+      type: string
+      description: |-
+        * `view` - Показ
+        * `click` - Клик
+    SiteEventRequest:
+      type: object
+      description: 'Одно событие баннера: показ или клик.'
+      properties:
+        banner_id:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+        kind:
+          $ref: '#/components/schemas/SiteEventKindEnum'
+      required:
+      - banner_id
+      - kind
+    SiteEventsBatchRequest:
+      type: object
+      description: Пачка событий баннеров, которую фронтенд отправляет одним запросом.
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/SiteEventRequest'
+      required:
+      - events
     StatusEnum:
       enum:
       - pending

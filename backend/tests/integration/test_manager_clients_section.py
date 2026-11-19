@@ -63,6 +63,7 @@ INDEX_URL = "/manager/"
 CHANGELIST_URL = "/manager/users/user/"
 
 _migration = importlib.import_module("apps.users.migrations.0023_staff_role_groups")
+_stat_migration = importlib.import_module("apps.banners.migrations.0009_banner_daily_stat_permissions")
 _counter = itertools.count()
 
 # Поля блока «Не показывать» section-contents: в HTML нет ни поля, ни подписи.
@@ -89,6 +90,7 @@ HIDDEN_FIELDS = (
 def role_groups():
     """Группы ролей с полным набором прав — через функцию data-миграции 0023."""
     _migration.create_staff_role_groups(django_apps, SimpleNamespace(connection=connection))
+    _stat_migration.grant_banner_stat_permissions(django_apps, SimpleNamespace(connection=connection))
 
 
 @pytest.fixture(autouse=True)

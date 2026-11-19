@@ -14,6 +14,8 @@ import React, { useState, useEffect, useCallback, Component } from 'react';
 import Link from 'next/link';
 import bannersService from '@/services/bannersService';
 import { useBannerCarousel } from '@/hooks/useBannerCarousel';
+import { useBannerViewTracking } from '@/hooks/useBannerViewTracking';
+import { trackBannerClick } from '@/services/siteEvents';
 import { AdDisclosure } from './AdDisclosure';
 import type { Banner } from '@/types/banners';
 
@@ -92,6 +94,112 @@ const MarketingBannersSkeleton: React.FC = () => (
  * - This value can be overridden via backend configuration in future iterations
  */
 const MARKETING_BANNER_AUTOPLAY_DELAY = 3000;
+
+// ---------------------------------------------------------------------------
+// MarketingBannerSlide — один слайд со счётчиком показов и кликов (ОРД)
+// ---------------------------------------------------------------------------
+
+interface MarketingBannerSlideProps {
+  banner: Banner;
+  isVisibleSlide: boolean;
+  onImageError: (bannerId: number) => void;
+  onDisclosureOpenChange: (isOpen: boolean) => void;
+}
+
+const MarketingBannerSlide: React.FC<MarketingBannerSlideProps> = ({
+  banner,
+  isVisibleSlide,
+  onImageError,
+  onDisclosureOpenChange,
+}) => {
+  const [slideElement, setSlideElement] = useState<HTMLDivElement | null>(null);
+  // id баннера, чья картинка загрузилась: пустой блок до загрузки показом не считается
+  const [loadedId, setLoadedId] = useState<number | null>(null);
+
+  // Embla держит все слайды в DOM, а IntersectionObserver учитывает обрезку
+  // overflow-hidden — поэтому наблюдается каждый слайд отдельно.
+  useBannerViewTracking(slideElement, banner.id, loadedId);
+
+  // Картинка из кэша могла загрузиться раньше, чем React повесил onLoad
+  const imageRef = useCallback(
+    (img: HTMLImageElement | null) => {
+      if (img?.complete && img.naturalWidth > 0) setLoadedId(banner.id);
+    },
+    [banner.id]
+  );
+
+  const handleImageLoad = () => setLoadedId(banner.id);
+
+  const handleImageError = () => {
+    setLoadedId(null);
+    onImageError(banner.id);
+  };
+
+  const handleClick = () => trackBannerClick(banner.id);
+  // Средняя кнопка открывает ссылку в новой вкладке событием auxclick, а не click
+  const handleAuxClick = (event: React.MouseEvent) => {
+    if (event.button === 1) trackBannerClick(banner.id);
+  };
+
+  const picture = (
+    <picture>
+      {banner.mobile_image_url && (
+        <source media="(max-width: 767px)" srcSet={banner.mobile_image_url} />
+      )}
+      <img
+        ref={imageRef}
+        src={banner.image_url}
+        alt={banner.image_alt || banner.title}
+        sizes="(max-width: 768px) 100vw, 1280px"
+        loading="lazy"
+        decoding="async"
+        className="w-full h-full object-cover absolute inset-0"
+        onLoad={handleImageLoad}
+        onError={handleImageError}
+      />
+    </picture>
+  );
+
+  return (
+    <div
+      ref={setSlideElement}
+      className="flex-[0_0_100%] min-w-0 relative"
+      data-testid="marketing-banner-slide"
+    >
+      {isSafeLink(banner.cta_link) ? (
+        <Link
+          href={getSafeHref(banner.cta_link)}
+          className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
+          aria-label={banner.title}
+          onClick={handleClick}
+          onAuxClick={handleAuxClick}
+        >
+          {picture}
+        </Link>
+      ) : (
+        <div
+          className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
+          aria-label={banner.title}
+        >
+          {picture}
+        </div>
+      )}
+
+      {/* Маркировка рекламы — сосед ссылки, а не потомок: вложенные
+          интерактивные элементы недопустимы и уводили бы на cta_link */}
+      {banner.is_advertisement && (
+        <AdDisclosure
+          advertiserName={banner.advertiser_name}
+          advertiserInn={banner.advertiser_inn}
+          erid={banner.erid}
+          onOpenChange={onDisclosureOpenChange}
+          inert={!isVisibleSlide}
+          className="absolute right-0 top-1/2 z-10 -translate-y-1/2"
+        />
+      )}
+    </div>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // MarketingBannersCarousel (inner component)
@@ -186,62 +294,17 @@ const MarketingBannersCarousel: React.FC = () => {
     >
       <div ref={emblaRef} className="overflow-hidden rounded-2xl">
         <div className="flex">
-          {visibleBanners.map((banner, index) => {
-            const picture = (
-              <picture>
-                {banner.mobile_image_url && (
-                  <source media="(max-width: 767px)" srcSet={banner.mobile_image_url} />
-                )}
-                <img
-                  src={banner.image_url}
-                  alt={banner.image_alt || banner.title}
-                  sizes="(max-width: 768px) 100vw, 1280px"
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-full object-cover absolute inset-0"
-                  onError={() => handleImageError(banner.id)}
-                />
-              </picture>
-            );
-
-            // Embla держит все слайды в DOM. inert вешаем только на метку рекламы, а не на
-            // весь слайд: слайд целиком выпал бы из a11y-дерева вместе со ссылкой баннера.
-            const isVisibleSlide = index === selectedIndex;
-
-            return (
-              <div className="flex-[0_0_100%] min-w-0 relative" key={banner.id}>
-                {isSafeLink(banner.cta_link) ? (
-                  <Link
-                    href={getSafeHref(banner.cta_link)}
-                    className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
-                    aria-label={banner.title}
-                  >
-                    {picture}
-                  </Link>
-                ) : (
-                  <div
-                    className="block relative w-full aspect-[21/9] md:aspect-[3/1]"
-                    aria-label={banner.title}
-                  >
-                    {picture}
-                  </div>
-                )}
-
-                {/* Маркировка рекламы — сосед ссылки, а не потомок: вложенные
-                    интерактивные элементы недопустимы и уводили бы на cta_link */}
-                {banner.is_advertisement && (
-                  <AdDisclosure
-                    advertiserName={banner.advertiser_name}
-                    advertiserInn={banner.advertiser_inn}
-                    erid={banner.erid}
-                    onOpenChange={handleDisclosureOpenChange}
-                    inert={!isVisibleSlide}
-                    className="absolute right-0 top-1/2 z-10 -translate-y-1/2"
-                  />
-                )}
-              </div>
-            );
-          })}
+          {visibleBanners.map((banner, index) => (
+            <MarketingBannerSlide
+              key={banner.id}
+              banner={banner}
+              // Embla держит все слайды в DOM. inert вешаем только на метку рекламы, а не на
+              // весь слайд: слайд целиком выпал бы из a11y-дерева вместе со ссылкой баннера.
+              isVisibleSlide={index === selectedIndex}
+              onImageError={handleImageError}
+              onDisclosureOpenChange={handleDisclosureOpenChange}
+            />
+          ))}
         </div>
       </div>
 
