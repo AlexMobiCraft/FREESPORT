@@ -45,7 +45,7 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-// Счётчик показов и кликов для ОРД — проверяется вызов, а не сеть
+// Счётчик показов и кликов для ОРД — проверяется, что шапка его не вызывает
 vi.mock('@/services/siteEvents', () => ({
   trackBannerView: vi.fn(),
   trackBannerClick: vi.fn(),
@@ -142,7 +142,8 @@ describe.each(['vip', 'special_price', 'dealer'] as const)(
 
 
 // ---------------------------------------------------------------------------
-// Счётчик показов и кликов (отчётность в ОРД)
+// Счётчик показов и кликов: шапка не участвует, статистика ведётся только по
+// маркетинговым баннерам слайдера (spec-banner-stats-marketing-only)
 // ---------------------------------------------------------------------------
 
 const trackedBanners = [
@@ -184,19 +185,12 @@ const auxClick = (element: Element, button: number) => {
   });
 };
 
-describe('ElectricHeroSection — показы и клики', () => {
+describe('ElectricHeroSection — показы и клики не отправляются', () => {
   let io: IntersectionObserverMockControls;
 
-  // next/image зовёт onLoad после img.decode() — ждём микрозадачи
-  const loadImage = async (alt: string) => {
-    await act(async () => {
-      fireEvent.load(screen.getByAltText(alt));
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-  };
-
-  const renderLoaded = async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    io = installIntersectionObserverMock();
     vi.mocked(bannersService.getActive).mockResolvedValue(trackedBanners);
     vi.mocked(useAuthStore).mockReturnValue({
       user: null,
@@ -207,14 +201,6 @@ describe('ElectricHeroSection — показы и клики', () => {
       logout: vi.fn(),
       getRefreshToken: vi.fn(),
     });
-    render(<ElectricHeroSection />);
-    await screen.findByText('First Banner');
-    return screen.getByLabelText('Hero section');
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    io = installIntersectionObserverMock();
   });
 
   afterEach(() => {
@@ -222,93 +208,34 @@ describe('ElectricHeroSection — показы и клики', () => {
     vi.unstubAllGlobals();
   });
 
-  it('засчитывает показ текущего баннера через 1 с после загрузки картинки', async () => {
-    const section = await renderLoaded();
-    await loadImage('First banner');
-    vi.useFakeTimers();
-
-    act(() => io.setIntersection(section, 0.8));
-    act(() => vi.advanceTimersByTime(999));
-    expect(trackBannerView).not.toHaveBeenCalled();
-    act(() => vi.advanceTimersByTime(1));
-
-    expect(vi.mocked(trackBannerView).mock.calls).toEqual([[1]]);
-  });
-
-  it('автопрокрутка: новый баннер засчитывается после загрузки своей картинки', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const section = await renderLoaded();
-    await loadImage('First banner');
-    act(() => io.setIntersection(section, 1));
-    act(() => vi.advanceTimersByTime(1000));
-    expect(vi.mocked(trackBannerView).mock.calls).toEqual([[1]]);
-
-    // Автопрокрутка через 5 с: тот же DOM-узел, IO повторно не срабатывает
-    act(() => vi.advanceTimersByTime(4000));
-    expect(screen.getByText('Second Banner')).toBeInTheDocument();
-    act(() => vi.advanceTimersByTime(3000));
-    // Картинка второго ещё не загрузилась — показ не засчитан
-    expect(vi.mocked(trackBannerView).mock.calls).toEqual([[1]]);
-
-    await loadImage('Second banner');
-    act(() => vi.advanceTimersByTime(1000));
-
-    expect(vi.mocked(trackBannerView).mock.calls).toEqual([[1], [2]]);
-  });
-
-  it('ошибка картинки — показ не засчитан', async () => {
-    const section = await renderLoaded();
-    act(() => {
-      fireEvent.error(screen.getByAltText('First banner'));
+  it('видимая дольше 1 с шапка с загруженной картинкой не засчитывает показ', async () => {
+    render(<ElectricHeroSection />);
+    await screen.findByText('First Banner');
+    const section = screen.getByLabelText('Hero section');
+    // next/image зовёт onLoad после img.decode() — ждём микрозадачи
+    await act(async () => {
+      fireEvent.load(screen.getByAltText('First banner'));
+      await Promise.resolve();
+      await Promise.resolve();
     });
     vi.useFakeTimers();
 
+    expect(io.observersOf(section)).toEqual([]);
     act(() => io.setIntersection(section, 1));
     act(() => vi.advanceTimersByTime(3000));
 
     expect(trackBannerView).not.toHaveBeenCalled();
   });
 
-  it('клик по CTA отправляет click текущего баннера', async () => {
-    await renderLoaded();
-
-    fireEvent.click(screen.getByText('Click first'));
-
-    expect(trackBannerClick).toHaveBeenCalledWith(1);
-  });
-
-  it('открытие средней кнопкой (auxclick) тоже считается кликом, правая кнопка — нет', async () => {
-    await renderLoaded();
+  it('клик по CTA, в том числе средней кнопкой, не отправляет click', async () => {
+    render(<ElectricHeroSection />);
+    await screen.findByText('First Banner');
     const link = screen.getByText('Click first').closest('a') as HTMLAnchorElement;
 
-    auxClick(link, 2);
-    expect(trackBannerClick).not.toHaveBeenCalled();
-
+    fireEvent.click(link);
     auxClick(link, 1);
-    expect(trackBannerClick).toHaveBeenCalledTimes(1);
-    expect(trackBannerClick).toHaveBeenCalledWith(1);
-  });
 
-  it('статический fallback-баннер не учитывается', async () => {
-    vi.mocked(bannersService.getActive).mockResolvedValue([]);
-    vi.mocked(useAuthStore).mockReturnValue({
-      user: null,
-      isAuthenticated: false,
-      accessToken: null,
-      setTokens: vi.fn(),
-      setUser: vi.fn(),
-      logout: vi.fn(),
-      getRefreshToken: vi.fn(),
-    });
-    render(<ElectricHeroSection />);
-    const section = await screen.findByLabelText('Hero section');
-    vi.useFakeTimers();
-
-    act(() => io.setIntersection(section, 1));
-    act(() => vi.advanceTimersByTime(3000));
-    fireEvent.click(screen.getAllByRole('link')[0]);
-
-    expect(trackBannerView).not.toHaveBeenCalled();
     expect(trackBannerClick).not.toHaveBeenCalled();
+    expect(trackBannerView).not.toHaveBeenCalled();
   });
 });

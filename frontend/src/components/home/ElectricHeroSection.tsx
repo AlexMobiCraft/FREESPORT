@@ -19,8 +19,6 @@ import { useAuthStore } from '@/stores/authStore';
 import { isApiPricedRole } from '@/utils/pricing';
 import { ElectricButton } from '@/components/ui/Button/ElectricButton';
 import bannersService from '@/services/bannersService';
-import { trackBannerClick } from '@/services/siteEvents';
-import { useBannerViewTracking } from '@/hooks/useBannerViewTracking';
 import type { Banner } from '@/types/banners';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -89,16 +87,6 @@ export const ElectricHeroSection = () => {
   const [error, setError] = useState<Error | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [sectionElement, setSectionElement] = useState<HTMLElement | null>(null);
-  // id баннера, чья картинка загрузилась. Не булев флаг: <Image> один, при смене баннера
-  // меняется только src, и флаг остался бы true от прошлого баннера.
-  const [loadedId, setLoadedId] = useState<number | null>(null);
-
-  // Показ для ОРД: секция видна ≥ 50 % не меньше 1 с, картинка текущего баннера загружена.
-  // Статические fallback-баннеры (без id) не учитываются.
-  const activeBannerId =
-    !isLoading && !error && banners.length > 0 ? banners[currentIndex]?.id : undefined;
-  useBannerViewTracking(sectionElement, activeBannerId, loadedId);
 
   // Загрузка баннеров из API
   useEffect(() => {
@@ -178,7 +166,6 @@ export const ElectricHeroSection = () => {
 
   return (
     <section
-      ref={setSectionElement}
       className="relative min-h-[500px] lg:min-h-[600px] bg-[var(--bg-body)] overflow-hidden"
       aria-label="Hero section"
       onMouseEnter={() => setIsPaused(true)}
@@ -199,8 +186,6 @@ export const ElectricHeroSection = () => {
           className="object-cover object-right opacity-40"
           priority
           unoptimized
-          onLoad={() => setLoadedId(currentBanner?.id ?? null)}
-          onError={() => setLoadedId(null)}
         />
       </div>
 
@@ -228,18 +213,7 @@ export const ElectricHeroSection = () => {
           </p>
 
           {/* CTA Button */}
-          <Link
-            href={ctaLink}
-            onClick={currentBanner ? () => trackBannerClick(currentBanner.id) : undefined}
-            // Средняя кнопка открывает ссылку в новой вкладке событием auxclick, а не click
-            onAuxClick={
-              currentBanner
-                ? event => {
-                    if (event.button === 1) trackBannerClick(currentBanner.id);
-                  }
-                : undefined
-            }
-          >
+          <Link href={ctaLink}>
             <ElectricButton variant="primary" size="lg">
               {ctaText}
             </ElectricButton>

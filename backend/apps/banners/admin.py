@@ -196,17 +196,25 @@ class BannerAdmin(admin.ModelAdmin):
             clicks_30d=_stat_total("clicks", since),
         )
 
+    # Статистика ведётся только по маркетинговым баннерам слайдера: у баннера шапки
+    # колонки показывают «—», а не нули (и не строки времён, когда он был маркетинговым).
     @admin.display(description="Показы за 30 дней", ordering="views_30d")
-    def views_30d(self, obj: Banner) -> int:
+    def views_30d(self, obj: Banner) -> int | str:
+        if obj.type != Banner.BannerType.MARKETING:
+            return "—"
         return int(getattr(obj, "views_30d", 0) or 0)
 
     @admin.display(description="Клики за 30 дней", ordering="clicks_30d")
-    def clicks_30d(self, obj: Banner) -> int:
+    def clicks_30d(self, obj: Banner) -> int | str:
+        if obj.type != Banner.BannerType.MARKETING:
+            return "—"
         return int(getattr(obj, "clicks_30d", 0) or 0)
 
     @admin.display(description="CTR за 30 дней")
     def ctr_30d(self, obj: Banner) -> str:
-        return _ctr(self.views_30d(obj), self.clicks_30d(obj))
+        if obj.type != Banner.BannerType.MARKETING:
+            return "—"
+        return _ctr(int(getattr(obj, "views_30d", 0) or 0), int(getattr(obj, "clicks_30d", 0) or 0))
 
     @admin.display(description="Превью")
     def image_preview(self, obj: Banner) -> SafeString:

@@ -33,7 +33,12 @@ from apps.banners.admin import (
     parse_period,
     year_options,
 )
-from apps.banners.factories import AdvertisementBannerFactory, BannerFactory, generate_test_image
+from apps.banners.factories import (
+    AdvertisementBannerFactory,
+    BannerFactory,
+    MarketingBannerFactory,
+    generate_test_image,
+)
 from apps.banners.models import Banner, BannerDailyStat
 from apps.users.models import User
 from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP
@@ -216,7 +221,7 @@ class TestBannerAdminStatColumns:
         assert admin.ctr_30d(row) == "15,00 %"
 
     def test_ctr_without_views_is_dash(self):
-        banner = BannerFactory()
+        banner = MarketingBannerFactory()
         make_stat(banner, views=0, clicks=2)
         admin = BannerAdmin(Banner, AdminSite())
 
@@ -225,15 +230,25 @@ class TestBannerAdminStatColumns:
         assert (admin.views_30d(row), admin.clicks_30d(row), admin.ctr_30d(row)) == (0, 2, "—")
 
     def test_banner_without_stats_has_zeros(self):
-        banner = BannerFactory()
+        banner = MarketingBannerFactory()
         admin = BannerAdmin(Banner, AdminSite())
 
         row = self._row(banner)
 
         assert (admin.views_30d(row), admin.clicks_30d(row), admin.ctr_30d(row)) == (0, 0, "—")
 
+    def test_hero_banner_columns_are_dashes(self):
+        # Статистика шапки не ведётся; строки времён, когда баннер был маркетинговым, не показываются.
+        banner = BannerFactory(type=Banner.BannerType.HERO)
+        make_stat(banner, views=10, clicks=1)
+        admin = BannerAdmin(Banner, AdminSite())
+
+        row = self._row(banner)
+
+        assert (admin.views_30d(row), admin.clicks_30d(row), admin.ctr_30d(row)) == ("—", "—", "—")
+
     def test_list_has_one_row_per_banner(self):
-        banner = BannerFactory()
+        banner = MarketingBannerFactory()
         for days in range(5):
             make_stat(banner, date=timezone.localdate() - timedelta(days=days), views=1)
 

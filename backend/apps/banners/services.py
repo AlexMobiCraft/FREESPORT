@@ -236,8 +236,9 @@ EVENT_CLICK = "click"
 EVENT_KINDS = (EVENT_VIEW, EVENT_CLICK)
 
 # Одна строка на баннер: снимок и ERID берутся из самого баннера в момент события,
-# клиенту не доверяем. SELECT отбрасывает неизвестный, выключенный и вышедший из окна
-# дат баннер — тогда вставлять нечего, и событие молча теряется. Приращение — в одном
+# клиенту не доверяем. SELECT отбрасывает неизвестный, выключенный, вышедший из окна
+# дат и не маркетинговый баннер (шапку, `type = hero`: для ОРД и маркетинга считаются
+# только баннеры слайдера) — тогда вставлять нечего, и событие молча теряется. Приращение — в одном
 # операторе (ON CONFLICT … SET views = t.views + EXCLUDED.views), без read-modify-write.
 # Реквизиты рекламодателя и ERID у нерекламного баннера могут остаться в БД после
 # снятия галочки — в снимок они не попадают.
@@ -257,6 +258,7 @@ SELECT
 FROM {Banner._meta.db_table} AS b
 WHERE b.id = %(banner_id)s
     AND b.is_active
+    AND b.type = %(marketing)s
     AND (b.start_date IS NULL OR b.start_date <= %(now)s)
     AND (b.end_date IS NULL OR b.end_date >= %(now)s)
 ON CONFLICT (banner_ref_id, date, erid) DO UPDATE SET
@@ -280,6 +282,10 @@ def record_events(events: Iterable[Mapping[str, Any]]) -> int:
     сохранения: гонка с удалением баннера (FK-нарушение) теряет одно событие, а не
     пачку и не транзакцию запроса.
 
+    Учитываются только маркетинговые баннеры слайдера: события баннеров шапки
+    (``type != marketing``) отбрасываются так же молча, как события выключенного
+    баннера, — от старых вкладок и ручных запросов.
+
     Сутки — по часовому поясу проекта (`Europe/Moscow`).
 
     Args:
@@ -301,7 +307,14 @@ def record_events(events: Iterable[Mapping[str, Any]]) -> int:
     written = 0
     for banner_id in sorted(totals):
         views, clicks = totals[banner_id]
-        params: dict[str, Any] = {"date": today, "now": now, "banner_id": banner_id, "views": views, "clicks": clicks}
+        params: dict[str, Any] = {
+            "date": today,
+            "now": now,
+            "banner_id": banner_id,
+            "marketing": Banner.BannerType.MARKETING.value,
+            "views": views,
+            "clicks": clicks,
+        }
         try:
             with transaction.atomic(), connection.cursor() as cursor:
                 cursor.execute(_UPSERT_DAILY_STAT_SQL, params)
