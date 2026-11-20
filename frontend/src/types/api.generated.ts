@@ -2554,7 +2554,7 @@ export interface components {
       readonly sku: string;
       /**
        * Format: double
-       * @description Получить РРЦ первого варианта
+       * @description РРЦ = розничная цена первого варианта
        */
       readonly rrp: number | null;
       /**
@@ -2716,7 +2716,7 @@ export interface components {
       readonly sku: string;
       /**
        * Format: double
-       * @description Получить РРЦ первого варианта
+       * @description РРЦ = розничная цена первого варианта
        */
       readonly rrp: number | null;
       /**
@@ -2800,9 +2800,8 @@ export interface components {
        */
       readonly stock_range: string | null;
       /**
-       * РРЦ
        * Format: decimal
-       * @description Рекомендованная розничная цена (информационно)
+       * @description РРЦ = розничная цена варианта
        */
       readonly rrp: string | null;
       /**

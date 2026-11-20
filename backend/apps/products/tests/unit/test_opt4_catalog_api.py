@@ -128,7 +128,7 @@ class TestInfoPricesForWholesaleLevel4:
     @staticmethod
     def _product_with_info_prices() -> Product:
         product = ProductFactory(create_variant=False)
-        ProductVariantFactory(product=product, rrp=Decimal("1500.00"), msrp=Decimal("1400.00"))
+        ProductVariantFactory(product=product, retail_price=Decimal("1500.00"), msrp=Decimal("1400.00"))
         return product
 
     def test_wholesale_level4_sees_rrp_and_msrp(self):

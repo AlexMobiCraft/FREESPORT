@@ -349,6 +349,56 @@ describe('ProductCard', () => {
 
       expect(screen.getByText(/РРЦ.*1 300/)).toBeInTheDocument();
     });
+
+    // РРЦ = розничная цена из 1С. Строку видят только B2B-роли
+    describe('строка «РРЦ»', () => {
+      const rrpLayouts = ['grid', 'list'] as const;
+      const bgs322 = { ...mockProduct, opt1_price: 1800, retail_price: 2530, rrp: 2530 };
+
+      it.each(rrpLayouts)('оптовик 1 видит РРЦ под ценой «Опт 1» в раскладке %s', layout => {
+        render(<ProductCard product={bgs322} userRole="wholesale_level1" layout={layout} />);
+
+        expect(screen.getByText('1 800 ₽')).toBeInTheDocument();
+        expect(screen.getByText(/РРЦ.*2 530/)).toBeInTheDocument();
+      });
+
+      it.each(rrpLayouts)('vip видит РРЦ, даже когда цена роли равна ей, в раскладке %s', layout => {
+        const product = { ...bgs322, current_price: '2530.00', regular_price: '2530.00' };
+        render(<ProductCard product={product} userRole="vip" layout={layout} />);
+
+        expect(screen.getByText('2 530 ₽')).toBeInTheDocument();
+        expect(screen.getByText(/РРЦ.*2 530/)).toBeInTheDocument();
+      });
+
+      // mode у администратора — b2b, но строку он не видит; менеджеры — retail + staff
+      it.each(
+        (['admin', 'retail', 'unregistered', 'guest'] as const).flatMap(role =>
+          rrpLayouts.map(layout => [role, layout] as const)
+        )
+      )(
+        '%s не видит РРЦ даже в режиме b2b в раскладке %s',
+        (role, layout) => {
+          render(<ProductCard product={bgs322} userRole={role} mode="b2b" layout={layout} />);
+
+          expect(screen.queryByText(/РРЦ/)).not.toBeInTheDocument();
+        }
+      );
+
+      it('federation_rep: API не отдаёт rrp — строки нет', () => {
+        const withoutRrp = { ...bgs322, rrp: undefined };
+        render(<ProductCard product={withoutRrp} userRole="federation_rep" layout="grid" />);
+
+        expect(screen.queryByText(/РРЦ/)).not.toBeInTheDocument();
+      });
+
+      it.each(rrpLayouts)('B2B: розница 0 — строки нет и «0» не выводится в раскладке %s', layout => {
+        const product = { ...bgs322, rrp: 0 };
+        render(<ProductCard product={product} userRole="wholesale_level1" layout={layout} />);
+
+        expect(screen.queryByText(/РРЦ/)).not.toBeInTheDocument();
+        expect(screen.queryByText('0', { exact: true })).toBeNull();
+      });
+    });
   });
 
   describe('Badge Logic', () => {

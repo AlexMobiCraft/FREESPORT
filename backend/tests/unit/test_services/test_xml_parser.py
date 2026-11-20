@@ -241,7 +241,7 @@ class TestXMLDataParser:
         assert parser._map_price_type_to_field("ОПТ4") == "opt4_price"
         assert parser._map_price_type_to_field("опт4") == "opt4_price"
         assert parser._map_price_type_to_field("Тренерская") == "trainer_price"
-        assert parser._map_price_type_to_field("РРЦ Рекомендованная") == "rrp"
+        assert parser._map_price_type_to_field("РРЦ Рекомендованная") == "retail_price"
         assert parser._map_price_type_to_field("МРЦ") == "msrp"
         assert parser._map_price_type_to_field("РРЦ") == "retail_price"
         # Неопознанный вид цен НЕ маппится никуда: пустая строка вместо retail_price.

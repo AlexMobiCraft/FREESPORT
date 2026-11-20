@@ -20,7 +20,10 @@ if TYPE_CHECKING:
 # Сырые оптовые поля ответа каталога.
 WHOLESALE_PRICE_FIELDS = ("opt1_price", "opt2_price", "opt3_price", "opt4_price")
 
-# Инфо-цены B2B. Не участвуют в расчётах, но так же закрыты от розницы.
+# Инфо-цены B2B. Не участвуют в расчётах. `rrp` = розничная цена варианта
+# (`retail_price`), которую и так получает любая роль: гейт сохранён намеренно
+# (решение спеки spec-product-rrp-display), а показ строки «РРЦ» решает фронт
+# по `isB2BRole`. `msrp` (МРЦ) закрыт от розницы по существу.
 INFO_PRICE_FIELDS = ("rrp", "msrp")
 
 # Роль → поле цены роли варианта. Роли вне карты (retail, unregistered,
@@ -76,8 +79,9 @@ HIDDEN_ROLE_PRICE_FIELDS = tuple(PRICE_TYPE_ROLES)
 # поля нет: VIP без своей цены платит розницу, а не «Опт 1».
 ROLE_PRICE_FALLBACKS = {"special_price": "opt1_price", "dealer": "opt1_price"}
 
-# Роли, которым видны РРЦ/МРЦ. federation_rep исключён намеренно —
-# поведение перенесено как есть из литеральных списков сериализаторов.
+# Роли, которым API отдаёт поля РРЦ/МРЦ. federation_rep исключён намеренно —
+# поведение перенесено как есть из литеральных списков сериализаторов. admin поле
+# получает, но строку «РРЦ» фронт ему не показывает (`isB2BRole`).
 INFO_PRICE_ROLES = frozenset(
     {
         "wholesale_level1",

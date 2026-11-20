@@ -4,6 +4,8 @@ Unit тесты для Django Admin интерфейса товаров
 Story 13.2: Проверка отображения onec_brand_id в Django Admin
 """
 
+from decimal import Decimal
+
 import pytest
 from django.contrib import messages
 from django.contrib.admin.sites import AdminSite
@@ -12,7 +14,14 @@ from django.test import RequestFactory, TestCase
 from apps.products.admin import Brand1CMappingAdmin, Brand1CMappingInline, BrandAdmin, PriceTypeAdmin, ProductAdmin
 from apps.products.forms import PriceTypeAdminForm
 from apps.products.models import Brand, Brand1CMapping, PriceType, Product
-from tests.factories import Brand1CMappingFactory, BrandFactory, CategoryFactory, ProductFactory, UserFactory
+from tests.factories import (
+    Brand1CMappingFactory,
+    BrandFactory,
+    CategoryFactory,
+    ProductFactory,
+    ProductVariantFactory,
+    UserFactory,
+)
 
 
 @pytest.mark.django_db
@@ -191,6 +200,21 @@ class TestProductAdmin(TestCase):
 
         assert "onec_brand_id" in readonly_fields
         assert product.onec_brand_id is None, "onec_brand_id должен быть None для товара без бренда"
+
+    def test_rrp_display_shows_first_variant_with_retail_price(self):
+        """Колонка «РРЦ» = розничная цена первого варианта с ненулевой розницей"""
+        product = ProductFactory.create(create_variant=False)
+        ProductVariantFactory.create(product=product, retail_price=Decimal("0.00"))
+        ProductVariantFactory.create(product=product, retail_price=Decimal("2530.00"))
+
+        assert self.admin.rrp_display(product) == "2530.00 ₽"
+
+    def test_rrp_display_dash_when_only_zero_retail(self):
+        """Только варианты с нулевой розницей — прочерк, а не «0.00 ₽»"""
+        product = ProductFactory.create(create_variant=False)
+        ProductVariantFactory.create(product=product, retail_price=Decimal("0.00"))
+
+        assert self.admin.rrp_display(product) == "-"
 
 
 @pytest.mark.django_db

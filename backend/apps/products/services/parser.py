@@ -621,8 +621,7 @@ class XMLDataParser:
         elif "тренер" in name_lower:
             return "trainer_price"
         elif "ррц" in name_lower:
-            if "рекоменд" in name_lower:
-                return "rrp"
+            # РРЦ из 1С — розничная цена сайта, с «рекоменд» в названии или без
             return "retail_price"
         elif "мрц" in name_lower:
             return "msrp"

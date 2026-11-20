@@ -88,7 +88,11 @@ export interface ProductCardProps {
   product: Product;
   /** Вариант отображения карточки */
   layout?: 'grid' | 'list' | 'compact';
-  /** Режим работы (B2C/B2B) */
+  /**
+   * Режим работы (B2C/B2B). На отображение не влияет: строку «РРЦ» решает только роль
+   * (`isB2BRole`), иначе её видел бы администратор, у которого режим `b2b`
+   * @deprecated Не используется компонентом; оставлен для совместимости с вызывающими
+   */
   mode?: 'b2c' | 'b2b';
   /** Роль пользователя для ценообразования */
   userRole?: UserRole;
@@ -182,7 +186,6 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
     {
       product,
       layout = 'grid',
-      mode = 'b2c',
       userRole = 'retail',
       // showRRP = false,
       showSelectButton = false,
@@ -527,8 +530,8 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                   {currentPrice.toLocaleString('ru-RU')} ₽
                 </p>
 
-                {/* RRP/MSRP для B2B */}
-                {(mode === 'b2b' || isB2BRole(userRole)) && product.rrp && product.rrp > 0 && (
+                {/* РРЦ (розница из 1С) — только B2B-ролям; администратор с mode=b2b её не видит */}
+                {isB2BRole(userRole) && product.rrp != null && product.rrp > 0 && (
                   <div className="mt-1 space-y-0.5">
                     <p className="text-body-s text-[var(--color-text-secondary)]">
                       РРЦ: {formatPrice(product.rrp)}
@@ -661,8 +664,8 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 {currentPrice.toLocaleString('ru-RU')} ₽
               </p>
 
-              {/* RRP/MSRP для B2B */}
-              {(mode === 'b2b' || isB2BRole(userRole)) && product.rrp && product.rrp > 0 && (
+              {/* РРЦ (розница из 1С) — только B2B-ролям; администратор с mode=b2b её не видит */}
+              {isB2BRole(userRole) && product.rrp != null && product.rrp > 0 && (
                 <div className="mt-1 space-y-0.5">
                   <p className="text-body-s text-[var(--color-text-secondary)]">
                     РРЦ: {formatPrice(product.rrp)}

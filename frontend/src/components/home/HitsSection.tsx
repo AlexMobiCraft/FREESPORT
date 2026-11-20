@@ -27,6 +27,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/components/ui/Toast';
 import productsService from '@/services/productsService';
 import type { Product } from '@/types/api';
+import { isB2BRole } from '@/utils/pricing';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface HitsSectionProps {
@@ -327,7 +328,7 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
                         ? Math.round(product.retail_price / (1 - product.discount_percent / 100))
                         : undefined
                     }
-                    rrp={isB2B ? product.rrp : undefined}
+                    rrp={isB2BRole(userRole) ? product.rrp : undefined}
                     badge="hit"
                     inStock={product.is_in_stock}
                     onAddToCart={() => handleAddToCart(product.id)}

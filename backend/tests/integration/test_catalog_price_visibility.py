@@ -97,7 +97,6 @@ def _make_variant(product: Product, suffix: str, stock: int = 50) -> ProductVari
         color_name="Чёрный",
         size_value="L",
         retail_price=RETAIL_PRICE,
-        rrp=Decimal("1200.00"),
         msrp=Decimal("1300.00"),
         stock_quantity=stock,
         is_active=True,
@@ -248,7 +247,7 @@ class TestWholesalePricesVisibleForVerifiedB2B:
         assert response.status_code == 200
         _assert_wholesale_visible(response.data, "карточка товара")
         assert float(response.data["current_price"]) == float(OPT2_PRICE)
-        assert response.data["rrp"] == 1200.0
+        assert response.data["rrp"] == float(RETAIL_PRICE)
 
     def test_verified_b2b_sees_wholesale_in_related_products(self, api_client, product, related_product):
         """Гейт снимается и во вложенном списке — context один и тот же"""
@@ -373,7 +372,7 @@ class TestVipAndSpecialPriceRoles:
         assert detail.status_code == 200
         assert float(detail.data["current_price"]) == float(expected)
         assert detail.data["variants"][0]["regular_price"] == f"{expected}"
-        assert detail.data["rrp"] == 1200.0
+        assert detail.data["rrp"] == float(RETAIL_PRICE)
         assert detail.data["msrp"] == 1300.0
         _assert_wholesale_visible(detail.data, "карточка товара")
 
@@ -409,3 +408,56 @@ class TestVipAndSpecialPriceRoles:
         item = _list_item(api_client, priced_product)
 
         assert float(item["current_price"]) == float(OPT1_PRICE)
+
+
+class TestRrpIsRetailPrice:
+    """РРЦ в API = розничная цена из 1С (`retail_price`); колонки `ProductVariant.rrp` нет."""
+
+    def test_b2b_gets_retail_price_as_rrp(self, api_client, product):
+        """Оптовик 1: и в списке, и в карточке, и в варианте rrp = розница"""
+        api_client.force_authenticate(user=_make_user("wholesale_level1", is_verified=True))
+
+        item = _list_item(api_client, product)
+        detail = api_client.get(f"/api/v1/products/{product.slug}/")
+
+        assert item["rrp"] == float(RETAIL_PRICE)
+        assert float(item["current_price"]) == float(OPT1_PRICE)
+        assert detail.status_code == 200
+        assert detail.data["rrp"] == float(RETAIL_PRICE)
+        assert detail.data["variants"][0]["rrp"] == f"{RETAIL_PRICE:.2f}"
+
+    def test_admin_still_gets_rrp(self, api_client, product):
+        """INFO_PRICE_ROLES не меняется: админу API rrp отдаёт, строку скрывает фронт"""
+        api_client.force_authenticate(user=_make_user("admin", is_verified=True))
+
+        detail = api_client.get(f"/api/v1/products/{product.slug}/")
+
+        assert detail.status_code == 200
+        assert detail.data["rrp"] == float(RETAIL_PRICE)
+        assert detail.data["variants"][0]["rrp"] == f"{RETAIL_PRICE:.2f}"
+
+    @pytest.mark.parametrize(
+        "role_spec",
+        [pytest.param(None, id="anonymous"), pytest.param(("federation_rep", True), id="federation_rep")],
+    )
+    def test_guest_and_federation_rep_get_no_rrp(self, api_client, product, role_spec):
+        _authenticate(api_client, role_spec)
+
+        item = _list_item(api_client, product)
+        detail = api_client.get(f"/api/v1/products/{product.slug}/")
+
+        assert "rrp" not in item
+        assert detail.status_code == 200
+        assert "rrp" not in detail.data
+        assert all("rrp" not in variant for variant in detail.data["variants"])
+
+    def test_zero_retail_price_gives_null_rrp(self, api_client, product):
+        """Розница 0 — РРЦ нет: null, а не «0.00»"""
+        product.variants.update(retail_price=Decimal("0.00"))
+        api_client.force_authenticate(user=_make_user("wholesale_level1", is_verified=True))
+
+        detail = api_client.get(f"/api/v1/products/{product.slug}/")
+
+        assert detail.status_code == 200
+        assert detail.data["rrp"] is None
+        assert detail.data["variants"][0]["rrp"] is None

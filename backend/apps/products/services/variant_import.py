@@ -1989,11 +1989,6 @@ class VariantImportProcessor:
                 price_types = self._get_price_types()
                 price_updates, offer_values = self._map_offer_prices(prices, price_types)
 
-                # Auto-populate retail_price from RRP if not provided
-                # РРЦ из 1С является базовой розничной ценой для сайта
-                if "rrp" in price_updates and "retail_price" not in price_updates:
-                    price_updates["retail_price"] = price_updates["rrp"]
-
                 promo_changed, promo_value = self._resolve_promo_price(variant, offer_values, price_types)
                 if promo_changed:
                     price_updates[promo.PROMO_FIELD] = promo_value

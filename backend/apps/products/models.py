@@ -944,10 +944,6 @@ class PriceType(models.Model):
                 ("special_price", "Специальная цена"),
                 ("dealer_price", "Дилерская цена"),
                 (
-                    "rrp",
-                    "Рекомендованная розничная цена",
-                ),
-                (
                     "msrp",
                     "Максимальная рекомендованная цена",
                 ),
@@ -1223,18 +1219,6 @@ class ProductVariant(models.Model):
                 "Цена для роли dealer (вид цен «Дилерская цена» из 1С). Нет цены — «Опт 1», затем розница. "
                 "Ставит и снимает только импорт 1С."
             ),
-        ),
-    )
-    rrp = cast(
-        Decimal | None,
-        models.DecimalField(
-            "РРЦ",
-            max_digits=10,
-            decimal_places=2,
-            null=True,
-            blank=True,
-            validators=[MinValueValidator(Decimal("0"))],
-            help_text="Рекомендованная розничная цена (информационно)",
         ),
     )
     msrp = cast(

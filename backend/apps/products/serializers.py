@@ -70,6 +70,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     is_in_stock = serializers.BooleanField(read_only=True)
     available_quantity = serializers.IntegerField(read_only=True)
     stock_range = serializers.SerializerMethodField()
+    rrp = serializers.SerializerMethodField()
     attributes = serializers.SerializerMethodField()
     main_image = serializers.SerializerMethodField()
     gallery_images = serializers.SerializerMethodField()
@@ -220,6 +221,18 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         user: User | None = getattr(request, "user", None) if request else None
 
         return str(obj.get_regular_price_for_user(user))
+
+    @extend_schema_field(
+        serializers.DecimalField(
+            max_digits=10, decimal_places=2, allow_null=True, help_text="РРЦ = розничная цена варианта"
+        )
+    )
+    def get_rrp(self, obj: ProductVariant) -> str | None:
+        """РРЦ = розничная цена варианта"""
+        if not obj.retail_price or obj.retail_price <= 0:
+            return None
+
+        return f"{obj.retail_price:.2f}"
 
     def get_color_hex(self, obj: ProductVariant) -> str | None:
         """
@@ -662,9 +675,12 @@ class ProductListSerializer(serializers.ModelSerializer):
         return variant.sku if variant else ""
 
     def get_rrp(self, obj: Product) -> float | None:
-        """Получить РРЦ первого варианта"""
+        """РРЦ = розничная цена первого варианта"""
         variant = self._get_first_variant(obj)
-        return float(variant.rrp) if variant and variant.rrp else None
+        if not variant or not variant.retail_price or variant.retail_price <= 0:
+            return None
+
+        return float(variant.retail_price)
 
     def get_msrp(self, obj: Product) -> float | None:
         """Получить МРЦ первого варианта"""

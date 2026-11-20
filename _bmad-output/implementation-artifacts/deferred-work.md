@@ -1350,3 +1350,12 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-banner-stats-period-summary.md`
   summary: В имя CSV для ОРД добавить выгружаемый период (`ord_banners_2026-11.csv`, `ord_banners_2026.csv`, `ord_banners_all.csv`) вместо даты выгрузки.
   evidence: `ord_csv_response` называет файл `ord_banners_<дата выгрузки>.csv`; так было и в прежнем admin action, но со сводкой за период несколько выгрузок за один день получают одинаковое имя и путаются при ручном переносе в кабинет ОРД (ревью кода 20.11.2026, blind-hunter).
+
+## Отложено из обсуждения spec-product-rrp-display.md с владельцем (2026-11-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-product-rrp-display.md`
+  summary: **Поиск показывает B2B-ролям розничную цену.** `SearchResults` и `EmptySearchResults` передают в `ProductCard` жёстко `userRole="retail"`, поэтому оптовик, VIP или дилер видит в результатах поиска розницу вместо цены своей роли и не видит строку «РРЦ». Намеренно ли так сделано, не проверялось. Решение владельца 20.11.2026: отдельная задача, в спеку РРЦ не включать.
+  evidence: `frontend/src/components/business/SearchResults/SearchResults.tsx:65`, `frontend/src/components/business/EmptySearchResults/EmptySearchResults.tsx:86`; каталог и главная берут роль из `useAuthStore` (`CatalogPageClient.tsx:497`). Проверено только по коду, на проде не воспроизводилось.
+- source_spec: `_bmad-output/implementation-artifacts/spec-product-rrp-display.md`
+  summary: Деструктивная миграция роняет старые celery-воркеры в окне деплоя: `deploy.yml` пересоздаёт backend (его entrypoint выполняет `migrate`), ждёт `sleep 15` и `check --deploy` и только потом пересоздаёт celery; задачи, читающие `ProductVariant` (письма о заказе через `select_related("variant")`), в этом окне падают с `ProgrammingError` без повтора — письмо теряется.
+  evidence: `.github/workflows/deploy.yml` (блок «Перезапуск сервисов»), `docker/entrypoint_backend.sh:9`, `backend/apps/orders/tasks.py:35-36,64-69` (`autoretry_for=(SMTPException, ConnectionError)`). Вскрыто ревью spec-product-rrp-display (blind-hunter, 20.11.2026): удаление `ProductVariant.rrp` — первая такая миграция; порядок деплоя существовал и раньше. Варианты: останавливать celery/celery-beat до пересоздания backend или пересоздавать их одной командой.

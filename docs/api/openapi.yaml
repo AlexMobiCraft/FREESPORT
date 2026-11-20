@@ -4511,7 +4511,7 @@ components:
           - number
           - 'null'
           format: double
-          description: Получить РРЦ первого варианта
+          description: РРЦ = розничная цена первого варианта
           readOnly: true
         msrp:
           type:
@@ -4787,7 +4787,7 @@ components:
           - number
           - 'null'
           format: double
-          description: Получить РРЦ первого варианта
+          description: РРЦ = розничная цена первого варианта
           readOnly: true
         msrp:
           type:
@@ -4927,9 +4927,8 @@ components:
           - 'null'
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          description: РРЦ = розничная цена варианта
           readOnly: true
-          title: РРЦ
-          description: Рекомендованная розничная цена (информационно)
         msrp:
           type:
           - string

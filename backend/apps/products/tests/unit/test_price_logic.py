@@ -4,9 +4,10 @@ from decimal import Decimal
 import pytest
 from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 
 from apps.products.models import Brand, Category, ImportSession, PriceType, Product, ProductVariant
+from apps.products.services.parser import XMLDataParser
 from apps.products.services.variant_import import VariantImportProcessor
 
 User = get_user_model()
@@ -48,53 +49,34 @@ def processor(import_session):
 
 @pytest.mark.django_db
 class TestPriceImportLogic:
-    def test_rrp_auto_population_on_import(self, processor, variant):
-        """Test AC2: retail_price is populated from rrp if not provided"""
+    def test_unmapped_rrp_price_type_is_remapped_to_retail(self, processor, variant):
+        """
+        Состояние после миграции 0061: вид цен «РРЦ» без маппинга. Следующая загрузка
+        priceLists прогоняет название через маппер, вид уходит в retail_price,
+        и цена предложения этого вида пишется в розницу.
+        """
+        onec_name = "РРЦ рекомендованная"
+        price_type = PriceType.objects.create(onec_id="price-rrp-id", onec_name=onec_name, product_field="")
 
-        # Setup PriceType for rrp (РРЦ из 1С)
-        PriceType.objects.create(
-            onec_id="price-rrp-id",
-            onec_name="РРЦ",
-            product_field="rrp",
+        processor.process_price_types(
+            [
+                {
+                    "onec_id": "price-rrp-id",
+                    "onec_name": onec_name,
+                    "product_field": XMLDataParser()._map_price_type_to_field(onec_name),
+                    "is_deleted": False,
+                }
+            ]
+        )
+        price_type.refresh_from_db()
+        assert price_type.product_field == "retail_price"
+
+        processor.update_variant_prices(
+            {"id": variant.onec_id, "prices": [{"price_type_id": "price-rrp-id", "value": Decimal("2530.00")}]}
         )
 
-        # Import data with only rrp price
-        price_data = {
-            "id": variant.onec_id,
-            "prices": [{"price_type_id": "price-rrp-id", "value": Decimal("150.00")}],
-        }
-
-        # Act
-        processor.update_variant_prices(price_data)
-
-        # Assert
         variant.refresh_from_db()
-        assert variant.rrp == Decimal("150.00")
-        assert variant.retail_price == Decimal("150.00")  # Should be auto-populated from rrp
-
-    def test_rrp_not_overwritten_if_provided(self, processor, variant):
-        """Test AC2 edge case: rrp is used if explicitly provided"""
-
-        PriceType.objects.create(
-            onec_id="price-retail-id",
-            onec_name="Розничная",
-            product_field="retail_price",
-        )
-        PriceType.objects.create(onec_id="price-rrp-id", onec_name="РРЦ", product_field="rrp")
-
-        price_data = {
-            "id": variant.onec_id,
-            "prices": [
-                {"price_type_id": "price-retail-id", "value": Decimal("150.00")},
-                {"price_type_id": "price-rrp-id", "value": Decimal("180.00")},
-            ],
-        }
-
-        processor.update_variant_prices(price_data)
-
-        variant.refresh_from_db()
-        assert variant.retail_price == Decimal("150.00")
-        assert variant.rrp == Decimal("180.00")  # Explicit value takes precedence
+        assert variant.retail_price == Decimal("2530.00")
 
     def test_msrp_import(self, processor, variant):
         """Test AC3: msrp is imported correctly"""
@@ -315,6 +297,40 @@ class TestDealerPriceField:
 
 
 @pytest.mark.unit
+@pytest.mark.django_db
+class TestRemoveRrpMigration:
+    """Миграция 0061_remove_productvariant_rrp: колонки и выбора `rrp` больше нет."""
+
+    migration = importlib.import_module("apps.products.migrations.0061_remove_productvariant_rrp")
+
+    def test_rrp_price_type_loses_mapping(self):
+        """Вид цен с маппингом rrp получает пустой маппинг, остальные не трогаются."""
+        rrp_type = PriceType.objects.create(onec_id="rrp-pt", onec_name="РРЦ", product_field="rrp")
+        msrp_type = PriceType.objects.create(onec_id="msrp-pt", onec_name="МРЦ", product_field="msrp")
+
+        self.migration.unmap_rrp_price_types(django_apps, None)
+
+        rrp_type.refresh_from_db()
+        msrp_type.refresh_from_db()
+        assert rrp_type.product_field == ""
+        assert msrp_type.product_field == "msrp"
+
+    def test_rrp_field_and_choice_removed(self):
+        field_names = {field.name for field in ProductVariant._meta.get_fields()}
+        assert "rrp" not in field_names
+        assert "msrp" in field_names
+
+        choices = dict(PriceType._meta.get_field("product_field").choices or [])
+        assert "rrp" not in choices
+        assert "msrp" in choices
+
+        with connection.cursor() as cursor:
+            columns = {col.name for col in connection.introspection.get_table_description(cursor, "product_variants")}
+        assert "rrp" not in columns
+        assert "msrp" in columns
+
+
+@pytest.mark.unit
 class TestPriceTypeOpt4Choice:
     """Choice opt4_price в PriceType.product_field (AC3)."""
 
@@ -364,7 +380,7 @@ class TestSeedOpt4PriceType:
         PriceType.objects.create(
             onec_id="3d1482c4-bd77-11e4-afc8-20cf3073dde3",
             onec_name="РРЦ",
-            product_field="rrp",
+            product_field="retail_price",
         )
         self.migration.seed_opt4_price_type(django_apps, None)
 
