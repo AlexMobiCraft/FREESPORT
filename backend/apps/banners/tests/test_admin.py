@@ -23,7 +23,16 @@ from django.db import connection
 from django.test import Client, RequestFactory
 from django.utils import timezone
 
-from apps.banners.admin import BannerAdmin, BannerDailyStatAdmin, BannerRefFilter
+from apps.banners.admin import (
+    BannerAdmin,
+    BannerDailyStatAdmin,
+    StatPeriod,
+    day_options,
+    month_options,
+    ord_csv_response,
+    parse_period,
+    year_options,
+)
 from apps.banners.factories import AdvertisementBannerFactory, BannerFactory, generate_test_image
 from apps.banners.models import Banner, BannerDailyStat
 from apps.users.models import User
@@ -35,6 +44,7 @@ _roles_migration = importlib.import_module("apps.users.migrations.0023_staff_rol
 _stat_migration = importlib.import_module("apps.banners.migrations.0009_banner_daily_stat_permissions")
 
 STATS_URL = "/marketing/banners/bannerdailystat/"
+EXPORT_URL = f"{STATS_URL}export-ord/"
 BANNERS_URL = "/marketing/banners/banner/"
 
 
@@ -174,7 +184,7 @@ def stat_admin() -> BannerDailyStatAdmin:
 
 
 def export_rows(queryset: Any) -> list[list[str]]:
-    response = stat_admin().export_ord_csv(RequestFactory().get("/"), queryset)
+    response = ord_csv_response(queryset)
     content = response.content.decode("utf-8")
     assert content.startswith("﻿")
     return list(csv.reader(io.StringIO(content[1:]), delimiter=";"))
@@ -243,12 +253,13 @@ class TestBannerDailyStatAdminReadOnly:
         assert admin.has_change_permission(request, stat) is False
         assert admin.has_delete_permission(request, stat) is False
 
-    def test_list_config(self):
+    def test_no_changelist_filters_or_actions(self):
+        # Список Django заменён сводкой: фильтры и действия ему больше не нужны.
         admin = stat_admin()
 
-        assert admin.date_hierarchy == "date"
-        assert "export_ord_csv" in admin.actions
-        assert len(admin.list_filter) == 2
+        assert admin.date_hierarchy is None
+        assert not admin.list_filter
+        assert not admin.search_fields
 
 
 @pytest.mark.django_db
@@ -442,9 +453,9 @@ class TestMarketingSectionStats:
 
     def test_marketer_exports_csv(self):
         client = staff_client(MARKETING_GROUP)
-        stat = make_stat(AdvertisementBannerFactory(erid="2VfnxAD"), date=date(2026, 11, 3), views=3)
+        make_stat(AdvertisementBannerFactory(erid="2VfnxAD"), date=date(2026, 11, 3), views=3)
 
-        response = client.post(STATS_URL, {"action": "export_ord_csv", "_selected_action": [str(stat.pk)]})
+        response = client.get(EXPORT_URL, {"year": "2026", "month": "11"})
 
         assert response.status_code == 200
         assert response["Content-Type"].startswith("text/csv")
@@ -454,64 +465,6 @@ class TestMarketingSectionStats:
         client = staff_client(SUPERVISORS_GROUP)
 
         assert client.get(STATS_URL).status_code == 200
-
-    @staticmethod
-    def _listed(client: Client, params: dict[str, str]) -> set[int]:
-        response = client.get(STATS_URL, params)
-        assert response.status_code == 200
-        return {row.pk for row in response.context["cl"].result_list}
-
-    def test_banner_filter_keeps_deleted_banner_snapshot(self):
-        client = staff_client(MARKETING_GROUP)
-        gone = AdvertisementBannerFactory(erid="2VfnxGONE", title="Удалённый")
-        gone_pk = gone.pk
-        gone_rows = {make_stat(gone, date=date(2026, 11, day), views=1).pk for day in (3, 4)}
-        other_row = make_stat(AdvertisementBannerFactory(erid="2VfnxOTHER"), date=date(2026, 11, 3), views=1)
-        gone.delete()
-
-        listed = self._listed(client, {"banner_ref": str(gone_pk)})
-
-        assert listed == gone_rows
-        assert other_row.pk not in listed
-        assert set(BannerDailyStat.objects.filter(pk__in=listed).values_list("banner_id", flat=True)) == {None}
-
-    def test_erid_filter_without_erid(self):
-        client = staff_client(MARKETING_GROUP)
-        plain_row = make_stat(BannerFactory(type=Banner.BannerType.HERO), date=date(2026, 11, 3), views=1)
-        make_stat(AdvertisementBannerFactory(erid="2VfnxAD"), date=date(2026, 11, 3), views=1)
-
-        assert self._listed(client, {"erid": "__none__"}) == {plain_row.pk}
-
-    def test_erid_filter_by_token(self):
-        client = staff_client(MARKETING_GROUP)
-        ad = AdvertisementBannerFactory(erid="2VfnxAD")
-        ad_row = make_stat(ad, date=date(2026, 11, 3), views=1)
-        # Тот же баннер с прежним ERID и другой креатив в выдачу не попадают.
-        make_stat(ad, date=date(2026, 11, 3), erid="2VfnxOLD", views=1)
-        make_stat(AdvertisementBannerFactory(erid="2VfnxOTHER"), date=date(2026, 11, 3), views=1)
-        make_stat(BannerFactory(type=Banner.BannerType.HERO), date=date(2026, 11, 3), views=1)
-
-        assert self._listed(client, {"erid": "2VfnxAD"}) == {ad_row.pk}
-
-    def test_banner_filter_lookups_include_deleted_and_latest_title(self):
-        gone = AdvertisementBannerFactory(erid="2VfnxGONE")
-        gone_pk = gone.pk
-        make_stat(gone, date=date(2026, 11, 4), banner_title="Новое название", views=1)
-        make_stat(gone, date=date(2026, 11, 3), banner_title="Старое название", views=1)
-        alive = BannerFactory(title="Живой")
-        make_stat(alive, date=date(2026, 11, 3), views=1)
-        gone.delete()
-
-        lookups = dict(
-            BannerRefFilter(RequestFactory().get(STATS_URL), {}, BannerDailyStat, stat_admin()).lookups(
-                RequestFactory().get(STATS_URL), stat_admin()
-            )
-        )
-
-        assert lookups == {
-            str(gone_pk): f"Новое название (ID {gone_pk})",
-            str(alive.pk): f"Живой (ID {alive.pk})",
-        }
 
     def test_banner_columns_render_in_list(self):
         client = staff_client(MARKETING_GROUP)
@@ -552,3 +505,357 @@ class TestMarketingSectionStats:
                 "2",
             ]
         ]
+
+
+# ---------------------------------------------------------------------------
+# Сводка статистики за период
+# ---------------------------------------------------------------------------
+
+# Фиксированное «сегодня» для разбора периода: опции и проверки не зависят от даты прогона.
+TODAY = date(2026, 11, 20)
+
+
+@pytest.fixture
+def period_rows():
+    """Строки за 03.11.2026, 05.10.2026 и 01.06.2024 — опции периода строятся из них."""
+    banner = BannerFactory()
+    for day in (date(2026, 11, 3), date(2026, 10, 5), date(2024, 6, 1)):
+        make_stat(banner, date=day, views=1)
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("period_rows")
+class TestParsePeriod:
+    @pytest.mark.parametrize(
+        ("params", "expected"),
+        [
+            ({}, StatPeriod(2026, 11)),
+            ({"year": ""}, StatPeriod(2026, 11)),
+            ({"month": "11"}, StatPeriod(2026, 11)),
+            ({"year": "all"}, StatPeriod()),
+            ({"year": "all", "month": "11", "day": "3"}, StatPeriod()),
+            ({"year": "2026"}, StatPeriod(2026)),
+            ({"year": "2026", "month": "all"}, StatPeriod(2026)),
+            ({"year": "2026", "month": "all", "day": "5"}, StatPeriod(2026)),
+            ({"year": "2026", "month": "11"}, StatPeriod(2026, 11)),
+            ({"year": "2026", "month": "11", "day": "all"}, StatPeriod(2026, 11)),
+            ({"year": "2026", "month": "11", "day": "3"}, StatPeriod(2026, 11, 3)),
+            # Сегодня — в опциях и без строк.
+            ({"year": "2026", "month": "11", "day": "20"}, StatPeriod(2026, 11, 20)),
+            ({"year": "2024", "month": "6", "day": "1"}, StatPeriod(2024, 6, 1)),
+        ],
+    )
+    def test_valid_and_incomplete_input(self, params, expected):
+        assert parse_period(params, TODAY) == (expected, False)
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            {"year": "abc"},
+            {"year": "0"},
+            {"year": "99999"},
+            {"year": "9" * 1000},
+            {"year": "²"},
+            {"year": "-2026"},
+            # Год без строк и будущий год.
+            {"year": "2025"},
+            {"year": "2027"},
+            {"year": "2026", "month": "13"},
+            {"year": "2026", "month": "0"},
+            # Будущий месяц и месяц без строк.
+            {"year": "2026", "month": "12"},
+            {"year": "2024", "month": "7"},
+            {"year": "2026", "month": "11", "day": "31"},
+            # Будущий день и день без строк.
+            {"year": "2026", "month": "11", "day": "21"},
+            {"year": "2026", "month": "11", "day": "4"},
+        ],
+    )
+    def test_invalid_input_gives_default_period(self, params):
+        assert parse_period(params, TODAY) == (StatPeriod(2026, 11), True)
+
+    def test_options_come_from_data_plus_current_without_future(self):
+        make_stat(BannerFactory(), date=date(2026, 12, 1), views=1)
+        make_stat(BannerFactory(), date=date(2027, 1, 1), views=1)
+
+        assert year_options(TODAY) == [2026, 2024]
+        assert month_options(2026, TODAY) == [10, 11]
+        assert day_options(2026, 11, TODAY) == [3, 20]
+        assert day_options(2026, 10, TODAY) == [5]
+
+    def test_current_year_listed_without_rows(self):
+        assert year_options(date(2028, 2, 10)) == [2028, 2026, 2024]
+        assert month_options(2028, date(2028, 2, 10)) == [2]
+        assert day_options(2028, 2, date(2028, 2, 10)) == [10]
+
+    def test_query_and_label(self):
+        assert StatPeriod().query() == {"year": "all"}
+        assert StatPeriod(2026).query() == {"year": "2026", "month": "all"}
+        assert StatPeriod(2026, 11).query() == {"year": "2026", "month": "11", "day": "all"}
+        assert StatPeriod(2026, 11, 3).query() == {"year": "2026", "month": "11", "day": "3"}
+        assert StatPeriod().label(TODAY) == "за весь период"
+        assert StatPeriod(2026).label(TODAY) == "2026 год"
+        assert StatPeriod(2026, 10).label(TODAY) == "октябрь 2026"
+        assert StatPeriod(2026, 11).label(TODAY) == "ноябрь 2026 (с 1 по 20 ноября)"
+        assert StatPeriod(2026, 11, 3).label(TODAY) == "3 ноября 2026"
+
+
+def summary(client: Client, params: dict[str, str] | None = None) -> Any:
+    response = client.get(STATS_URL, params or {})
+    assert response.status_code == 200
+    return response
+
+
+def summary_table(response: Any) -> list[tuple[str, int, str, int, int]]:
+    return [
+        (row["banner_title"], row["banner_ref_id"], row["erid"], row["views"], row["clicks"])
+        for row in response.context["rows"]
+    ]
+
+
+@pytest.mark.integration
+@pytest.mark.django_db
+@pytest.mark.usefixtures("role_groups")
+class TestStatSummary:
+    def test_month_sums_days_into_one_row(self):
+        banner = AdvertisementBannerFactory(erid="2VfnxAD", title="Баннер")
+        for day in (3, 4, 5, 6, 7):
+            make_stat(banner, date=date(2026, 11, day), views=10, clicks=1)
+        make_stat(banner, date=date(2026, 10, 31), views=1000)
+
+        response = summary(staff_client(MARKETING_GROUP), {"year": "2026", "month": "11"})
+
+        assert summary_table(response) == [("Баннер", banner.pk, "2VfnxAD", 50, 5)]
+        assert response.context["total"] == {"views": 50, "clicks": 5, "ctr": "10,00 %"}
+        html = response.content.decode()
+        assert "Итого" in html
+        assert "Период: ноябрь 2026" in html
+
+    def test_day_shows_sums_for_that_day(self):
+        first = BannerFactory(title="А")
+        second = BannerFactory(title="Б")
+        make_stat(first, date=date(2026, 11, 3), views=4, clicks=1)
+        make_stat(second, date=date(2026, 11, 3), views=2)
+        make_stat(first, date=date(2026, 11, 4), views=100)
+
+        response = summary(staff_client(MARKETING_GROUP), {"year": "2026", "month": "11", "day": "3"})
+
+        assert summary_table(response) == [("А", first.pk, "", 4, 1), ("Б", second.pk, "", 2, 0)]
+        assert "Период: 3 ноября 2026" in response.content.decode()
+
+    def test_erid_change_mid_month_gives_two_rows(self):
+        banner = AdvertisementBannerFactory(erid="2VfnxNEW", title="Баннер")
+        make_stat(banner, date=date(2026, 11, 3), erid="2VfnxOLD", views=3)
+        make_stat(banner, date=date(2026, 11, 10), views=5)
+
+        response = summary(staff_client(MARKETING_GROUP), {"year": "2026", "month": "11"})
+
+        assert summary_table(response) == [
+            ("Баннер", banner.pk, "2VfnxNEW", 5, 0),
+            ("Баннер", banner.pk, "2VfnxOLD", 3, 0),
+        ]
+
+    def test_year_groups_months(self):
+        banner = AdvertisementBannerFactory(erid="2VfnxAD", title="Баннер")
+        make_stat(banner, date=date(2026, 10, 5), views=3)
+        make_stat(banner, date=date(2026, 11, 3), views=5)
+        make_stat(banner, date=date(2024, 6, 1), views=100)
+
+        client = staff_client(MARKETING_GROUP)
+        year = summary(client, {"year": "2026", "month": "all"})
+        everything = summary(client, {"year": "all"})
+
+        assert summary_table(year) == [("Баннер", banner.pk, "2VfnxAD", 8, 0)]
+        assert summary_table(everything) == [("Баннер", banner.pk, "2VfnxAD", 108, 0)]
+        html = everything.content.decode()
+        assert 'name="year"' in html
+        assert 'name="month"' not in html
+        assert 'name="day"' not in html
+
+    def test_deleted_banner_listed_with_last_title(self):
+        gone = AdvertisementBannerFactory(erid="2VfnxGONE")
+        gone_pk = gone.pk
+        make_stat(gone, date=date(2026, 11, 3), banner_title="Старое название", views=1)
+        make_stat(gone, date=date(2026, 11, 4), banner_title="Последнее название", views=2)
+        gone.delete()
+
+        response = summary(staff_client(MARKETING_GROUP), {"year": "2026", "month": "11"})
+
+        assert summary_table(response) == [("Последнее название", gone_pk, "2VfnxGONE", 3, 0)]
+        assert f"Последнее название ({gone_pk})" in response.content.decode()
+
+    def test_renamed_banner_has_one_row_with_new_title(self):
+        banner = AdvertisementBannerFactory(erid="2VfnxAD", title="Старое")
+        make_stat(banner, date=date(2026, 10, 5), views=2)
+        make_stat(banner, date=date(2026, 10, 6), views=3)
+
+        banner.title = "Новое"
+        banner.save()
+        response = summary(staff_client(MARKETING_GROUP), {"year": "2026", "month": "10"})
+
+        assert summary_table(response) == [("Новое", banner.pk, "2VfnxAD", 5, 0)]
+
+    def test_titles_are_escaped(self):
+        make_stat(BannerFactory(), date=date(2026, 11, 3), banner_title="<script>x</script>", views=1)
+
+        html = summary(staff_client(MARKETING_GROUP), {"year": "2026", "month": "11"}).content.decode()
+
+        assert "<script>x</script>" not in html
+        assert "&lt;script&gt;x&lt;/script&gt;" in html
+
+    def test_default_is_current_month(self):
+        today = timezone.localdate()
+        banner = AdvertisementBannerFactory(erid="2VfnxAD")
+        make_stat(banner, date=today, views=4)
+        # 40 дней назад — всегда прошлый месяц или раньше.
+        make_stat(banner, date=today - timedelta(days=40), views=1000)
+
+        response = summary(staff_client(MARKETING_GROUP))
+
+        assert response.context["period"] == StatPeriod(today.year, today.month)
+        assert [row[3] for row in summary_table(response)] == [4]
+        assert response.context["export_url"] == f"{EXPORT_URL}?year={today.year}&month={today.month}&day=all"
+        assert f"{EXPORT_URL}?year={today.year}&amp;month={today.month}&amp;day=all" in response.content.decode()
+        assert response.context["period_error"] == ""
+
+    def test_options_from_data_plus_current_without_future(self):
+        today = timezone.localdate()
+        banner = BannerFactory()
+        make_stat(banner, date=date(2024, 6, 1), views=1)
+        make_stat(banner, date=date(today.year + 1, 1, 1), views=1)
+
+        response = summary(staff_client(MARKETING_GROUP))
+
+        years = [option["value"] for option in response.context["period_selects"][0]["options"]]
+        assert years == ["all", str(today.year), "2024"]
+        assert str(today.year + 1) not in years
+
+    def test_year_without_rows_is_invalid(self):
+        make_stat(BannerFactory(), date=date(2024, 6, 1), views=1)
+        today = timezone.localdate()
+
+        response = summary(staff_client(MARKETING_GROUP), {"year": "2023", "month": "all"})
+
+        assert response.context["period"] == StatPeriod(today.year, today.month)
+        assert "Период указан неверно" in response.content.decode()
+
+    @pytest.mark.parametrize("year", ["abc", "0", "99999"])
+    def test_garbage_year_does_not_fail(self, year):
+        response = summary(staff_client(MARKETING_GROUP), {"year": year})
+
+        assert "Период указан неверно" in response.content.decode()
+
+    def test_export_csv_for_year_has_row_per_month(self):
+        ad = AdvertisementBannerFactory(erid="2VfnxAD", title="Баннер")
+        make_stat(ad, date=date(2026, 10, 5), views=3)
+        make_stat(ad, date=date(2026, 11, 3), views=5, clicks=1)
+        make_stat(ad, date=date(2024, 6, 1), views=100)
+
+        response = staff_client(MARKETING_GROUP).get(EXPORT_URL, {"year": "2026", "month": "all"})
+
+        assert response.status_code == 200
+        assert response["Content-Type"].startswith("text/csv")
+        content = response.content.decode("utf-8")
+        assert content.startswith("﻿")
+        rows = list(csv.reader(io.StringIO(content[1:]), delimiter=";"))
+        assert rows[0][0] == "ERID"
+        assert [(row[0], row[4], row[5], row[6], row[7]) for row in rows[1:]] == [
+            ('="2VfnxAD"', "05.10.2026", "05.10.2026", "3", "0"),
+            ('="2VfnxAD"', "03.11.2026", "03.11.2026", "5", "1"),
+        ]
+
+    def test_export_csv_for_day(self):
+        ad = AdvertisementBannerFactory(erid="2VfnxAD")
+        make_stat(ad, date=date(2026, 11, 3), views=3)
+        make_stat(ad, date=date(2026, 11, 4), views=5)
+
+        response = staff_client(MARKETING_GROUP).get(EXPORT_URL, {"year": "2026", "month": "11", "day": "4"})
+
+        rows = list(csv.reader(io.StringIO(response.content.decode("utf-8")[1:]), delimiter=";"))[1:]
+        assert [(row[4], row[6]) for row in rows] == [("04.11.2026", "5")]
+
+    def test_supervisor_sees_summary_and_exports(self):
+        client = staff_client(SUPERVISORS_GROUP)
+
+        assert client.get(STATS_URL, {"year": "all"}).status_code == 200
+        assert client.get(EXPORT_URL, {"year": "all"}).status_code == 200
+
+    def test_section_member_without_permission_gets_403(self):
+        view = Permission.objects.get(content_type__app_label="banners", codename="view_bannerdailystat")
+        Group.objects.get(name=MARKETING_GROUP).permissions.remove(view)
+        client = staff_client(MARKETING_GROUP)
+
+        assert client.get(STATS_URL).status_code == 403
+        assert client.get(EXPORT_URL, {"year": "all"}).status_code == 403
+
+    def test_superuser_sees_summary_in_admin(self):
+        user = User.objects.create_superuser(
+            email=f"root_{get_unique_suffix()}@example.com", password="StrongPassword123!"
+        )
+        client = Client()
+        client.force_login(user)
+        make_stat(AdvertisementBannerFactory(erid="2VfnxAD"), date=date(2026, 11, 3), views=3)
+
+        response = client.get("/admin/banners/bannerdailystat/", {"year": "2026", "month": "11"})
+
+        assert response.status_code == 200
+        assert response.context["export_url"] == "/admin/banners/bannerdailystat/export-ord/?year=2026&month=11&day=all"
+        assert client.get(response.context["export_url"]).status_code == 200
+
+    def test_export_with_invalid_period_redirects_to_summary(self):
+        make_stat(AdvertisementBannerFactory(erid="2VfnxAD"), date=date(2024, 6, 1), views=1)
+
+        response = staff_client(MARKETING_GROUP).get(EXPORT_URL, {"year": "2023", "month": "all"})
+
+        assert response.status_code == 302
+        assert response["Location"] == f"{STATS_URL}?year=2023&month=all"
+        assert not response.get("Content-Type", "").startswith("text/csv")
+
+    def test_requisites_and_ctr_from_latest_row(self):
+        banner = AdvertisementBannerFactory(erid="2VfnxAD", title="Баннер")
+        make_stat(
+            banner,
+            date=date(2026, 11, 3),
+            views=10,
+            clicks=1,
+            advertiser_name="ООО Прежний",
+            advertiser_inn="7718933790",
+        )
+        make_stat(
+            banner,
+            date=date(2026, 11, 4),
+            views=30,
+            clicks=3,
+            advertiser_name="ООО Нынешний",
+            advertiser_inn="500100732259",
+        )
+
+        response = summary(staff_client(MARKETING_GROUP), {"year": "2026", "month": "11"})
+
+        [row] = response.context["rows"]
+        assert (row["advertiser_name"], row["advertiser_inn"], row["ctr"]) == (
+            "ООО Нынешний",
+            "500100732259",
+            "10,00 %",
+        )
+        html = response.content.decode()
+        assert "ООО Нынешний" in html
+        assert "500100732259" in html
+        assert "ООО Прежний" not in html
+
+    def test_rows_sorted_by_title_case_insensitive(self):
+        # Порядок создания (pk) не совпадает с алфавитным и регистр не влияет на сортировку.
+        for title in ("Б", "а", "В"):
+            make_stat(BannerFactory(title=title), date=date(2026, 11, 3), views=1)
+
+        response = summary(staff_client(MARKETING_GROUP), {"year": "2026", "month": "11"})
+
+        assert [row["banner_title"] for row in response.context["rows"]] == ["а", "Б", "В"]
+
+    def test_manager_redirected_to_login(self):
+        client = staff_client(MANAGERS_GROUP)
+
+        for url in (STATS_URL, EXPORT_URL):
+            response = client.get(url)
+            assert response.status_code == 302
+            assert "/marketing/login/" in response["Location"]

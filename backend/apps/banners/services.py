@@ -310,3 +310,31 @@ def record_events(events: Iterable[Mapping[str, Any]]) -> int:
             # Баннер удалили между SELECT и проверкой внешнего ключа.
             logger.warning("Статистика баннера %s не записана: баннер удалён во время записи", banner_id)
     return written
+
+
+def sync_daily_stat_snapshots(banner: Banner) -> int:
+    """
+    Переписывает снимок баннера во всех его строках дневной статистики.
+
+    Название — во всех строках с `banner_id = pk`, с любым ERID. Наименование и ИНН
+    рекламодателя — только у рекламного баннера и только в рекламных строках
+    (непустой `advertiser_name`; ERID у рекламы необязателен): нерекламная строка
+    реквизитов не получает, а снятая маркировка не стирает их у старых строк.
+    Строки удалённого баннера (`banner_id IS NULL`) не трогаются — их снимок
+    заморожен. Два оператора UPDATE со значениями из баннера, без чтения строк;
+    обновляются только строки, где значение отличается.
+
+    Returns:
+        Число обновлённых строк (строка, где сменилось и название, и реквизиты, — дважды).
+    """
+    rows = BannerDailyStat.objects.filter(banner_id=banner.pk)
+    updated = rows.exclude(banner_title=banner.title).update(banner_title=banner.title)
+    # Пустое наименование у рекламного баннера отсекает валидация модели; без этой
+    # проверки сохранение в обход неё превратило бы рекламные строки в нерекламные.
+    if banner.is_advertisement and banner.advertiser_name:
+        updated += (
+            rows.exclude(advertiser_name="")
+            .exclude(advertiser_name=banner.advertiser_name, advertiser_inn=banner.advertiser_inn)
+            .update(advertiser_name=banner.advertiser_name, advertiser_inn=banner.advertiser_inn)
+        )
+    return updated
