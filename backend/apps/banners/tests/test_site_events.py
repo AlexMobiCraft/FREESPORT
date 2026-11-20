@@ -4,6 +4,8 @@
 Покрытие (спека spec-banner-impressions-clicks-ord, матрица I/O):
 - пачка событий, повтор баннера в пачке, text/plain-тело;
 - неизвестный, выключенный и вне дат баннер — 204 без записи;
+- баннер шапки (hero) и смешанная пачка — пишется только marketing
+  (спека spec-banner-stats-marketing-only);
 - невалидное тело — 400 без записи; бот — 204 без записи; лимит — 429;
 - смена ERID — новая строка; ERID нерекламного баннера не пишется;
 - сутки по Europe/Moscow; параллельные upsert; гонка с удалением баннера;
@@ -33,6 +35,7 @@ from apps.banners.factories import (
     ExpiredBannerFactory,
     FutureBannerFactory,
     InactiveBannerFactory,
+    MarketingBannerFactory,
 )
 from apps.banners.models import Banner, BannerDailyStat
 from apps.common.throttling import SiteEventsThrottle
@@ -81,7 +84,7 @@ class TestAcceptEvents:
 
     def test_repeated_banner_in_batch_is_aggregated(self, client):
         first = AdvertisementBannerFactory()
-        second = BannerFactory()
+        second = MarketingBannerFactory()
 
         response = post_events(client, [view(first), view(second), view(first), click(first), view(first)])
 
@@ -100,7 +103,7 @@ class TestAcceptEvents:
         assert (stat.views, stat.clicks) == (2, 1)
 
     def test_text_plain_body_is_parsed_as_json(self, client):
-        banner = BannerFactory(type=Banner.BannerType.HERO)
+        banner = MarketingBannerFactory()
 
         response = client.post(
             URL,
@@ -112,8 +115,8 @@ class TestAcceptEvents:
         assert response.status_code == 204
         assert BannerDailyStat.objects.get().views == 1
 
-    def test_hero_banner_without_erid_is_counted_with_empty_erid(self, client):
-        banner = BannerFactory(type=Banner.BannerType.HERO)
+    def test_marketing_banner_without_erid_is_counted_with_empty_erid(self, client):
+        banner = MarketingBannerFactory()
 
         post_events(client, [view(banner)])
 
@@ -123,7 +126,7 @@ class TestAcceptEvents:
 
     def test_authorization_header_is_ignored(self, client):
         """Аутентификации нет: битый токен не превращает запрос в 401."""
-        banner = BannerFactory()
+        banner = MarketingBannerFactory()
 
         response = post_events(client, [view(banner)], HTTP_AUTHORIZATION="Bearer broken")
 
@@ -140,15 +143,32 @@ class TestDroppedEvents:
         ids=["inactive", "expired", "future"],
     )
     def test_not_shown_banner_is_silently_dropped(self, client, factory):
-        banner = factory()
+        banner = factory(type=Banner.BannerType.MARKETING)
 
         response = post_events(client, [view(banner), click(banner)])
 
         assert response.status_code == 204
         assert not BannerDailyStat.objects.exists()
 
+    def test_hero_banner_event_is_silently_dropped(self, client):
+        banner = BannerFactory(type=Banner.BannerType.HERO)
+
+        response = post_events(client, [view(banner), click(banner)])
+
+        assert response.status_code == 204
+        assert not BannerDailyStat.objects.exists()
+
+    def test_mixed_batch_writes_only_marketing(self, client):
+        hero = BannerFactory(type=Banner.BannerType.HERO)
+        marketing = AdvertisementBannerFactory()
+
+        response = post_events(client, [view(hero), view(marketing), click(hero), click(marketing)])
+
+        assert response.status_code == 204
+        assert list(BannerDailyStat.objects.values_list("banner_ref_id", "views", "clicks")) == [(marketing.pk, 1, 1)]
+
     def test_unknown_banner_is_dropped_and_known_is_counted(self, client):
-        banner = BannerFactory()
+        banner = MarketingBannerFactory()
 
         response = post_events(client, [{"banner_id": 999_999_999, "kind": "view"}, view(banner)])
 
@@ -167,7 +187,7 @@ class TestDroppedEvents:
         ],
     )
     def test_bot_is_not_counted(self, client, user_agent):
-        banner = BannerFactory()
+        banner = MarketingBannerFactory()
 
         response = post_events(client, [view(banner)], HTTP_USER_AGENT=user_agent)
 
@@ -194,7 +214,7 @@ class TestInvalidBody:
         ids=["kind", "zero-id", "str-id", "bigint-overflow", "no-id", "empty", "not-list", "no-events", "list-body"],
     )
     def test_invalid_payload_is_400(self, client, body):
-        BannerFactory()
+        MarketingBannerFactory()
 
         response = client.post(URL, data=json.dumps(body), content_type="application/json", HTTP_USER_AGENT=BROWSER_UA)
 
@@ -202,7 +222,7 @@ class TestInvalidBody:
         assert not BannerDailyStat.objects.exists()
 
     def test_more_than_fifty_events_is_400_and_nothing_written(self, client):
-        banner = BannerFactory()
+        banner = MarketingBannerFactory()
 
         response = post_events(client, [view(banner)] * 51)
 
@@ -210,7 +230,7 @@ class TestInvalidBody:
         assert not BannerDailyStat.objects.exists()
 
     def test_exactly_fifty_events_is_accepted(self, client):
-        banner = BannerFactory()
+        banner = MarketingBannerFactory()
 
         response = post_events(client, [view(banner)] * 50)
 
@@ -235,7 +255,7 @@ class TestThrottle:
         assert SiteEventsThrottle.scope == "site_events"
 
     def test_limit_returns_429(self, client):
-        banner = BannerFactory()
+        banner = MarketingBannerFactory()
         statuses = []
 
         with patch.object(SiteEventsThrottle, "THROTTLE_RATES", {"site_events": "3/min"}):
@@ -290,7 +310,7 @@ class TestSnapshot:
         assert (stat.banner_title, stat.views) == ("Новое название", 2)
 
     def test_day_is_moscow_date(self):
-        banner = BannerFactory()
+        banner = MarketingBannerFactory()
         # 22:30 UTC — уже 01:30 следующих суток по Москве.
         moment = datetime(2026, 11, 19, 22, 30, tzinfo=dt_timezone.utc)
 
@@ -300,7 +320,7 @@ class TestSnapshot:
         assert BannerDailyStat.objects.get().date == date(2026, 11, 20)
 
     def test_banner_window_is_checked_at_event_time(self):
-        banner = BannerFactory(end_date=timezone.now() + timedelta(hours=1))
+        banner = MarketingBannerFactory(end_date=timezone.now() + timedelta(hours=1))
 
         with patch("django.utils.timezone.now", return_value=timezone.now() + timedelta(hours=2)):
             services.record_events([view(banner)])
@@ -312,7 +332,7 @@ class TestSnapshot:
 @pytest.mark.django_db
 class TestPrivacy:
     def test_no_cookies_are_set(self, client):
-        banner = BannerFactory()
+        banner = MarketingBannerFactory()
 
         response = post_events(client, [view(banner), click(banner)], REMOTE_ADDR="203.0.113.5")
 
@@ -337,7 +357,7 @@ class TestPrivacy:
         }
 
     def test_ip_and_user_agent_are_not_stored(self, client):
-        banner = BannerFactory()
+        banner = MarketingBannerFactory()
 
         post_events(client, [view(banner)], REMOTE_ADDR="203.0.113.77", HTTP_USER_AGENT="UniqueAgent/77.7")
 
@@ -353,8 +373,8 @@ class TestRecordEventsService:
         assert not BannerDailyStat.objects.exists()
 
     def test_integrity_error_on_one_banner_is_swallowed(self, caplog):
-        doomed = BannerFactory()
-        survivor = BannerFactory()
+        doomed = MarketingBannerFactory()
+        survivor = MarketingBannerFactory()
         real_cursor = connection.cursor
 
         def cursor():
@@ -393,7 +413,7 @@ class TestRecordEventsService:
 class TestConcurrency:
     def test_parallel_upserts_lose_no_increment(self):
         first = AdvertisementBannerFactory()
-        second = BannerFactory()
+        second = MarketingBannerFactory()
         threads_count, rounds = 6, 15
         errors: list[BaseException] = []
         barrier = threading.Barrier(threads_count)

@@ -6,6 +6,7 @@
 - 7-2: Service layer functions (validate, build_cache_key, get_role_key, invalidate)
 - 9-1: Dynamic TTL — compute_cache_ttl учитывает start_date/end_date
 - Снимок баннера в строках статистики: sync_daily_stat_snapshots, сигнал, миграция 0010
+- Миграция 0011: удаление статистики баннеров шапки (hero)
 """
 
 import importlib
@@ -518,6 +519,7 @@ class TestVipAndSpecialPriceRoleFilter:
 # ---------------------------------------------------------------------------
 
 _snapshot_migration = importlib.import_module("apps.banners.migrations.0010_sync_banner_daily_stat_snapshots")
+_hero_stats_migration = importlib.import_module("apps.banners.migrations.0011_delete_hero_banner_daily_stats")
 
 
 def _stat(banner: Banner | None, **fields: Any) -> BannerDailyStat:
@@ -633,3 +635,34 @@ class TestSyncDailyStatSnapshots:
         orphan.refresh_from_db()
         assert (plain_row.banner_title, plain_row.advertiser_name) == ("Обычный", "")
         assert orphan.banner_title == "Удалённый"
+
+
+@pytest.mark.django_db
+class TestDeleteHeroBannerDailyStatsMigration:
+    def test_deletes_hero_rows_and_keeps_marketing_and_orphan(self):
+        hero = BannerFactory(type=Banner.BannerType.HERO)
+        _stat(hero, date=date(2026, 11, 19), views=12, clicks=1)
+        _stat(hero, date=date(2026, 11, 20), views=8, clicks=1)
+        marketing = AdvertisementBannerFactory(erid="2VfnxAD")
+        marketing_row = _stat(marketing, views=7, clicks=2)
+        orphan = _stat(None, banner_ref_id=10**9, banner_title="Удалённый", views=3)
+        # Баннер был рекламным маркетинговым, потом его перевели в шапку: строки рекламы для ОРД остаются.
+        former_ad = BannerFactory(type=Banner.BannerType.HERO)
+        former_ad_row = _stat(
+            former_ad,
+            erid="2VfnxFORMER",
+            advertiser_name='ООО "Прайм Спорт Рус"',
+            advertiser_inn="7718933790",
+            views=5,
+            clicks=1,
+        )
+        _stat(former_ad, date=date(2026, 11, 20), views=4)
+
+        _hero_stats_migration.delete_hero_banner_daily_stats(django_apps, SimpleNamespace(connection=connection))
+
+        assert not BannerDailyStat.objects.filter(banner_ref_id=hero.pk).exists()
+        assert set(BannerDailyStat.objects.values_list("pk", "views", "clicks")) == {
+            (marketing_row.pk, 7, 2),
+            (orphan.pk, 3, 0),
+            (former_ad_row.pk, 5, 1),
+        }
