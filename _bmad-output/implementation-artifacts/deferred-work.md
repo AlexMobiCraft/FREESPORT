@@ -1347,3 +1347,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-banner-impressions-clicks-ord.md`
   summary: Цель Метрики `banner_click` с параметрами `{banner_id, banner_type, erid}` при клике по баннеру — сделать в задаче «Цели Яндекс Метрики» (точка вызова — `onClick` ссылок баннеров, отправляющий событие `click` своего счётчика).
   evidence: решение владельца 19.11.2026 убрать Метрику из спецификации статистики баннеров: для ОРД она не нужна, счётчик Метрики ещё не заведён.
+- source_spec: `_bmad-output/implementation-artifacts/spec-banner-stats-period-summary.md`
+  summary: В имя CSV для ОРД добавить выгружаемый период (`ord_banners_2026-11.csv`, `ord_banners_2026.csv`, `ord_banners_all.csv`) вместо даты выгрузки.
+  evidence: `ord_csv_response` называет файл `ord_banners_<дата выгрузки>.csv`; так было и в прежнем admin action, но со сводкой за период несколько выгрузок за один день получают одинаковое имя и путаются при ручном переносе в кабинет ОРД (ревью кода 20.11.2026, blind-hunter).

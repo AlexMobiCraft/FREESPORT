@@ -5,18 +5,25 @@
 - 7-1: Cache key включает роль пользователя (предотвращение утечки)
 - 7-2: Service layer functions (validate, build_cache_key, get_role_key, invalidate)
 - 9-1: Dynamic TTL — compute_cache_ttl учитывает start_date/end_date
+- Снимок баннера в строках статистики: sync_daily_stat_snapshots, сигнал, миграция 0010
 """
 
-from datetime import timedelta
+import importlib
+from datetime import date, timedelta
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.apps import apps as django_apps
 from django.core.cache import cache
+from django.db import connection
 from django.db.models import Q
+from django.db.models.signals import post_save
 from django.utils import timezone
 
-from apps.banners.factories import BannerFactory
-from apps.banners.models import Banner
+from apps.banners.factories import AdvertisementBannerFactory, BannerFactory
+from apps.banners.models import Banner, BannerDailyStat
 from apps.banners.services import (
     _ALL_ROLE_KEYS,
     BANNER_CACHE_TTL,
@@ -29,6 +36,7 @@ from apps.banners.services import (
     get_cached_banners,
     get_role_key,
     invalidate_banner_cache,
+    sync_daily_stat_snapshots,
     validate_banner_type,
 )
 from apps.users.models import User
@@ -503,3 +511,125 @@ class TestVipAndSpecialPriceRoleFilter:
 
         assert wholesale.id in banner_ids
         assert guests_only.id not in banner_ids
+
+
+# ---------------------------------------------------------------------------
+# Снимок баннера в строках дневной статистики
+# ---------------------------------------------------------------------------
+
+_snapshot_migration = importlib.import_module("apps.banners.migrations.0010_sync_banner_daily_stat_snapshots")
+
+
+def _stat(banner: Banner | None, **fields: Any) -> BannerDailyStat:
+    """Строка статистики со снимком баннера; без баннера — как у удалённого."""
+    values: dict[str, Any] = {"date": date(2026, 11, 3), "views": 1, "clicks": 0}
+    if banner is not None:
+        values.update(
+            banner=banner,
+            banner_ref_id=banner.pk,
+            banner_title=banner.title,
+            erid=banner.erid if banner.is_advertisement else "",
+            advertiser_name=banner.advertiser_name if banner.is_advertisement else "",
+            advertiser_inn=banner.advertiser_inn if banner.is_advertisement else "",
+        )
+    values.update(fields)
+    return BannerDailyStat.objects.create(**values)
+
+
+def _snapshots(banner_ref_id: int) -> set[tuple[str, str, str, str]]:
+    rows = BannerDailyStat.objects.filter(banner_ref_id=banner_ref_id)
+    return set(rows.values_list("banner_title", "erid", "advertiser_name", "advertiser_inn"))
+
+
+@pytest.mark.django_db
+class TestSyncDailyStatSnapshots:
+    def test_rename_rewrites_all_rows_with_any_erid(self):
+        banner = AdvertisementBannerFactory(title="Старое", erid="2VfnxNEW")
+        for day in (3, 4, 5):
+            _stat(banner, date=date(2026, 11, day))
+            _stat(banner, date=date(2026, 11, day), erid="2VfnxOLD")
+
+        banner.title = "Новое"
+        banner.save()
+
+        titles = list(BannerDailyStat.objects.filter(banner=banner).values_list("banner_title", flat=True))
+        assert titles == ["Новое"] * 6
+
+    def test_advertiser_change_rewrites_ad_rows_only(self):
+        banner = AdvertisementBannerFactory(erid="2VfnxAD")
+        ad_row = _stat(banner, date=date(2026, 11, 3))
+        # Рекламная строка без ERID: ERID у рекламы необязателен.
+        ad_without_erid = _stat(banner, date=date(2026, 11, 4), erid="")
+        # Строка тех дней, когда баннер не был рекламой.
+        plain_row = _stat(banner, date=date(2026, 11, 5), erid="", advertiser_name="", advertiser_inn="")
+
+        banner.advertiser_name = "ООО Новый"
+        banner.advertiser_inn = "500100732259"
+        banner.save()
+
+        for row in (ad_row, ad_without_erid):
+            row.refresh_from_db()
+            assert (row.advertiser_name, row.advertiser_inn) == ("ООО Новый", "500100732259")
+        plain_row.refresh_from_db()
+        assert (plain_row.advertiser_name, plain_row.advertiser_inn, plain_row.erid) == ("", "", "")
+
+    def test_unmarked_banner_keeps_requisites_and_erid(self):
+        banner = AdvertisementBannerFactory(title="Старое", erid="2VfnxAD")
+        _stat(banner)
+
+        banner.is_advertisement = False
+        banner.title = "Новое"
+        banner.advertiser_name = "ООО Другой"
+        banner.save()
+
+        assert _snapshots(banner.pk) == {("Новое", "2VfnxAD", 'ООО "Прайм Спорт Рус"', "7718933790")}
+
+    def test_deleted_banner_rows_untouched(self):
+        banner = AdvertisementBannerFactory(title="Живой", erid="2VfnxAD")
+        live_row = _stat(banner, banner_title="Старое")
+        # Сирота с тем же banner_ref_id: фильтр — по banner_id, а не по banner_ref_id.
+        orphan = _stat(None, banner_ref_id=banner.pk, date=date(2026, 11, 4), banner_title="Удалённый")
+
+        sync_daily_stat_snapshots(banner)
+
+        live_row.refresh_from_db()
+        orphan.refresh_from_db()
+        assert live_row.banner_title == "Живой"
+        assert (orphan.banner_id, orphan.banner_title) == (None, "Удалённый")
+
+    def test_updates_only_differing_rows(self):
+        banner = AdvertisementBannerFactory(title="Название", erid="2VfnxAD")
+        _stat(banner, date=date(2026, 11, 3))
+        _stat(banner, date=date(2026, 11, 4), banner_title="Старое")
+        _stat(banner, date=date(2026, 11, 5), advertiser_inn="0123456789")
+
+        assert sync_daily_stat_snapshots(banner) == 2
+        assert sync_daily_stat_snapshots(banner) == 0
+
+    def test_raw_and_created_saves_skip_sync(self):
+        banner = AdvertisementBannerFactory(title="Старое")
+        row = _stat(banner)
+        banner.title = "Новое"
+
+        post_save.send(sender=Banner, instance=banner, created=False, raw=True)
+        post_save.send(sender=Banner, instance=banner, created=True, raw=False)
+
+        row.refresh_from_db()
+        assert row.banner_title == "Старое"
+
+    def test_migration_aligns_accumulated_rows(self):
+        banner = AdvertisementBannerFactory(title="Текущее", erid="2VfnxAD")
+        _stat(banner, date=date(2026, 11, 3), banner_title="Первое", advertiser_name="ООО Старое")
+        _stat(banner, date=date(2026, 11, 4), erid="2VfnxOLD", banner_title="Второе")
+        plain = BannerFactory(title="Обычный")
+        plain_row = _stat(plain, banner_title="Прежний")
+        orphan = _stat(None, banner_ref_id=10**9, banner_title="Удалённый", erid="2VfnxGONE")
+
+        _snapshot_migration.sync_banner_daily_stat_snapshots(django_apps, SimpleNamespace(connection=connection))
+
+        assert {row[0] for row in _snapshots(banner.pk)} == {"Текущее"}
+        assert {row[2] for row in _snapshots(banner.pk)} == {'ООО "Прайм Спорт Рус"'}
+        plain_row.refresh_from_db()
+        orphan.refresh_from_db()
+        assert (plain_row.banner_title, plain_row.advertiser_name) == ("Обычный", "")
+        assert orphan.banner_title == "Удалённый"

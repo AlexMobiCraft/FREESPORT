@@ -5,14 +5,21 @@ Django Admin для приложения banners
 from __future__ import annotations
 
 import csv
+import re
 import unicodedata
+from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any, cast
+from urllib.parse import urlencode
 
 from django.contrib import admin
+from django.core.exceptions import PermissionDenied
 from django.db.models import IntegerField, OuterRef, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce, TruncMonth
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.template.response import TemplateResponse
+from django.urls import URLPattern, URLResolver, path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import SafeString
@@ -160,7 +167,9 @@ class BannerAdmin(admin.ModelAdmin):
                 "description": (
                     "Включите «Является рекламой», чтобы показать на баннере метку «Реклама» "
                     "с реквизитами. Наименование и ИНН обязательны при включённой маркировке. "
-                    "Доступно только для маркетинговых баннеров."
+                    "Доступно только для маркетинговых баннеров. "
+                    "Новый рекламодатель — заведите новый баннер: смена наименования и ИНН "
+                    "перепишет их и в прошлой статистике баннера."
                 ),
             },
         ),
@@ -242,76 +251,284 @@ class BannerAdmin(admin.ModelAdmin):
         return obj.is_scheduled_active
 
 
-class BannerRefFilter(admin.SimpleListFilter):
+# ---------------------------------------------------------------------------
+# Сводка статистики за период и выгрузка CSV для ОРД
+# ---------------------------------------------------------------------------
+
+PERIOD_ALL = "all"
+PERIOD_ALL_LABEL = "За весь период"
+PERIOD_ERROR = "Период указан неверно — показан период по умолчанию."
+
+MONTHS_NOMINATIVE = (
+    "Январь",
+    "Февраль",
+    "Март",
+    "Апрель",
+    "Май",
+    "Июнь",
+    "Июль",
+    "Август",
+    "Сентябрь",
+    "Октябрь",
+    "Ноябрь",
+    "Декабрь",
+)
+MONTHS_GENITIVE = (
+    "января",
+    "февраля",
+    "марта",
+    "апреля",
+    "мая",
+    "июня",
+    "июля",
+    "августа",
+    "сентября",
+    "октября",
+    "ноября",
+    "декабря",
+)
+
+# Только ASCII-цифры и не длиннее пяти: «²» и строка в тысячу цифр до int() не доходят.
+_PERIOD_NUMBER = re.compile(r"[0-9]{1,5}")
+
+
+class InvalidPeriod(Exception):
+    """Значение параметра периода не из опций своего списка."""
+
+
+@dataclass(frozen=True)
+class StatPeriod:
     """
-    Фильтр по баннеру — по `banner_ref_id`, а не по FK.
+    Период сводки: год, месяц, день. `None` на уровне — «За весь период».
 
-    Так в списке остаются и удалённые баннеры: их строки статистики держат
-    копию id и снимок названия.
+    Нижний уровень задан только при заданном верхнем: `StatPeriod(month=11)` не строится.
     """
 
-    title = "баннер"
-    parameter_name = "banner_ref"
+    year: int | None = None
+    month: int | None = None
+    day: int | None = None
 
-    def lookups(self, request: HttpRequest, model_admin: Any) -> list[tuple[str, str]]:
-        titles: dict[int, str] = {}
-        # По возрастанию даты: побеждает самое свежее название баннера.
-        stats = BannerDailyStat.objects.order_by("date", "pk").values_list("banner_ref_id", "banner_title")
-        for ref_id, title in stats:
-            titles[ref_id] = title
-        return [(str(ref_id), f"{title or 'Без названия'} (ID {ref_id})") for ref_id, title in sorted(titles.items())]
+    def apply(self, queryset: QuerySet[BannerDailyStat]) -> QuerySet[BannerDailyStat]:
+        # Поля даты, а не диапазон: верхняя граница date(year + 1, …) у 9999 года дала бы 500.
+        lookups = {"date__year": self.year, "date__month": self.month, "date__day": self.day}
+        return queryset.filter(**{key: value for key, value in lookups.items() if value is not None})
 
-    def queryset(self, request: HttpRequest, queryset: QuerySet[BannerDailyStat]) -> QuerySet[BannerDailyStat]:
-        value = self.value()
-        if value and value.isdigit():
-            return queryset.filter(banner_ref_id=int(value))
-        return queryset
+    def query(self) -> dict[str, str]:
+        """Параметры URL этого периода — явные, чтобы ссылка несла показанный период."""
+        params = {"year": str(self.year) if self.year else PERIOD_ALL}
+        if self.year:
+            params["month"] = str(self.month) if self.month else PERIOD_ALL
+        if self.month:
+            params["day"] = str(self.day) if self.day else PERIOD_ALL
+        return params
+
+    def label(self, today: date) -> str:
+        if self.year is None:
+            return "за весь период"
+        if self.month is None:
+            return f"{self.year} год"
+        if self.day is not None:
+            return f"{self.day} {MONTHS_GENITIVE[self.month - 1]} {self.year}"
+        text = f"{MONTHS_NOMINATIVE[self.month - 1].lower()} {self.year}"
+        if (self.year, self.month) == (today.year, today.month):
+            text += f" (с 1 по {today.day} {MONTHS_GENITIVE[self.month - 1]})"
+        return text
 
 
-class EridFilter(admin.SimpleListFilter):
-    """Фильтр по ERID креатива; «Без ERID» — строки нерекламных баннеров."""
+def default_period(today: date) -> StatPeriod:
+    """Текущий месяц текущего года — с 1-го числа по сегодня."""
+    return StatPeriod(today.year, today.month)
 
-    title = "ERID"
-    parameter_name = "erid"
-    EMPTY = "__none__"
 
-    def lookups(self, request: HttpRequest, model_admin: Any) -> list[tuple[str, str]]:
-        erids = BannerDailyStat.objects.exclude(erid="").order_by("erid").values_list("erid", flat=True).distinct()
-        return [(self.EMPTY, "Без ERID"), *((erid, erid) for erid in erids)]
+def year_options(today: date) -> list[int]:
+    """Годы, за которые есть строки, и текущий год; будущих нет. Свежие — первыми."""
+    years = {value.year for value in BannerDailyStat.objects.dates("date", "year")}
+    years.add(today.year)
+    return sorted((year for year in years if year <= today.year), reverse=True)
 
-    def queryset(self, request: HttpRequest, queryset: QuerySet[BannerDailyStat]) -> QuerySet[BannerDailyStat]:
-        value = self.value()
-        if value == self.EMPTY:
-            return queryset.filter(erid="")
-        if value:
-            return queryset.filter(erid=value)
-        return queryset
+
+def month_options(year: int, today: date) -> list[int]:
+    """Месяцы года со строками; у текущего года — и текущий месяц. Будущих нет."""
+    months = {value.month for value in BannerDailyStat.objects.filter(date__year=year).dates("date", "month")}
+    if year == today.year:
+        months.add(today.month)
+    return sorted(month for month in months if (year, month) <= (today.year, today.month))
+
+
+def day_options(year: int, month: int, today: date) -> list[int]:
+    """Дни месяца со строками; у текущего месяца — и сегодня. Будущих нет."""
+    stats = BannerDailyStat.objects.filter(date__year=year, date__month=month)
+    days = {value.day for value in stats.dates("date", "day")}
+    if (year, month) == (today.year, today.month):
+        days.add(today.day)
+    return sorted(day for day in days if date(year, month, day) <= today)
+
+
+def _period_choice(raw: str | None, options: list[int]) -> int | None:
+    """Значение уровня; `None` — «За весь период» (параметра нет или он `all`)."""
+    if not raw or raw == PERIOD_ALL:
+        return None
+    if not _PERIOD_NUMBER.fullmatch(raw) or int(raw) not in options:
+        raise InvalidPeriod(raw)
+    return int(raw)
+
+
+def parse_period(params: Mapping[str, str], today: date) -> tuple[StatPeriod, bool]:
+    """
+    Период из параметров `year`/`month`/`day` и признак ошибки ввода.
+
+    Нет `year` — период по умолчанию; `year=all` — весь период, нижние уровни
+    игнорируются; нет или `all` у нижнего уровня — весь вышестоящий период.
+    Значение не из опций своего списка (год без строк, будущий, `month=13`,
+    `day=31` в ноябре, не число) — период по умолчанию и признак ошибки.
+    """
+    if not params.get("year"):
+        return default_period(today), False
+    try:
+        year = _period_choice(params.get("year"), year_options(today))
+        if year is None:
+            return StatPeriod(), False
+        month = _period_choice(params.get("month"), month_options(year, today))
+        if month is None:
+            return StatPeriod(year), False
+        day = _period_choice(params.get("day"), day_options(year, month, today))
+    except InvalidPeriod:
+        return default_period(today), True
+    return StatPeriod(year, month, day), False
+
+
+def _select(name: str, label: str, selected: int | None, options: list[tuple[int, str]]) -> dict[str, Any]:
+    choices = [{"value": PERIOD_ALL, "label": PERIOD_ALL_LABEL, "selected": selected is None}]
+    choices += [{"value": str(value), "label": text, "selected": value == selected} for value, text in options]
+    return {"name": name, "label": label, "options": choices}
+
+
+def period_selects(period: StatPeriod, today: date) -> list[dict[str, Any]]:
+    """Выпадающие списки каскада: месяц — при выбранном годе, день — при выбранном месяце."""
+    selects = [_select("year", "Год", period.year, [(year, str(year)) for year in year_options(today)])]
+    if period.year:
+        months = [(month, MONTHS_NOMINATIVE[month - 1]) for month in month_options(period.year, today)]
+        selects.append(_select("month", "Месяц", period.month, months))
+    if period.year and period.month:
+        days = [(day, str(day)) for day in day_options(period.year, period.month, today)]
+        selects.append(_select("day", "День", period.day, days))
+    return selects
+
+
+def summary_rows(queryset: QuerySet[BannerDailyStat]) -> list[dict[str, Any]]:
+    """
+    Строка на баннер и ERID с суммами за период.
+
+    Смена ERID посреди периода даёт у баннера две строки, как в CSV. Название и
+    реквизиты — из самой поздней строки группы; у удалённого баннера это
+    последний сохранённый снимок. Сортировка — по названию и ERID.
+    """
+    totals = queryset.order_by().values("banner_ref_id", "erid").annotate(views=Sum("views"), clicks=Sum("clicks"))
+    # DISTINCT ON — только PostgreSQL; другие СУБД проект не поддерживает.
+    latest = {
+        (row["banner_ref_id"], row["erid"]): row
+        for row in queryset.order_by("banner_ref_id", "erid", "-date", "-pk")
+        .distinct("banner_ref_id", "erid")
+        .values("banner_ref_id", "erid", "banner_title", "advertiser_name", "advertiser_inn")
+    }
+    rows = []
+    for total in totals:
+        snapshot = latest[(total["banner_ref_id"], total["erid"])]
+        views, clicks = int(total["views"] or 0), int(total["clicks"] or 0)
+        rows.append(
+            {
+                "banner_ref_id": total["banner_ref_id"],
+                "banner_title": snapshot["banner_title"],
+                "erid": total["erid"],
+                "advertiser_name": snapshot["advertiser_name"],
+                "advertiser_inn": snapshot["advertiser_inn"],
+                "views": views,
+                "clicks": clicks,
+                "ctr": _ctr(views, clicks),
+            }
+        )
+    rows.sort(key=lambda row: (row["banner_title"].casefold(), row["erid"], row["banner_ref_id"]))
+    return rows
+
+
+def ord_csv_response(queryset: QuerySet[BannerDailyStat]) -> HttpResponse:
+    """
+    CSV для ручного переноса в кабинет ОРД: строка на креатив (ERID), баннер и месяц.
+
+    Только строки с ERID — нерекламные баннеры в ОРД не передаются. Период через
+    границу месяца даёт по строке на каждый месяц. Реквизиты — из самой поздней
+    строки группы, период — первая и последняя дата с показами среди строк
+    месяца (если показов в группе нет — первая и последняя дата строк).
+    """
+    rows = (
+        queryset.exclude(erid="")
+        .annotate(month=TruncMonth("date"))
+        .order_by("date", "pk")
+        .values(
+            "erid",
+            "banner_ref_id",
+            "month",
+            "date",
+            "banner_title",
+            "advertiser_name",
+            "advertiser_inn",
+            "views",
+            "clicks",
+        )
+    )
+    groups: dict[tuple[date, str, int], dict[str, Any]] = {}
+    for row in rows:
+        key = (row["month"], row["erid"], row["banner_ref_id"])
+        group = groups.setdefault(
+            key,
+            {"views": 0, "clicks": 0, "first_view": None, "last_view": None, "first": row["date"]},
+        )
+        group["views"] += row["views"]
+        group["clicks"] += row["clicks"]
+        group["last"] = row["date"]
+        if row["views"]:
+            group["first_view"] = group["first_view"] or row["date"]
+            group["last_view"] = row["date"]
+        # Строки идут по возрастанию даты — последняя перезаписывает реквизиты.
+        group["banner_title"] = row["banner_title"]
+        group["advertiser_name"] = row["advertiser_name"]
+        group["advertiser_inn"] = row["advertiser_inn"]
+
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="ord_banners_{timezone.localdate():%Y-%m-%d}.csv"'
+    # Без BOM Excel на Windows читает UTF-8 как cp1251.
+    response.write("﻿")
+    writer = csv.writer(response, delimiter=";")
+    writer.writerow(ORD_CSV_HEADER)
+    for (_month, erid, _ref_id), group in sorted(groups.items(), key=lambda item: item[0]):
+        writer.writerow(
+            [
+                _csv_text(erid),
+                _csv_cell(group["advertiser_name"]),
+                _csv_text(group["advertiser_inn"]),
+                _csv_cell(group["banner_title"]),
+                _format_date(group["first_view"] or group["first"]),
+                _format_date(group["last_view"] or group["last"]),
+                group["views"],
+                group["clicks"],
+            ]
+        )
+    return response
 
 
 @admin.register(BannerDailyStat)
 class BannerDailyStatAdmin(admin.ModelAdmin):
     """
-    Дневная статистика показов и кликов баннеров — только просмотр и выгрузка для ОРД.
+    Статистика показов и кликов баннеров — сводка за период и выгрузка для ОРД.
 
-    Строки пишет только счётчик сайта: добавлять, править и удалять их нельзя,
-    иначе отчёт в ОРД разойдётся с фактом.
+    Вместо списка Django — своя страница-сводка: строка на баннер и ERID с суммами
+    за выбранный период (агрегат `values().annotate()` ломает действия, ссылки на
+    объекты и сортировку стандартного списка). Карточка отдельной строки
+    (`/<pk>/change/`) остаётся для сверки. Строки пишет только счётчик сайта:
+    добавлять, править и удалять их нельзя, иначе отчёт в ОРД разойдётся с фактом.
     """
 
-    list_display = (
-        "date",
-        "banner_title",
-        "banner_ref_id",
-        "erid",
-        "advertiser_name",
-        "advertiser_inn",
-        "views",
-        "clicks",
-        "ctr",
-    )
-    list_filter = (BannerRefFilter, EridFilter)
-    search_fields = ("banner_title", "erid", "advertiser_name", "advertiser_inn")
-    date_hierarchy = "date"
-    actions = ["export_ord_csv"]
+    summary_template = "admin/banners/bannerdailystat/summary.html"
     fields = (
         "date",
         "banner",
@@ -323,7 +540,6 @@ class BannerDailyStatAdmin(admin.ModelAdmin):
         "views",
         "clicks",
     )
-    list_per_page = 100
 
     def has_add_permission(self, request: HttpRequest) -> bool:
         return False
@@ -334,71 +550,57 @@ class BannerDailyStatAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request: HttpRequest, obj: BannerDailyStat | None = None) -> bool:
         return False
 
-    @admin.display(description="CTR")
-    def ctr(self, obj: BannerDailyStat) -> str:
-        return _ctr(obj.views, obj.clicks)
+    def get_urls(self) -> list[URLPattern | URLResolver]:
+        # Свой путь — до родительских: ModelAdmin ловит «<path:object_id>/»,
+        # и «export-ord/» после него ушёл бы в карточку строки.
+        return [
+            path(
+                "export-ord/",
+                self.admin_site.admin_view(self.export_ord_view),
+                name="banners_bannerdailystat_export_ord",
+            ),
+            *super().get_urls(),
+        ]
 
-    @admin.action(description="Выгрузить CSV для ОРД")
-    def export_ord_csv(self, request: HttpRequest, queryset: QuerySet[BannerDailyStat]) -> HttpResponse:
-        """
-        CSV для ручного переноса в кабинет ОРД: строка на креатив (ERID), баннер и месяц.
+    def changelist_view(self, request: HttpRequest, extra_context: dict[str, Any] | None = None) -> TemplateResponse:
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+        # current_app — для reverse() и {% url 'admin:…' %}: без него ссылки вели бы в /admin/.
+        request.current_app = self.admin_site.name
+        today = timezone.localdate()
+        period, period_error = parse_period(request.GET, today)
+        rows = summary_rows(period.apply(BannerDailyStat.objects.all()))
+        total_views = sum(row["views"] for row in rows)
+        total_clicks = sum(row["clicks"] for row in rows)
+        export_url = reverse("admin:banners_bannerdailystat_export_ord", current_app=self.admin_site.name)
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "title": "Статистика баннеров",
+            "period": period,
+            "period_label": period.label(today),
+            "period_error": PERIOD_ERROR if period_error else "",
+            "period_selects": period_selects(period, today),
+            "rows": rows,
+            "total": {"views": total_views, "clicks": total_clicks, "ctr": _ctr(total_views, total_clicks)},
+            # Разобранный период явными параметрами, а не сырой querystring: страница по
+            # умолчанию открыта без параметров, и клик после полуночи на границе месяца
+            # выгрузил бы новый месяц. Явные параметры сохраняют показанный период; если он
+            # к моменту клика выпал из опций, выгрузка вернёт на сводку с «Период указан
+            # неверно», а не отдаст молча другой месяц.
+            "export_url": f"{export_url}?{urlencode(period.query())}",
+            **(extra_context or {}),
+        }
+        return TemplateResponse(request, self.summary_template, context)
 
-        Только строки с ERID — нерекламные баннеры в ОРД не передаются. Выбор через
-        границу месяца даёт по строке на каждый месяц. Реквизиты — из самой поздней
-        строки группы, период — первая и последняя дата с показами среди выбранных
-        строк месяца (если показов в группе нет — первая и последняя выбранная дата).
-        """
-        rows = (
-            queryset.exclude(erid="")
-            .annotate(month=TruncMonth("date"))
-            .order_by("date", "pk")
-            .values(
-                "erid",
-                "banner_ref_id",
-                "month",
-                "date",
-                "banner_title",
-                "advertiser_name",
-                "advertiser_inn",
-                "views",
-                "clicks",
-            )
-        )
-        groups: dict[tuple[date, str, int], dict[str, Any]] = {}
-        for row in rows:
-            key = (row["month"], row["erid"], row["banner_ref_id"])
-            group = groups.setdefault(
-                key,
-                {"views": 0, "clicks": 0, "first_view": None, "last_view": None, "first": row["date"]},
-            )
-            group["views"] += row["views"]
-            group["clicks"] += row["clicks"]
-            group["last"] = row["date"]
-            if row["views"]:
-                group["first_view"] = group["first_view"] or row["date"]
-                group["last_view"] = row["date"]
-            # Строки идут по возрастанию даты — последняя перезаписывает реквизиты.
-            group["banner_title"] = row["banner_title"]
-            group["advertiser_name"] = row["advertiser_name"]
-            group["advertiser_inn"] = row["advertiser_inn"]
-
-        response = HttpResponse(content_type="text/csv; charset=utf-8")
-        response["Content-Disposition"] = f'attachment; filename="ord_banners_{timezone.localdate():%Y-%m-%d}.csv"'
-        # Без BOM Excel на Windows читает UTF-8 как cp1251.
-        response.write("﻿")
-        writer = csv.writer(response, delimiter=";")
-        writer.writerow(ORD_CSV_HEADER)
-        for (_month, erid, _ref_id), group in sorted(groups.items(), key=lambda item: item[0]):
-            writer.writerow(
-                [
-                    _csv_text(erid),
-                    _csv_cell(group["advertiser_name"]),
-                    _csv_text(group["advertiser_inn"]),
-                    _csv_cell(group["banner_title"]),
-                    _format_date(group["first_view"] or group["first"]),
-                    _format_date(group["last_view"] or group["last"]),
-                    group["views"],
-                    group["clicks"],
-                ]
-            )
-        return response
+    def export_ord_view(self, request: HttpRequest) -> HttpResponse:
+        # admin_view проверяет только доступ к разделу, право на модель — здесь.
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+        period, period_error = parse_period(request.GET, timezone.localdate())
+        if period_error:
+            # CSV за период по умолчанию ушёл бы в ОРД как отчёт за другой период —
+            # возвращаем на сводку с тем же querystring, она покажет ошибку.
+            changelist_url = reverse("admin:banners_bannerdailystat_changelist", current_app=self.admin_site.name)
+            return HttpResponseRedirect(f"{changelist_url}?{request.GET.urlencode()}")
+        return ord_csv_response(period.apply(BannerDailyStat.objects.all()))

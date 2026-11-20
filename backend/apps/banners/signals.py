@@ -6,6 +6,9 @@ for that specific banner type (key pattern: banners:list:{type}:{role})
 
 Story 32.4 CR-8: При смене type у существующего баннера инвалидируются
 оба типа (старый + новый) через pre_save tracking.
+
+Сохранение существующего баннера переписывает его снимок (название, реквизиты
+рекламодателя) в строках дневной статистики — см. `sync_daily_stat_snapshots`.
 """
 
 from __future__ import annotations
@@ -16,7 +19,7 @@ from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
 from .models import Banner
-from .services import invalidate_banner_cache
+from .services import invalidate_banner_cache, sync_daily_stat_snapshots
 
 
 @receiver(pre_save, sender=Banner)
@@ -49,6 +52,21 @@ def invalidate_banner_cache_on_save(sender: type[Banner], instance: Banner, **kw
     old_type = getattr(instance, "_old_type", None)
     if old_type and old_type != instance.type:
         invalidate_banner_cache(old_type)
+
+
+@receiver(post_save, sender=Banner)
+def sync_daily_stats_on_save(
+    sender: type[Banner], instance: Banner, created: bool = False, raw: bool = False, **kwargs: Any
+) -> None:
+    """
+    Переписывает снимок баннера в его строках статистики.
+
+    У нового баннера строк ещё нет; при `raw` (loaddata) данные фикстуры
+    загружаются как есть.
+    """
+    if created or raw:
+        return
+    sync_daily_stat_snapshots(instance)
 
 
 @receiver(post_delete, sender=Banner)
