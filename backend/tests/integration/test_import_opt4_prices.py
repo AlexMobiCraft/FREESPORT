@@ -73,16 +73,20 @@ def processor() -> VariantImportProcessor:
 def opt4_price_type() -> PriceType:
     """Запись справочника «Опт 4» в состоянии после data-миграции 0053.
 
-    Автоочистка БД (`clear_db_before_test`) сносит данные data-миграций,
-    поэтому запись создаётся явно.
+    `clear_db_before_test` не чистит `products.PriceType`, поэтому запись может
+    уже существовать (data-миграция 0053 или предыдущий тест на том же воркере
+    xdist) — приводим её к нужному состоянию, а не создаём заново.
     """
-    return PriceType.objects.create(
+    price_type, _ = PriceType.objects.update_or_create(
         onec_id=OPT4_PRICE_TYPE_GUID,
-        onec_name="Опт 4 (до 50 тыс.руб в квартал)",
-        product_field="opt4_price",
-        user_role="wholesale_level4",
-        is_active=True,
+        defaults={
+            "onec_name": "Опт 4 (до 50 тыс.руб в квартал)",
+            "product_field": "opt4_price",
+            "user_role": "wholesale_level4",
+            "is_active": True,
+        },
     )
+    return price_type
 
 
 def _create_variant(onec_id: str) -> ProductVariant:
