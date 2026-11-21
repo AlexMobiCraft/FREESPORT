@@ -157,8 +157,8 @@ CREATE TABLE products_productvariant (
     trainer_price DECIMAL(10,2),
     federation_price DECIMAL(10,2),
 
-    -- Reference prices (B2B)
-    rrp DECIMAL(10,2),
+    -- Reference prices (B2B). РРЦ отдельной колонки не имеет: РРЦ = retail_price
+    -- (вид цен 1С «РРЦ»), колонка rrp удалена миграцией products.0061
     msrp DECIMAL(10,2),
 
     -- VAT
@@ -554,7 +554,7 @@ $$ LANGUAGE plpgsql STABLE;
 **4. Ценообразование:**
 
 - Multi-tier pricing на уровне ProductVariant с поддержкой всех типов пользователей
-- RRP/MSRP поля для B2B пользователей (требование FR5)
+- РРЦ/МРЦ для B2B пользователей (требование FR5): РРЦ = `retail_price`, МРЦ = `msrp`
 
 **5. Соответствие ФЗ-152 (Story 35.1, 2026-05-09):**
 

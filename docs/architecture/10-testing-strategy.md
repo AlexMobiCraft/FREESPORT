@@ -178,7 +178,7 @@ const mockProduct = {
   retail_price: 1200,
   opt1_price: 1000,
   trainer_price: 950,
-  recommended_retail_price: 1300, // RRP для B2B
+  rrp: 1200, // РРЦ для B2B = retail_price
   max_suggested_retail_price: 1400, // MSRP для B2B
   main_image: '/test-image.jpg',
   stock_quantity: 50
@@ -208,7 +208,7 @@ describe('ProductCard', () => {
     expect(screen.getByText('1 000 ₽')).toBeInTheDocument();
 
     // Показывает RRP и MSRP для B2B пользователей (FR5)
-    expect(screen.getByText('РРЦ: 1 300 ₽')).toBeInTheDocument();
+    expect(screen.getByText('РРЦ: 1 200 ₽')).toBeInTheDocument();
     expect(screen.getByText('Макс. цена: 1 400 ₽')).toBeInTheDocument();
   });
 
@@ -247,7 +247,6 @@ class TestProductAPI:
             opt1_price=1000.00,
             opt2_price=950.00,
             trainer_price=900.00,
-            recommended_retail_price=1300.00,  # RRP для B2B
             max_suggested_retail_price=1400.00,  # MSRP для B2B
             stock_quantity=50
         )
@@ -272,7 +271,7 @@ class TestProductAPI:
         assert 'trainer_price' not in data
 
         # Не видит RRP/MSRP (только для B2B)
-        assert 'recommended_retail_price' not in data
+        assert 'rrp' not in data
         assert 'max_suggested_retail_price' not in data
 
     def test_wholesale_user_sees_wholesale_pricing_and_rrp_msrp(self):
@@ -289,7 +288,7 @@ class TestProductAPI:
         assert data['current_user_price'] == '950.00'
 
         # Видит RRP и MSRP для принятия решений (FR5)
-        assert data['recommended_retail_price'] == '1300.00'
+        assert data['rrp'] == 1200.0  # РРЦ = retail_price
         assert data['max_suggested_retail_price'] == '1400.00'
 
         # Видит все уровни оптовых цен для сравнения

@@ -425,4 +425,96 @@ describe('ProductInfo', () => {
       expect(screen.queryByText('Акция')).not.toBeInTheDocument();
     });
   });
+
+  describe('строка «РРЦ» (РРЦ = розничная цена из 1С)', () => {
+    const rrpVariant = (currentPrice: string, rrp?: string): ProductVariant => ({
+      id: 7,
+      sku: 'BGS322',
+      current_price: currentPrice,
+      regular_price: currentPrice,
+      promo_price: null,
+      rrp,
+      stock_quantity: 5,
+      is_in_stock: true,
+      available_quantity: 5,
+    });
+
+    it('оптовик 1: под ценой «Опт 1» видна РРЦ', () => {
+      const { container } = render(
+        <ProductInfo
+          product={mockProduct}
+          userRole="wholesale_level1"
+          selectedVariant={rrpVariant('1800.00', '2530.00')}
+        />
+      );
+
+      expect(container.querySelector('.text-4xl.font-bold')).toHaveTextContent('1 800 ₽');
+      expect(screen.getByText(/РРЦ:/)).toHaveTextContent('2 530 ₽');
+    });
+
+    it('vip: РРЦ видна, даже когда цена роли равна РРЦ', () => {
+      render(
+        <ProductInfo
+          product={mockProduct}
+          userRole="vip"
+          selectedVariant={rrpVariant('2530.00', '2530.00')}
+        />
+      );
+
+      expect(screen.getByText(/РРЦ:/)).toHaveTextContent('2 530 ₽');
+    });
+
+    // Администратору API поле отдаёт, но строку скрывает фронт; менеджеры — retail + staff
+    it.each(['admin', 'retail', 'unregistered', 'guest'] as const)(
+      '%s не видит РРЦ, даже если API её отдал',
+      role => {
+        render(
+          <ProductInfo
+            product={mockProduct}
+            userRole={role}
+            selectedVariant={rrpVariant('2530.00', '2530.00')}
+          />
+        );
+
+        expect(screen.queryByText(/РРЦ:/)).not.toBeInTheDocument();
+      }
+    );
+
+    it('federation_rep: API не отдаёт rrp — строки нет', () => {
+      render(
+        <ProductInfo
+          product={mockProduct}
+          userRole="federation_rep"
+          selectedVariant={rrpVariant('2000.00')}
+        />
+      );
+
+      expect(screen.queryByText(/РРЦ:/)).not.toBeInTheDocument();
+    });
+
+    it('B2B: вариант с нулевой розницей — строки нет', () => {
+      render(
+        <ProductInfo
+          product={mockProduct}
+          userRole="wholesale_level1"
+          selectedVariant={rrpVariant('1800.00', '0.00')}
+        />
+      );
+
+      expect(screen.queryByText(/РРЦ:/)).not.toBeInTheDocument();
+    });
+
+    // API отдаёт null при рознице ≤ 0: цену роли на место РРЦ не подставлять
+    it('B2B: rrp = null — строки нет, цена роли не подставляется', () => {
+      render(
+        <ProductInfo
+          product={mockProduct}
+          userRole="wholesale_level1"
+          selectedVariant={{ ...rrpVariant('1800.00'), rrp: null }}
+        />
+      );
+
+      expect(screen.queryByText(/РРЦ:/)).not.toBeInTheDocument();
+    });
+  });
 });

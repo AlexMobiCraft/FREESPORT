@@ -10,6 +10,8 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@/__mocks__/api/server';
 import { HitsSection } from '../HitsSection';
 import { ToastProvider } from '@/components/ui/Toast/ToastProvider';
+import { useAuthStore } from '@/stores/authStore';
+import type { User } from '@/types/api';
 
 // Setup MSW
 beforeAll(() => server.listen());
@@ -188,5 +190,69 @@ describe('HitsSection', () => {
     // Товары только с is_hit показывают "Лидер продаж"
     const hitBadges = screen.getAllByText('Лидер продаж');
     expect(hitBadges.length).toBeGreaterThan(0); // Несколько товаров с только is_hit=true
+  });
+
+  // РРЦ = розничная цена из 1С; в electric-варианте строку выводит ElectricProductCard
+  describe('строка «РРЦ» в electric-варианте', () => {
+    const hitWithRrp = {
+      id: 77,
+      name: 'Мяч BGS322',
+      slug: 'bgs322',
+      description: '',
+      retail_price: 2530,
+      rrp: 2530,
+      is_in_stock: true,
+      category: { id: 1, name: 'Футбол', slug: 'football' },
+      images: [],
+      is_hit: true,
+      is_new: false,
+      is_sale: false,
+      is_promo: false,
+      is_premium: false,
+    };
+    const loginAs = (role: User['role']) =>
+      useAuthStore.setState({
+        user: {
+          id: 1,
+          email: `${role}@example.com`,
+          first_name: '',
+          last_name: '',
+          phone: '',
+          role,
+          is_verified: true,
+        },
+      });
+
+    afterEach(() => {
+      useAuthStore.setState({ user: null });
+    });
+
+    const renderHits = async () => {
+      server.use(
+        http.get('*/products/', () =>
+          HttpResponse.json({ count: 1, next: null, previous: null, results: [hitWithRrp] })
+        )
+      );
+      render(
+        <ToastProvider>
+          <HitsSection variant="electric" />
+        </ToastProvider>
+      );
+      await waitFor(() => expect(screen.getByText('Мяч BGS322')).toBeInTheDocument());
+    };
+
+    it('администратор не видит РРЦ, хотя API её отдал', async () => {
+      loginAs('admin');
+      await renderHits();
+
+      expect(screen.queryByText(/РРЦ/)).not.toBeInTheDocument();
+    });
+
+    it('оптовик 1 видит РРЦ', async () => {
+      loginAs('wholesale_level1');
+      await renderHits();
+
+      expect(screen.getByText(/РРЦ:\s*2\s530/)).toBeInTheDocument();
+    });
   });
 });

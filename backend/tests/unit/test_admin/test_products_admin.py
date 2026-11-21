@@ -4,15 +4,25 @@ Unit тесты для Django Admin интерфейса товаров
 Story 13.2: Проверка отображения onec_brand_id в Django Admin
 """
 
+from decimal import Decimal
+
 import pytest
 from django.contrib import messages
 from django.contrib.admin.sites import AdminSite
 from django.test import RequestFactory, TestCase
+from django.urls import reverse
 
 from apps.products.admin import Brand1CMappingAdmin, Brand1CMappingInline, BrandAdmin, PriceTypeAdmin, ProductAdmin
 from apps.products.forms import PriceTypeAdminForm
 from apps.products.models import Brand, Brand1CMapping, PriceType, Product
-from tests.factories import Brand1CMappingFactory, BrandFactory, CategoryFactory, ProductFactory, UserFactory
+from tests.factories import (
+    Brand1CMappingFactory,
+    BrandFactory,
+    CategoryFactory,
+    ProductFactory,
+    ProductVariantFactory,
+    UserFactory,
+)
 
 
 @pytest.mark.django_db
@@ -191,6 +201,40 @@ class TestProductAdmin(TestCase):
 
         assert "onec_brand_id" in readonly_fields
         assert product.onec_brand_id is None, "onec_brand_id должен быть None для товара без бренда"
+
+    def test_rrp_display_shows_first_variant_with_retail_price(self):
+        """Колонка «РРЦ» = розничная цена первого варианта с ненулевой розницей"""
+        product = ProductFactory.create(create_variant=False)
+        ProductVariantFactory.create(product=product, retail_price=Decimal("0.00"))
+        ProductVariantFactory.create(product=product, retail_price=Decimal("2530.00"))
+
+        assert self.admin.rrp_display(product) == "2530.00 ₽"
+
+    def test_rrp_display_dash_when_only_zero_retail(self):
+        """Только варианты с нулевой розницей — прочерк, а не «0.00 ₽»"""
+        product = ProductFactory.create(create_variant=False)
+        ProductVariantFactory.create(product=product, retail_price=Decimal("0.00"))
+
+        assert self.admin.rrp_display(product) == "-"
+
+    def test_changelist_sorts_by_rrp_column(self):
+        """Клик по заголовку «РРЦ» сортирует по рознице вариантов, а не падает с FieldError"""
+        # Дороже — создан первым и раньше по имени: порядок задаёт только сортировка по колонке
+        pricier = ProductFactory.create(name="А дорогой", create_variant=False)
+        ProductVariantFactory.create(product=pricier, retail_price=Decimal("2530.00"))
+        cheaper = ProductFactory.create(name="Я дешёвый", create_variant=False)
+        ProductVariantFactory.create(product=cheaper, retail_price=Decimal("1500.00"))
+        # Индекс 0 в changelist — action_checkbox, поэтому номер колонки = позиция в list_display с 1
+        column = ProductAdmin.list_display.index("rrp_display") + 1
+        self.client.force_login(self.superuser)
+        url = reverse("admin:products_product_changelist")
+
+        for order, expected in ((str(column), [cheaper.pk, pricier.pk]), (f"-{column}", [pricier.pk, cheaper.pk])):
+            response = self.client.get(url, {"o": order})
+
+            assert response.status_code == 200
+            result_pks = [product.pk for product in response.context["cl"].result_list]
+            assert result_pks == expected
 
 
 @pytest.mark.django_db

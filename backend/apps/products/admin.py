@@ -65,7 +65,6 @@ class ProductVariantInline(admin.TabularInline):
         "size_value",
         "retail_price",
         "promo_price",
-        "rrp",
         "msrp",
         "stock_quantity",
         "is_active",
@@ -599,11 +598,11 @@ class ProductAdmin(admin.ModelAdmin):
                 continue
         return pks
 
-    @admin.display(description="РРЦ", ordering="variants__rrp")
+    @admin.display(description="РРЦ", ordering="variants__retail_price")
     def rrp_display(self, obj: Product) -> str | None:
-        """Отображение РРЦ из первого варианта"""
-        variant = obj.variants.filter(rrp__isnull=False).first()
-        return f"{variant.rrp} ₽" if variant and variant.rrp else "-"
+        """РРЦ = розничная цена первого варианта с ценой"""
+        variant = obj.variants.filter(retail_price__gt=0).first()
+        return f"{variant.retail_price} ₽" if variant else "-"
 
     @admin.display(description="МРЦ", ordering="variants__msrp")
     def msrp_display(self, obj: Product) -> str | None:
@@ -682,7 +681,6 @@ class ProductVariantAdmin(admin.ModelAdmin):
         "color_name",
         "size_value",
         "retail_price",
-        "rrp",
         "msrp",
         "vat_rate",
         "stock_quantity",
@@ -741,7 +739,6 @@ class ProductVariantAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "retail_price",
-                    "rrp",
                     "msrp",
                     "opt1_price",
                     "opt2_price",

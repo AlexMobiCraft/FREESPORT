@@ -70,7 +70,6 @@ def product():
         opt3_price=Decimal("700.00"),
         trainer_price=Decimal("600.00"),
         federation_price=Decimal("650.00"),
-        rrp=Decimal("1200.00"),
         msrp=Decimal("1300.00"),
         stock_quantity=10,
         reserved_quantity=0,
@@ -224,12 +223,12 @@ class TestSerializerWholesaleGate:
         assert "msrp" not in data
 
     def test_info_prices_visible_for_verified_b2b(self, product, api_factory):
-        """AC6: верифицированный оптовик видит РРЦ/МРЦ"""
+        """AC6: верифицированный оптовик видит РРЦ/МРЦ; РРЦ = розничная цена варианта"""
         user = _make_user("wholesale_level1", is_verified=True)
 
         data = _serialize_list(product, api_factory, user)
 
-        assert data["rrp"] == 1200.0
+        assert data["rrp"] == 1000.0
         assert data["msrp"] == 1300.0
 
     def test_related_products_are_gated(self, product, api_factory):

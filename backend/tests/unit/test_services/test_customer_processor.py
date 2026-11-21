@@ -952,7 +952,7 @@ class TestCustomerRoleFromPriceType:
 
     def test_known_price_type_without_role_leaves_role(self, processor, customer_with_price_type):
         """AC11: РРЦ известен порталу, но роли не несёт — роль не меняется."""
-        self._ensure_price_type(RRP_GUID, "РРЦ", "", "rrp")
+        self._ensure_price_type(RRP_GUID, "РРЦ", "", "retail_price")
         data = dict(customer_with_price_type)
         data["price_type_ids"] = [RRP_GUID]
         existing = self._linked_account(data["onec_id"], "wholesale_level1", "rrp-pt@example.com")

@@ -11,6 +11,7 @@ import {
   formatExactPrice,
   formatPrice,
   getProductDisplayPrice,
+  isB2BRole,
   isPromoApplied,
   type UserRole,
 } from '@/utils/pricing';
@@ -69,18 +70,9 @@ export default function ProductInfo({
 
   const stockStatus = getStockStatus();
 
-  // RRP видят только оптовики (1-4), тренеры, VIP, «Спец цена», дилеры и админы
-  const canSeeRrp = [
-    'wholesale_level1',
-    'wholesale_level2',
-    'wholesale_level3',
-    'wholesale_level4',
-    'trainer',
-    'vip',
-    'special_price',
-    'dealer',
-    'admin',
-  ].includes(userRole);
+  // РРЦ (розничную цену из 1С) видят только B2B-роли: администратор и менеджер — нет,
+  // хотя API отдаёт им поле. Строка видна и тогда, когда цена роли равна РРЦ
+  const canSeeRrp = isB2BRole(userRole);
 
   // Рендеринг рейтинга звездами
   const renderRating = () => {

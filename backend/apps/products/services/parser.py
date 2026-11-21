@@ -610,6 +610,11 @@ class XMLDataParser:
 
         name_lower = onec_name.lower()
 
+        # РРЦ из 1С — розничная цена сайта, с «рекоменд» в названии или без.
+        # Проверяется раньше оптовых и тренерского маркеров: «РРЦ Опт 1» — тоже розница.
+        if "ррц" in name_lower:
+            return "retail_price"
+
         if "опт 1" in name_lower or "опт1" in name_lower:
             return "opt1_price"
         elif "опт 2" in name_lower or "опт2" in name_lower:
@@ -620,10 +625,6 @@ class XMLDataParser:
             return "opt4_price"
         elif "тренер" in name_lower:
             return "trainer_price"
-        elif "ррц" in name_lower:
-            if "рекоменд" in name_lower:
-                return "rrp"
-            return "retail_price"
         elif "мрц" in name_lower:
             return "msrp"
         elif "рознич" in name_lower:

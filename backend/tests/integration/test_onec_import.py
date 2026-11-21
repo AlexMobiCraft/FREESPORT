@@ -9,6 +9,7 @@ import inspect
 import io
 import logging
 import zipfile
+from decimal import Decimal
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -38,6 +39,10 @@ CATALOG_XML_FILES = (
 )
 
 CONTRAGENTS_XML = ONEC_FIXTURES / "contragents" / "contragents.xml"
+
+# Вид цен «РРЦ» в priceLists.xml и простой товар из goods.xml с ценами в prices.xml.
+RRP_PRICE_TYPE_ONEC_ID = "3d1482c4-bd77-11e4-afc8-20cf3073dde3"
+INTEX_29002_ONEC_ID = "069efcc9-a098-11ed-a325-04421a23d8e8"
 
 # Назначенный правилами проекта корпус runtime-выгрузок 1С (backend/data/import_1c).
 # Каталог в .gitignore, поэтому на раннере его нет — тесты на нём помечаются
@@ -311,7 +316,7 @@ class TestAsyncImportDispatch:
         сессия доходит до COMPLETED, каталог наполняется. Ни один файл при этом
         не появляется под MEDIA_ROOT.
         """
-        from apps.products.models import Category, ImportSession, Product
+        from apps.products.models import Category, ImportSession, PriceType, Product, ProductVariant
 
         assert Product.objects.count() == 0
 
@@ -345,6 +350,16 @@ class TestAsyncImportDispatch:
 
         assert Product.objects.count() > 0, "Реальный goods.xml не создал ни одного товара"
         assert Category.objects.count() > 0, "Реальный groups.xml не создал ни одной категории"
+
+        # Вид цен 1С «РРЦ» — розница сайта: статус COMPLETED не ловит пропуск цены
+        rrp_price_type = PriceType.objects.get(onec_id=RRP_PRICE_TYPE_ONEC_ID)
+        assert rrp_price_type.onec_name == "РРЦ"
+        assert rrp_price_type.product_field == "retail_price"
+        # Картридж INTEX 29002: в prices.xml РРЦ = 635, МРЦ = 540, Опт 1 = 443
+        cartridge = ProductVariant.objects.get(onec_id=INTEX_29002_ONEC_ID)
+        assert cartridge.retail_price == Decimal("635")
+        assert cartridge.msrp == Decimal("540")
+        assert cartridge.opt1_price == Decimal("443")
 
         media_root = onec_private_dirs["media_root"]
         assert not (media_root / "1c_import").exists()

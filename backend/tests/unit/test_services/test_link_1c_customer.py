@@ -530,7 +530,7 @@ class TestLinkAppliesPriceTypeAndRole:
         Такие виды цен не попадают в маппинг вовсе: иначе маркетплейсы на РРЦ
         уехали бы в retail.
         """
-        self.ensure_price_type(self.RRP_GUID, "", product_field="rrp")
+        self.ensure_price_type(self.RRP_GUID, "", product_field="retail_price")
         tax_id = unique_tax_id()
         source = make_1c_record(tax_id, onec_price_type_id=self.RRP_GUID)
         target = make_applicant(tax_id, role="wholesale_level1")

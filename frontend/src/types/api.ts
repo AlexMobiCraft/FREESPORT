@@ -86,7 +86,8 @@ export interface Product {
   is_promo: boolean;
   is_premium: boolean;
   discount_percent: number | null;
-  rrp?: number;
+  /** РРЦ = розничная цена первого варианта; null — розница 0, поля нет — роль его не видит */
+  rrp?: number | null;
   msrp?: number;
   rating?: number;
   reviews_count?: number;
@@ -366,7 +367,8 @@ export interface ProductVariant {
   is_in_stock: boolean;
   available_quantity: number;
   stock_range?: string;
-  rrp?: string;
+  /** РРЦ = розничная цена варианта (Decimal as string); null — розница 0 */
+  rrp?: string | null;
   msrp?: string;
   main_image?: string | null;
   gallery_images?: string[];

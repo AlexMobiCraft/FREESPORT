@@ -72,7 +72,7 @@ interface ApiProductDetailResponse {
     stock_quantity: number;
     is_in_stock: boolean;
     available_quantity: number;
-    rrp?: string;
+    rrp?: string | null;
     msrp?: string;
     main_image?: string | null;
     gallery_images?: string[];

@@ -763,7 +763,7 @@ class TestUserAdminPriceType(TestCase):
         """AC8: GUID есть в справочнике — показывается наименование"""
         price_type, _ = PriceType.objects.get_or_create(
             onec_id=self.RRP_PRICE_TYPE_GUID,
-            defaults={"onec_name": "РРЦ", "product_field": "rrp"},
+            defaults={"onec_name": "РРЦ", "product_field": "retail_price"},
         )
         user = self._make_user(self.RRP_PRICE_TYPE_GUID)
 
@@ -778,7 +778,7 @@ class TestUserAdminPriceType(TestCase):
         """
         PriceType.objects.get_or_create(
             onec_id=self.RRP_PRICE_TYPE_GUID.upper(),
-            defaults={"onec_name": "РРЦ", "product_field": "rrp"},
+            defaults={"onec_name": "РРЦ", "product_field": "retail_price"},
         )
         user = self._make_user(self.RRP_PRICE_TYPE_GUID)
 
