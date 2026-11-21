@@ -151,6 +151,10 @@ class TestPriceTypeMapping:
             ("РРЦ рекомендованная", "retail_price"),
             ("Рекомендованная розничная цена", "retail_price"),
             ("РРЦ", "retail_price"),
+            # «ррц» сильнее оптовых и тренерского маркеров
+            ("РРЦ Опт 1", "retail_price"),
+            ("опт2 ррц", "retail_price"),
+            ("РРЦ тренер", "retail_price"),
             ("МРЦ", "msrp"),
             ("Розничная", "retail_price"),
         ],

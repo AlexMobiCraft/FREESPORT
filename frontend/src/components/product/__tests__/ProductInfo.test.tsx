@@ -503,5 +503,18 @@ describe('ProductInfo', () => {
 
       expect(screen.queryByText(/РРЦ:/)).not.toBeInTheDocument();
     });
+
+    // API отдаёт null при рознице ≤ 0: цену роли на место РРЦ не подставлять
+    it('B2B: rrp = null — строки нет, цена роли не подставляется', () => {
+      render(
+        <ProductInfo
+          product={mockProduct}
+          userRole="wholesale_level1"
+          selectedVariant={{ ...rrpVariant('1800.00'), rrp: null }}
+        />
+      );
+
+      expect(screen.queryByText(/РРЦ:/)).not.toBeInTheDocument();
+    });
   });
 });

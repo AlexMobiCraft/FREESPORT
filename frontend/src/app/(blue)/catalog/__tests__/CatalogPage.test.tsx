@@ -2927,3 +2927,81 @@ describe('CatalogPage — H1 с текстом от сервера', () => {
   });
 
 });
+
+// ---------------------------------------------------------------------------
+// Строка «РРЦ» в выдаче каталога: РРЦ = розничная цена из 1С, видят только B2B-роли.
+// Тест отдельной карточки не ловит потерю userRole в вызывающем компоненте.
+// ---------------------------------------------------------------------------
+import { useAuthStore } from '@/stores/authStore';
+import type { User } from '@/types/api';
+
+describe('CatalogPage — строка «РРЦ» в обоих режимах выдачи', () => {
+  const bgs322 = {
+    ...mockProducts[0],
+    id: 322,
+    name: 'Мяч BGS322',
+    slug: 'bgs322',
+    retail_price: 2530,
+    opt1_price: 1800,
+    rrp: 2530,
+  };
+
+  const loginAs = (role: User['role']) =>
+    useAuthStore.setState({
+      user: {
+        id: 1,
+        email: `${role}@example.com`,
+        first_name: '',
+        last_name: '',
+        phone: '',
+        role,
+        is_verified: true,
+      },
+    });
+
+  const showList = async () => {
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Список' }));
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useRealTimers();
+    mockMatchMedia();
+    resetSearchParams();
+    // Блоки выше оставляют свои реализации (например, дерево, которое не резолвится)
+    (categoriesService.getTree as Mock).mockResolvedValue(mockCategories);
+    (categoriesService.getVisibleCategories as Mock).mockResolvedValue([1]);
+    (brandsService.getAll as Mock).mockResolvedValue(mockBrands);
+    (brandsService.getVisibleBrands as Mock).mockResolvedValue([1, 2]);
+    (productsService.getAll as Mock).mockImplementation(() =>
+      Promise.resolve({ count: 1, next: null, previous: null, results: [bgs322] })
+    );
+  });
+
+  afterEach(() => {
+    useAuthStore.setState({ user: null });
+    (productsService.getAll as Mock).mockImplementation(() => Promise.resolve(mockApiResponse));
+  });
+
+  it.each(['grid', 'list'] as const)('оптовик 1 видит «РРЦ: 2 530 ₽» в режиме %s', async mode => {
+    loginAs('wholesale_level1');
+    render(<CatalogPage />);
+    await screen.findByText('Мяч BGS322');
+
+    if (mode === 'list') await showList();
+
+    await waitFor(() => expect(screen.getByText(/РРЦ.*2 530/)).toBeInTheDocument());
+    expect(screen.getByText('1 800 ₽')).toBeInTheDocument();
+  });
+
+  it.each(['grid', 'list'] as const)('администратор не видит РРЦ в режиме %s', async mode => {
+    loginAs('admin');
+    render(<CatalogPage />);
+    await screen.findByText('Мяч BGS322');
+
+    if (mode === 'list') await showList();
+
+    await waitFor(() => expect(screen.getAllByText('Мяч BGS322')).toHaveLength(1));
+    expect(screen.queryByText(/РРЦ/)).not.toBeInTheDocument();
+  });
+});

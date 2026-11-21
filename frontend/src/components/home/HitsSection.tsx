@@ -328,7 +328,7 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
                         ? Math.round(product.retail_price / (1 - product.discount_percent / 100))
                         : undefined
                     }
-                    rrp={isB2BRole(userRole) ? product.rrp : undefined}
+                    rrp={isB2BRole(userRole) ? (product.rrp ?? undefined) : undefined}
                     badge="hit"
                     inStock={product.is_in_stock}
                     onAddToCart={() => handleAddToCart(product.id)}

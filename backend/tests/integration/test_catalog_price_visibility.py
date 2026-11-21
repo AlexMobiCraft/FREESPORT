@@ -426,6 +426,25 @@ class TestRrpIsRetailPrice:
         assert detail.data["rrp"] == float(RETAIL_PRICE)
         assert detail.data["variants"][0]["rrp"] == f"{RETAIL_PRICE:.2f}"
 
+    def test_each_variant_gets_own_retail_price_as_rrp(self, api_client, product):
+        """Варианты с разной розницей: у каждого своя РРЦ; товар и список — РРЦ первого варианта"""
+        pricier = _make_variant(product, f"PRICIER-{get_unique_suffix()}")
+        pricier.retail_price = Decimal("1500.00")
+        pricier.save(update_fields=["retail_price"])
+        api_client.force_authenticate(user=_make_user("wholesale_level1", is_verified=True))
+
+        item = _list_item(api_client, product)
+        detail = api_client.get(f"/api/v1/products/{product.slug}/")
+
+        assert detail.status_code == 200
+        rrp_by_sku = {variant["sku"]: variant["rrp"] for variant in detail.data["variants"]}
+        assert len(rrp_by_sku) == 2
+        assert rrp_by_sku[pricier.sku] == "1500.00"
+        assert set(rrp_by_sku.values()) == {f"{RETAIL_PRICE:.2f}", "1500.00"}
+        # Первый вариант — с меньшей положительной розницей (first_variant_ordering)
+        assert detail.data["rrp"] == float(RETAIL_PRICE)
+        assert item["rrp"] == float(RETAIL_PRICE)
+
     def test_admin_still_gets_rrp(self, api_client, product):
         """INFO_PRICE_ROLES не меняется: админу API rrp отдаёт, строку скрывает фронт"""
         api_client.force_authenticate(user=_make_user("admin", is_verified=True))
@@ -456,8 +475,11 @@ class TestRrpIsRetailPrice:
         product.variants.update(retail_price=Decimal("0.00"))
         api_client.force_authenticate(user=_make_user("wholesale_level1", is_verified=True))
 
+        item = _list_item(api_client, product)
         detail = api_client.get(f"/api/v1/products/{product.slug}/")
 
+        assert "rrp" in item
+        assert item["rrp"] is None
         assert detail.status_code == 200
         assert detail.data["rrp"] is None
         assert detail.data["variants"][0]["rrp"] is None

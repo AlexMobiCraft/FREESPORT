@@ -421,6 +421,32 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
         expect(screen.getByText(/6\s*490/)).toBeInTheDocument();
       });
     });
+
+    it('оптовик: строка «РРЦ» берёт розницу выбранного варианта и меняется при переключении', async () => {
+      const user = userEvent.setup();
+      const rrpBySku: Record<string, string> = {
+        'NIKE-AM-RED-42': '7990.00',
+        'NIKE-AM-BLUE-42': '8490.00',
+        'NIKE-AM-RED-43': '7990.00',
+        'NIKE-AM-BLUE-43': '8490.00',
+      };
+      const productWithRrp: ProductDetailWithVariants = {
+        ...mockProduct,
+        variants: mockVariants.map(variant => ({ ...variant, rrp: rrpBySku[variant.sku] })),
+      };
+
+      render(<ProductPageClient product={productWithRrp} userRole="wholesale_level1" />);
+
+      // Первый доступный вариант — Красный 42
+      expect(screen.getByText(/РРЦ:/)).toHaveTextContent(/РРЦ:\s*7\s*990/);
+
+      await user.click(screen.getByRole('radio', { name: /Цвет: Синий/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/РРЦ:/)).toHaveTextContent(/РРЦ:\s*8\s*490/);
+      });
+      expect(screen.getAllByText(/РРЦ:/)).toHaveLength(1);
+    });
   });
 
   describe('Edge Cases', () => {

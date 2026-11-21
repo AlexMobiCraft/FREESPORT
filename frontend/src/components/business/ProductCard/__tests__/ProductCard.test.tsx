@@ -398,6 +398,15 @@ describe('ProductCard', () => {
         expect(screen.queryByText(/РРЦ/)).not.toBeInTheDocument();
         expect(screen.queryByText('0', { exact: true })).toBeNull();
       });
+
+      // API списка отдаёт null при рознице ≤ 0: цену роли или розницу карточки не подставлять
+      it.each(rrpLayouts)('B2B: rrp = null — строки нет в раскладке %s', layout => {
+        const product = { ...bgs322, rrp: null };
+        render(<ProductCard product={product} userRole="wholesale_level1" layout={layout} />);
+
+        expect(screen.getByText('1 800 ₽')).toBeInTheDocument();
+        expect(screen.queryByText(/РРЦ/)).not.toBeInTheDocument();
+      });
     });
   });
 
