@@ -227,6 +227,89 @@ class TestSendOrderNotificationEmail:
 
 @pytest.mark.unit
 @pytest.mark.django_db
+class TestNewOrderEmailClientAndTotal:
+    """Строка «Клиент» — организация, как в выгрузке в 1С; «Итого» под товарами — сумма строк субзаказов."""
+
+    @staticmethod
+    def _order(user, **extra):
+        from apps.orders.models import Order
+
+        fields = {"delivery_address": "Test Address", "delivery_method": "by_agreement", "total_amount": Decimal("0")}
+        return Order.objects.create(user=user, **{**fields, **extra})
+
+    @staticmethod
+    def _item(order, qty, price):
+        from apps.orders.models import OrderItem
+        from tests.factories import ProductVariantFactory
+
+        variant = ProductVariantFactory.create(retail_price=price)
+        return OrderItem.objects.create(
+            order=order, product=variant.product, variant=variant, quantity=qty, unit_price=price
+        )
+
+    @patch("apps.orders.tasks.send_mail")
+    def test_wholesale_client_shown_by_company_name(self, mock_send_mail, notification_recipient):
+        from tests.factories import UserFactory
+
+        user = UserFactory(
+            email="buyer@example.com", first_name="", last_name="", role="wholesale_level1", company_name="ИП Петров"
+        )
+        order = self._order(user)
+
+        assert send_order_notification_email(order.id) is True
+
+        mail = mock_send_mail.call_args.kwargs
+        assert "Клиент: ИП Петров" in mail["message"]
+        assert "ИП Петров" in mail["html_message"]
+
+    @pytest.mark.parametrize(
+        ("role", "company_name", "expected"),
+        [
+            ("wholesale_level1", "", "Иван Петров"),
+            ("retail", "ООО Ромашка", "Иван Петров"),
+        ],
+    )
+    def test_client_label_falls_back_to_full_name(self, role, company_name, expected):
+        from apps.orders.tasks import _order_client_label
+        from tests.factories import UserFactory
+
+        user = UserFactory(first_name="Иван", last_name="Петров", role=role, company_name=company_name)
+        assert _order_client_label(self._order(user)) == expected
+
+    def test_client_label_without_name_is_email_and_guest_uses_customer_name(self):
+        from apps.orders.tasks import _order_client_label
+        from tests.factories import UserFactory
+
+        user = UserFactory(email="noname@example.com", first_name="", last_name="", role="wholesale_level1")
+        assert _order_client_label(self._order(user)) == "noname@example.com"
+        guest = self._order(None, customer_name="Гость", customer_email="guest@example.com")
+        assert _order_client_label(guest) == "Гость"
+        anonymous = self._order(None, customer_name="", customer_email="")
+        assert _order_client_label(anonymous) == f"Гость #{anonymous.order_number}"
+
+    @patch("apps.orders.tasks.send_mail")
+    def test_items_total_is_sum_of_suborder_lines_without_delivery(self, mock_send_mail, notification_recipient):
+        from tests.factories import UserFactory
+
+        user = UserFactory()
+        master = self._order(user, is_master=True, delivery_cost=Decimal("500"), total_amount=Decimal("3700.50"))
+        first = self._order(user, is_master=False, parent_order=master)
+        second = self._order(user, is_master=False, parent_order=master)
+        self._item(first, 2, Decimal("1000.25"))
+        self._item(second, 1, Decimal("1200.00"))
+
+        assert send_order_notification_email(master.id) is True
+
+        mail = mock_send_mail.call_args.kwargs
+        # Шаблон форматирует числа по русской локали — десятичная запятая, как у цен строк.
+        assert "Итого: 3200,50 ₽" in mail["message"]
+        assert "3200,50 ₽" in mail["html_message"]
+        # Доставка мастер-заказа остаётся в «Сумме заказа» шапки, в «Итого» её нет.
+        assert "Сумма заказа: 3700,50 ₽" in mail["message"]
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
 class TestOrderNotificationResponsibleManager:
     """CAP-3 и CAP-4: письмо о новом заказе получает ответственный менеджер клиента."""
 

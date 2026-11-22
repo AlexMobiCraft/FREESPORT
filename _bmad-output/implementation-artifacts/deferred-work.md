@@ -1375,3 +1375,10 @@
 - OpenAPI и сгенерированные типы считают `rrp` обязательным во всех трёх представлениях, тогда как сериализация убирает ключ для ряда ролей. Рассинхронизация есть и в базовом коммите `d28db408`.
 - В примере `docs/architecture/10-testing-strategy.md:290–292` используется несуществующее поле `max_suggested_retail_price` вместо `msrp`; пример был некорректен до изменения источника РРЦ.
 - Приоритет для «АКЦИЯ РРЦ» оставлен без изменений (`promo_price`): по решению владельца, «В рабочей выгрузке такого названия нет и не будет».
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-order-email-client-total.md`
+  summary: Вынести правило имени контрагента в одну функцию и вызывать её и из `_order_client_label` (письмо), и из `OrderExportService._create_counterparties_element` (выгрузка в 1С).
+  evidence: правило сейчас продублировано в `backend/apps/orders/tasks.py` и `backend/apps/orders/services/order_export.py:258-296`; если поправить выгрузку, письмо разойдётся с 1С незаметно.
+- source_spec: `_bmad-output/implementation-artifacts/spec-order-email-client-total.md`
+  summary: В письме об отмене заказа (`send_order_cancelled_notification_email`) показывать организацию через `_order_client_label`, а не `customer_display_name or customer_email`.
+  evidence: его получают те же адресаты из `NotificationRecipient`; в письме о новом заказе будет «ИП Петров», а в письме об отмене того же заказа — email клиента.
