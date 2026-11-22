@@ -18,6 +18,28 @@ beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
+/** n товаров в наличии с заданным маркетинговым флагом: «Товар 1» … «Товар n» */
+const makeFlaggedProducts = (
+  n: number,
+  flags: Partial<Record<'is_hit' | 'is_new' | 'is_promo', boolean>>
+) =>
+  Array.from({ length: n }, (_, i) => ({
+    id: 1000 + i,
+    name: `Товар ${i + 1}`,
+    slug: `product-${i + 1}`,
+    description: '',
+    retail_price: 1000,
+    is_in_stock: true,
+    category: { id: 1, name: 'Футбол', slug: 'football' },
+    images: [],
+    is_hit: false,
+    is_new: false,
+    is_sale: false,
+    is_promo: false,
+    is_premium: false,
+    ...flags,
+  }));
+
 describe('HitsSection', () => {
   it('loads and displays 8 hit products with badges', async () => {
     render(
@@ -135,10 +157,60 @@ describe('HitsSection', () => {
       expect(requestSpy).toHaveBeenCalled();
     });
 
-    const calledUrl = requestSpy.mock.calls[0][0];
-    expect(calledUrl).toContain('is_hit=true');
-    expect(calledUrl).toContain('ordering=-created_at');
-    expect(calledUrl).toContain('page_size=8');
+    const params = new URL(requestSpy.mock.calls[0][0]).searchParams;
+    expect(params.get('is_hit')).toBe('true');
+    expect(params.get('ordering')).toBe('-created_at');
+    expect(params.get('in_stock')).toBe('true');
+    expect(params.get('page_size')).toBe('100');
+    expect(params.get('page')).toBe('1');
+  });
+
+  it('на главной показывает всех лидеров продаж из выдачи (12 → 12 карточек)', async () => {
+    server.use(
+      http.get('*/products/', () =>
+        HttpResponse.json({
+          count: 12,
+          next: null,
+          previous: null,
+          results: makeFlaggedProducts(12, { is_hit: true }),
+        })
+      )
+    );
+
+    render(
+      <ToastProvider>
+        <HitsSection />
+      </ToastProvider>
+    );
+
+    await waitFor(() => expect(screen.getByText('Товар 12')).toBeInTheDocument());
+    expect(screen.getAllByRole('listitem')).toHaveLength(12);
+  });
+
+  it('variant="electric" по-прежнему запрашивает 8 товаров', async () => {
+    const requestSpy = vi.fn();
+    server.use(
+      http.get('*/products/', ({ request }) => {
+        requestSpy(request.url);
+        return HttpResponse.json({ count: 0, next: null, previous: null, results: [] });
+      })
+    );
+
+    render(
+      <ToastProvider>
+        <HitsSection variant="electric" />
+      </ToastProvider>
+    );
+
+    await waitFor(() => expect(requestSpy).toHaveBeenCalled());
+    // В jsdom обработчик MSW срабатывает на один запрос больше одного раза (так и до
+    // этой правки), поэтому проверяем параметры каждого вызова, а не их число
+    for (const [url] of requestSpy.mock.calls) {
+      const calledUrl = new URL(url);
+      expect(calledUrl.searchParams.get('is_hit')).toBe('true');
+      expect(calledUrl.searchParams.get('page_size')).toBe('8');
+      expect(calledUrl.searchParams.has('page')).toBe(false);
+    }
   });
 
   it('does not render when no products are returned (graceful degradation)', async () => {

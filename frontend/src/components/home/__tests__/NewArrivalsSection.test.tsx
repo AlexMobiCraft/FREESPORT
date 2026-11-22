@@ -15,6 +15,28 @@ beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
+/** n товаров в наличии с заданным маркетинговым флагом: «Товар 1» … «Товар n» */
+const makeFlaggedProducts = (
+  n: number,
+  flags: Partial<Record<'is_hit' | 'is_new' | 'is_promo', boolean>>
+) =>
+  Array.from({ length: n }, (_, i) => ({
+    id: 1000 + i,
+    name: `Товар ${i + 1}`,
+    slug: `product-${i + 1}`,
+    description: '',
+    retail_price: 1000,
+    is_in_stock: true,
+    category: { id: 1, name: 'Футбол', slug: 'football' },
+    images: [],
+    is_hit: false,
+    is_new: false,
+    is_sale: false,
+    is_promo: false,
+    is_premium: false,
+    ...flags,
+  }));
+
 describe('NewArrivalsSection', () => {
   it('loads and displays 8 new products with "new" badge priority', async () => {
     render(<NewArrivalsSection />);
@@ -109,10 +131,30 @@ describe('NewArrivalsSection', () => {
       expect(requestSpy).toHaveBeenCalled();
     });
 
-    const calledUrl = requestSpy.mock.calls[0][0];
-    expect(calledUrl).toContain('is_new=true');
-    expect(calledUrl).toContain('ordering=-created_at');
-    expect(calledUrl).toContain('page_size=8');
+    const params = new URL(requestSpy.mock.calls[0][0]).searchParams;
+    expect(params.get('is_new')).toBe('true');
+    expect(params.get('ordering')).toBe('-created_at');
+    expect(params.get('in_stock')).toBe('true');
+    expect(params.get('page_size')).toBe('100');
+    expect(params.get('page')).toBe('1');
+  });
+
+  it('показывает все новинки из выдачи (12 → 12 карточек)', async () => {
+    server.use(
+      http.get('*/products/', () =>
+        HttpResponse.json({
+          count: 12,
+          next: null,
+          previous: null,
+          results: makeFlaggedProducts(12, { is_new: true }),
+        })
+      )
+    );
+
+    render(<NewArrivalsSection />);
+
+    await waitFor(() => expect(screen.getByText('Товар 12')).toBeInTheDocument());
+    expect(screen.getAllByRole('listitem')).toHaveLength(12);
   });
 
   it('does not render when no products are returned', async () => {

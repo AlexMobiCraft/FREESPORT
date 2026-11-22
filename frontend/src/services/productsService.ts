@@ -184,6 +184,52 @@ export interface ProductFilters {
   search?: string;
 }
 
+/** Размер страницы при сборе всей выдачи (`max_page_size` бэкенда). */
+const ALL_PAGES_PAGE_SIZE = 100;
+/** Предел страниц: защищает от бесконечной пагинации. */
+const ALL_PAGES_MAX_PAGES = 10;
+
+/**
+ * Собрать все страницы выдачи `/products/` с заданными фильтрами.
+ *
+ * Номер страницы считаем сами: `next` — только признак «есть ещё»
+ * (это абсолютный URL с хостом бэкенда, переходить по нему нельзя).
+ * Сбой первой страницы пробрасывается; сбой следующих (включая 404 при
+ * уменьшившемся `count`) останавливает сбор, и отдаётся уже загруженное.
+ * Без второго ключа сортировки товар может попасть на две страницы — дубли
+ * по `id` убираются с сохранением порядка.
+ *
+ * Функция уровня модуля, а не метод: обёртки не зависят от `this`.
+ */
+async function fetchAllPages(params: Partial<ProductFilters>): Promise<Product[]> {
+  const products: Product[] = [];
+  const seenIds = new Set<number>();
+
+  for (let page = 1; page <= ALL_PAGES_MAX_PAGES; page++) {
+    let data: PaginatedResponse<Product>;
+    try {
+      const response = await apiClient.get<PaginatedResponse<Product>>('/products/', {
+        params: { ...params, page_size: ALL_PAGES_PAGE_SIZE, page },
+      });
+      data = response.data;
+    } catch (error) {
+      if (page === 1) throw error;
+      console.warn(`Не удалось загрузить страницу ${page} товаров, показываем загруженное`, error);
+      break;
+    }
+
+    for (const product of data.results ?? []) {
+      if (seenIds.has(product.id)) continue;
+      seenIds.add(product.id);
+      products.push(product);
+    }
+
+    if (!data.next) break;
+  }
+
+  return products;
+}
+
 class ProductsService {
   /**
    * Получить список товаров с пагинацией и фильтрами
@@ -286,6 +332,30 @@ class ProductsService {
       },
     });
     return response.data.results;
+  }
+
+  /**
+   * Все хиты продаж в наличии (все страницы выдачи) — для карусели главной
+   * GET /products?is_hit=true&ordering=-created_at&in_stock=true&page_size=100&page=N
+   */
+  async getAllHits(): Promise<Product[]> {
+    return fetchAllPages({ is_hit: true, ordering: '-created_at', in_stock: true });
+  }
+
+  /**
+   * Все новинки в наличии (все страницы выдачи) — для карусели главной
+   * GET /products?is_new=true&ordering=-created_at&in_stock=true&page_size=100&page=N
+   */
+  async getAllNew(): Promise<Product[]> {
+    return fetchAllPages({ is_new: true, ordering: '-created_at', in_stock: true });
+  }
+
+  /**
+   * Все акционные товары в наличии (все страницы выдачи) — для карусели главной
+   * GET /products?is_promo=true&ordering=-created_at&in_stock=true&page_size=100&page=N
+   */
+  async getAllPromo(): Promise<Product[]> {
+    return fetchAllPages({ is_promo: true, ordering: '-created_at', in_stock: true });
   }
 
   /**

@@ -122,7 +122,11 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
     try {
       setIsLoading(true);
       setError(null);
-      const data = await productsService.getHits();
+      // Главная показывает всех лидеров в наличии; /electric — по-прежнему 8
+      const data =
+        variant === 'electric'
+          ? await productsService.getHits()
+          : await productsService.getAllHits();
       setProducts(data);
     } catch (err) {
       console.error(err);
@@ -130,7 +134,7 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [variant]);
 
   useEffect(() => {
     void fetchHits();

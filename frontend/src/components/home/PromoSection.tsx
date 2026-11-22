@@ -55,7 +55,7 @@ export const PromoSection: React.FC = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await productsService.getPromo();
+      const data = await productsService.getAllPromo();
       setProducts(data);
     } catch (err) {
       console.error(err);
