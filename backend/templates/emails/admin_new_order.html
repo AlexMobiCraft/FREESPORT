@@ -112,6 +112,14 @@
           </td>
         </tr>
         {% endfor %}
+        <tr>
+          <td colspan="3" style="padding: 10px; text-align: right">
+            <strong>Итого:</strong>
+          </td>
+          <td style="padding: 10px; text-align: right; white-space: nowrap">
+            <strong>{{ items_total }} ₽</strong>
+          </td>
+        </tr>
       </table>
 
       {% if order.notes %}

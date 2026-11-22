@@ -21,6 +21,7 @@ Email: {{ customer_email }}
 {% for item in items %}
 - {{ item.product_name }} × {{ item.quantity }}: {{ item.total_price }} ₽
 {% endfor %}
+Итого: {{ items_total }} ₽
 
 {% if order.notes %}
 КОММЕНТАРИЙ К ЗАКАЗУ:

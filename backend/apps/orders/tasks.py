@@ -7,6 +7,7 @@ Celery tasks для отправки email-уведомлений о заказ�
 
 import logging
 from datetime import datetime, timedelta
+from decimal import Decimal
 from smtplib import SMTPException
 from typing import Any
 
@@ -36,6 +37,20 @@ def _get_order_display_items(order: Order) -> Any:
     return order.items.select_related("product", "variant").all()
 
 
+def _order_client_label(order: Order) -> str:
+    """Имя клиента для письма о новом заказе — как `Контрагент/Наименование` в выгрузке заказа в 1С.
+
+    B2B-клиенту (`is_b2b_user`) — название организации (юрлицо или ИП), иначе ФИО, иначе email;
+    гостю — имя из заказа, иначе email, иначе «Гость #<номер>».
+    """
+    user = order.user
+    if user:
+        if user.is_b2b_user and user.company_name:
+            return str(user.company_name)
+        return str(user.full_name or user.email or "")
+    return order.customer_name or order.customer_email or f"Гость #{order.order_number}"
+
+
 def _render_new_order_email(order: Order, context: dict[str, Any]) -> tuple[str | None, str]:
     """Возвращает `(html, текст)` письма о новом заказе; при сбое шаблона — простой текст без HTML."""
     try:
@@ -54,7 +69,8 @@ def _render_new_order_email(order: Order, context: dict[str, Any]) -> tuple[str 
             f"Новый заказ #{order.order_number}\n\n"
             f"Клиент: {context['customer_name']}\n"
             f"Email: {context['customer_email']}\n"
-            f"Сумма: {order.total_amount} ₽\n\n"
+            f"Сумма: {order.total_amount} ₽\n"
+            f"Итого по товарам: {context['items_total']} ₽\n\n"
             f"Откройте заказ по ссылке: {context['admin_url']}"
         )
         return None, plain_message
@@ -238,23 +254,21 @@ def send_order_notification_email(self: Any, order_id: int) -> bool:
         return False
 
     # Подготавливаем контекст для шаблона
-    customer_email = ""
-    customer_phone = ""
-    customer_name = ""
-
     if order.user:
         customer_email = getattr(order.user, "email", "") or ""
         customer_phone = getattr(order.user, "phone", "") or ""
-        customer_name = order.customer_display_name
     else:
         customer_email = order.customer_email
         customer_phone = order.customer_phone
-        customer_name = order.customer_name or order.customer_email
 
+    items = list(_get_order_display_items(order))
     context = {
         "order": order,
-        "items": _get_order_display_items(order),
-        "customer_name": customer_name,
+        "items": items,
+        # «Итого» под товарами = сумма строк: столько же дают документы субзаказов в 1С,
+        # доставка и скидка мастер-заказа туда не попадают.
+        "items_total": sum((item.total_price for item in items), Decimal("0")),
+        "customer_name": _order_client_label(order),
         "customer_email": customer_email,
         "customer_phone": customer_phone,
         "delivery_method": order.get_delivery_method_display(),
