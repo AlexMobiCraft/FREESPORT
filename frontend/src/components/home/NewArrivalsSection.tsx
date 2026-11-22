@@ -56,7 +56,7 @@ export const NewArrivalsSection: React.FC = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await productsService.getNew();
+      const data = await productsService.getAllNew();
       setProducts(data);
     } catch (err) {
       console.error(err);
