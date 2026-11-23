@@ -11,6 +11,17 @@ import React, { useState } from 'react';
 import { AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
+/**
+ * Звёздочка обязательного поля у подписи (стили — `.required-mark` в app/globals.css).
+ *
+ * Псевдоэлемент, а не текст: звёздочка не попадает в textContent подписи, и поиск
+ * по точной подписи («Пароль») продолжает работать. Пустой альтернативный текст
+ * (`'*' / ''`) исключает её и из доступного имени поля — обязательность
+ * скринридеру сообщает aria-required="true" на самом поле.
+ * Используется и у подписей нативных <select> в формах регистрации.
+ */
+export const REQUIRED_MARK_CLASS_NAME = 'required-mark';
+
 export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
   /** Метка поля */
   label: string;
@@ -22,11 +33,29 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
   success?: string;
   /** Иконка слева */
   icon?: React.ReactNode;
+  /**
+   * Пометить поле обязательным: звёздочка у подписи и aria-required="true".
+   * Нативный required не ставится — браузерная подсказка заменила бы сообщения Zod.
+   * Явный aria-required вызывающего имеет приоритет.
+   */
+  requiredMark?: boolean;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   (
-    { label, helper, error, success, icon, className, disabled, id, type = 'text', ...props },
+    {
+      label,
+      helper,
+      error,
+      success,
+      icon,
+      requiredMark = false,
+      className,
+      disabled,
+      id,
+      type = 'text',
+      ...props
+    },
     ref
   ) => {
     // Edge Case: Если переданы одновременно error и success - приоритет у error
@@ -58,7 +87,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           className={cn(
             'block text-body-s font-medium text-[var(--color-text-primary)] mb-1',
             // Edge Case: Label длиннее 50 символов - перенос
-            label.length > 50 && 'whitespace-normal break-words'
+            label.length > 50 && 'whitespace-normal break-words',
+            requiredMark && REQUIRED_MARK_CLASS_NAME
           )}
         >
           {label}
@@ -115,6 +145,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             aria-describedby={
               hasError || hasSuccess || helper ? `${inputId}-description` : undefined
             }
+            aria-required={requiredMark ? true : undefined}
             {...props}
           />
 

@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { Input } from '../Input';
+import { Input, REQUIRED_MARK_CLASS_NAME } from '../Input';
 import { Search } from 'lucide-react';
 
 describe('Input', () => {
@@ -131,5 +131,43 @@ describe('Input', () => {
 
     const input = screen.getByLabelText('Test');
     expect(input).toHaveClass('placeholder:truncate');
+  });
+
+  describe('requiredMark', () => {
+    const REQUIRED_MARK_CLASSES = REQUIRED_MARK_CLASS_NAME.split(' ');
+
+    it('adds neither the mark nor aria-required by default', () => {
+      render(<Input label="Имя" value="" onChange={() => {}} />);
+
+      const input = screen.getByLabelText('Имя');
+      expect(input).not.toHaveAttribute('aria-required');
+      expect(input).not.toHaveAttribute('required');
+      const label = screen.getByText('Имя');
+      for (const className of REQUIRED_MARK_CLASSES) {
+        expect(label).not.toHaveClass(className);
+      }
+    });
+
+    it('marks the label and sets aria-required without changing the label text', () => {
+      render(<Input label="Имя" value="" onChange={() => {}} requiredMark />);
+
+      const input = screen.getByLabelText('Имя');
+      expect(input).toHaveAttribute('aria-required', 'true');
+      // Нативный required заменил бы сообщения Zod браузерной подсказкой
+      expect(input).not.toHaveAttribute('required');
+      expect(input).toHaveAccessibleName('Имя');
+      expect(input).toHaveAttribute('id', 'input-имя');
+      const label = screen.getByText('Имя');
+      expect(label).toHaveClass(...REQUIRED_MARK_CLASSES);
+      expect(label.textContent).toBe('Имя');
+    });
+
+    it('lets an explicit aria-required from the caller win', () => {
+      render(
+        <Input label="Имя" value="" onChange={() => {}} requiredMark aria-required={false} />
+      );
+
+      expect(screen.getByLabelText('Имя')).toHaveAttribute('aria-required', 'false');
+    });
   });
 });

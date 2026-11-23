@@ -420,3 +420,17 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * Звёздочка обязательного поля у подписи (REQUIRED_MARK_CLASS_NAME в Input.tsx).
+ * Первое content — запасное для браузеров без альтернативного текста
+ * (Safari < 17.4, Firefox < 128); второе исключает звёздочку из доступного имени поля.
+ */
+@layer components {
+  .required-mark::after {
+    content: '*';
+    content: '*' / '';
+    margin-left: 0.125rem;
+    color: var(--color-accent-danger);
+  }
+}

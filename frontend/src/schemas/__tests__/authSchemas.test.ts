@@ -215,6 +215,26 @@ describe('registerSchema', () => {
   });
 
   describe('invalid first_name', () => {
+    test('should reject first name made of spaces', () => {
+      const result = registerSchema.safeParse({ ...validRegisterBase, first_name: '   ' });
+      const messages = result.success
+        ? []
+        : result.error.issues
+            .filter(issue => issue.path[0] === 'first_name')
+            .map(issue => issue.message);
+
+      expect(messages).toEqual(['Имя обязательно']);
+    });
+
+    test('should keep first name as entered', () => {
+      const result = registerSchema.safeParse({ ...validRegisterBase, first_name: ' Иван ' });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.first_name).toBe(' Иван ');
+      }
+    });
+
     test('should reject empty first name', () => {
       const result = registerSchema.safeParse({
         first_name: '',
@@ -547,6 +567,52 @@ describe('b2bRegisterSchema', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.company_name).toBe(' ТОО «Ромашка» ');
+      }
+    });
+  });
+
+  describe('first_name и last_name', () => {
+    const validB2BBase = {
+      first_name: 'Иван',
+      last_name: 'Петров',
+      email: 'b2b.names@example.com',
+      phone: '+79991234567',
+      password: 'SecurePass123',
+      confirmPassword: 'SecurePass123',
+      company_name: 'ООО Спорт',
+      tax_id: '1234567890',
+      ogrn: '1234567890123',
+      legal_address: 'г. Москва, ул. Тестовая, 1',
+      role: 'wholesale_level1',
+      pdp_consent: true,
+    };
+
+    const fieldMessages = (field: 'first_name' | 'last_name', value: string) => {
+      const result = b2bRegisterSchema.safeParse({ ...validB2BBase, [field]: value });
+      return result.success
+        ? []
+        : result.error.issues.filter(issue => issue.path[0] === field).map(issue => issue.message);
+    };
+
+    test.each(['', '   '])('should reject blank first name %j', value => {
+      expect(fieldMessages('first_name', value)).toEqual(['Имя обязательно']);
+    });
+
+    test.each(['', '   '])('should reject blank last name %j', value => {
+      expect(fieldMessages('last_name', value)).toEqual(['Фамилия обязательна']);
+    });
+
+    test('should keep names as entered', () => {
+      const result = b2bRegisterSchema.safeParse({
+        ...validB2BBase,
+        first_name: ' Иван ',
+        last_name: ' Петров ',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.first_name).toBe(' Иван ');
+        expect(result.data.last_name).toBe(' Петров ');
       }
     });
   });
