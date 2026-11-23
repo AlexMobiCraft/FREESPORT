@@ -159,7 +159,7 @@ describe('HitsSection', () => {
 
     const params = new URL(requestSpy.mock.calls[0][0]).searchParams;
     expect(params.get('is_hit')).toBe('true');
-    expect(params.get('ordering')).toBe('-created_at');
+    expect(params.get('ordering')).toBe('category_tree');
     expect(params.get('in_stock')).toBe('true');
     expect(params.get('page_size')).toBe('100');
     expect(params.get('page')).toBe('1');
