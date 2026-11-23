@@ -1382,3 +1382,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-order-email-client-total.md`
   summary: В письме об отмене заказа (`send_order_cancelled_notification_email`) показывать организацию через `_order_client_label`, а не `customer_display_name or customer_email`.
   evidence: его получают те же адресаты из `NotificationRecipient`; в письме о новом заказе будет «ИП Петров», а в письме об отмене того же заказа — email клиента.
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-all-fields-required.md`
+  summary: Закрыть лазейку с пробелами в «Юридическом адресе» B2B-регистрации (`b2bRegisterSchema.legal_address`), как сделано для имени и фамилии.
+  evidence: `frontend/src/schemas/authSchemas.ts:186-189` — `min(1)` пропускает `"   "`, хотя поле теперь помечено обязательным; Intent спеки запретил менять логику остальных полей, поэтому не исправлено.
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-all-fields-required.md`
+  summary: Добавить Playwright-проверку `/register` и `/b2b-register`: у подписи вычисленный `::after` content = `*`, доступное имя поля — точная подпись без звёздочки.
+  evidence: юнит-тесты идут в happy-dom с `css: false` и видят только имя класса; e2e по регистрации в `frontend/tests/e2e/` нет — пропажа или зачитывание звёздочки не уронит ни одного теста.
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-all-fields-required.md`
+  summary: На бэкенде отклонять `first_name`/`last_name` из пробелов при регистрации и сделать `last_name` обязательным для B2B-регистрации.
+  evidence: по ревью — у модели `blank=True`, DRF обрезает `"   "` до `""` и принимает; `last_name` в API не обязателен; клиентскую проверку обходит прямой POST на `/auth/register/` или старый бандл. Спека запрещала правку API.
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-all-fields-required.md`
+  summary: Поправить процедуру слоя ревью graph-impact в `.windsurf/rules/gitnexus.md` для `bmad-build`: незакоммиченный diff всегда даёт `stale`, и слой останавливается, ничего не проверив.
+  evidence: шаг 1 слоя требует остановиться на любом `stale` с заполненным `Current commit`, а `bmad-build` ревьюирует рабочее дерево до коммита (`Index content: 4 changed` — ровно файлы diff); нужен режим «stale только из-за файлов diff» или переиндексация перед слоем.

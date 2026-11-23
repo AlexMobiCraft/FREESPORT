@@ -13,6 +13,7 @@ import userEvent from '@testing-library/user-event';
 import { RegisterForm } from '../RegisterForm';
 import authService from '@/services/authService';
 import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
+import { REQUIRED_MARK_CLASS_NAME } from '@/components/ui/Input/Input';
 
 const PDP_CONSENT_NAME =
   'Я даю согласие на обработку моих персональных данных в соответствии с ' +
@@ -910,6 +911,88 @@ describe('RegisterForm', () => {
         el.textContent?.includes('User with this email already exists')
       );
       expect(apiErrorBanner).toBeInTheDocument();
+    });
+  });
+
+  describe('Обязательные поля', () => {
+    const REQUIRED_MARK_CLASSES = REQUIRED_MARK_CLASS_NAME.split(' ');
+
+    const expectRequiredField = (field: HTMLElement, labelText: string) => {
+      expect(field).toHaveAttribute('aria-required', 'true');
+      expect(field).not.toHaveAttribute('required');
+      const label = document.querySelector<HTMLLabelElement>(`label[for="${field.id}"]`);
+      expect(label).not.toBeNull();
+      expect(label).toHaveClass(...REQUIRED_MARK_CLASSES);
+      // Звёздочка — псевдоэлемент: в тексте подписи её нет
+      expect(label!.textContent).toBe(labelText);
+    };
+
+    test('shows the required-fields note above the first field', () => {
+      render(<RegisterForm />);
+
+      const note = screen.getByText('Все поля обязательны для заполнения.');
+      const firstField = screen.getByLabelText('Имя');
+      expect(note.compareDocumentPosition(firstField) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING
+      );
+    });
+
+    test('marks fields shown before a role is selected', () => {
+      render(<RegisterForm />);
+
+      expectRequiredField(screen.getByLabelText('Имя'), 'Имя');
+      expectRequiredField(screen.getByLabelText('Электронная почта'), 'Электронная почта');
+      expectRequiredField(screen.getByLabelText('Пароль'), 'Пароль');
+      expectRequiredField(screen.getByLabelText('Подтверждение пароля'), 'Подтверждение пароля');
+      expectRequiredField(screen.getByRole('combobox', { name: /тип аккаунта/i }), 'Тип аккаунта');
+    });
+
+    test('marks fields that appear after a role is selected', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), 'trainer');
+
+      expectRequiredField(
+        screen.getByLabelText('Юридическое лицо или ИП'),
+        'Юридическое лицо или ИП'
+      );
+      expectRequiredField(screen.getByLabelText('ИНН'), 'ИНН');
+      expectRequiredField(screen.getByLabelText('Страна'), 'Страна');
+      expectRequiredField(screen.getByLabelText('Телефон'), 'Телефон');
+    });
+
+    test('does not mark consent checkboxes', () => {
+      render(<RegisterForm />);
+
+      for (const checkbox of [
+        screen.getByRole('checkbox', { name: PDP_CONSENT_NAME }),
+        getMarketingConsent(),
+      ]) {
+        expect(checkbox).not.toHaveAttribute('aria-required');
+        const label = document.querySelector(`label[for="${checkbox.id}"]`);
+        expect(label).not.toBeNull();
+        for (const className of REQUIRED_MARK_CLASSES) {
+          expect(label).not.toHaveClass(className);
+        }
+      }
+    });
+
+    test('does not submit a first name made of spaces', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      render(<RegisterForm />);
+
+      await user.type(screen.getByLabelText('Имя'), '   ');
+      await user.type(screen.getByLabelText('Электронная почта'), 'ivan@example.com');
+      await user.type(screen.getByLabelText('Пароль'), 'SecurePass123');
+      await user.type(screen.getByLabelText('Подтверждение пароля'), 'SecurePass123');
+      await fillB2BFields(user);
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      expect(await screen.findByText('Имя обязательно')).toBeInTheDocument();
+      expect(mockRegister).not.toHaveBeenCalled();
     });
   });
 

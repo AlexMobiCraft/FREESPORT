@@ -60,9 +60,11 @@ export const loginSchema = z.object({
  */
 export const registerSchema = z
   .object({
+    // refine вместо min(1): строка из пробелов не проходит, а введённое значение
+    // уходит в запрос без изменений (как у company_name).
     first_name: z
       .string()
-      .min(1, 'Имя обязательно')
+      .refine(value => value.trim() !== '', 'Имя обязательно')
       .max(150, 'Имя не должно превышать 150 символов'),
     email: z.string().min(1, 'Укажите электронную почту').email('Неверный формат email'),
     phone: phoneField,
@@ -147,13 +149,15 @@ export const registerSchema = z
 export const b2bRegisterSchema = z
   .object({
     // Персональные данные контактного лица
+    // refine вместо min(1): строка из пробелов не проходит, а введённое значение
+    // уходит в запрос без изменений (как у company_name).
     first_name: z
       .string()
-      .min(1, 'Имя обязательно')
+      .refine(value => value.trim() !== '', 'Имя обязательно')
       .max(150, 'Имя не должно превышать 150 символов'),
     last_name: z
       .string()
-      .min(1, 'Фамилия обязательна')
+      .refine(value => value.trim() !== '', 'Фамилия обязательна')
       .max(150, 'Фамилия не должна превышать 150 символов'),
     email: z.string().min(1, 'Укажите электронную почту').email('Неверный формат email'),
     phone: phoneField,

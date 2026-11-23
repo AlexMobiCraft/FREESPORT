@@ -5,6 +5,7 @@ import { StrictMode, useCallback, useState } from 'react';
 import { B2BRegisterForm } from '../B2BRegisterForm';
 import authService from '@/services/authService';
 import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
+import { REQUIRED_MARK_CLASS_NAME } from '@/components/ui/Input/Input';
 
 // Формулировки унифицированы с RegisterForm (стори 41.9): обе формы регистрации
 // шлют POST /auth/register/, поэтому текст согласия обязан совпадать дословно.
@@ -761,5 +762,80 @@ describe('B2BRegisterForm consent checkboxes', () => {
     await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
 
     expect((await screen.findAllByText(/email from backend/i)).length).toBeGreaterThan(0);
+  });
+
+  describe('Обязательные поля', () => {
+    const REQUIRED_MARK_CLASSES = REQUIRED_MARK_CLASS_NAME.split(' ');
+    const REQUIRED_FIELD_LABELS = [
+      'Имя',
+      'Фамилия',
+      'Электронная почта',
+      'Страна',
+      'Телефон',
+      'Юридическое лицо или ИП',
+      'ИНН',
+      'ОГРН',
+      'Юридический адрес',
+      'Пароль',
+      'Подтверждение пароля',
+    ];
+
+    test('shows the required-fields note above the first field', () => {
+      render(<B2BRegisterForm />);
+
+      const note = screen.getByText('Все поля обязательны для заполнения.');
+      const firstField = screen.getByLabelText('Имя');
+      expect(note.compareDocumentPosition(firstField) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING
+      );
+    });
+
+    test.each(REQUIRED_FIELD_LABELS)('marks field %s as required', labelText => {
+      render(<B2BRegisterForm />);
+
+      const field = screen.getByLabelText(labelText);
+      expect(field).toHaveAttribute('aria-required', 'true');
+      expect(field).not.toHaveAttribute('required');
+      const label = document.querySelector<HTMLLabelElement>(`label[for="${field.id}"]`);
+      expect(label).not.toBeNull();
+      expect(label).toHaveClass(...REQUIRED_MARK_CLASSES);
+      // Звёздочка — псевдоэлемент: в тексте подписи её нет
+      expect(label!.textContent).toBe(labelText);
+    });
+
+    test('does not mark consent checkboxes', () => {
+      render(<B2BRegisterForm />);
+
+      for (const checkbox of [
+        screen.getByRole('checkbox', { name: PDP_CONSENT_NAME }),
+        getMarketingConsent(),
+      ]) {
+        expect(checkbox).not.toHaveAttribute('aria-required');
+        const label = document.querySelector(`label[for="${checkbox.id}"]`);
+        expect(label).not.toBeNull();
+        for (const className of REQUIRED_MARK_CLASSES) {
+          expect(label).not.toHaveClass(className);
+        }
+      }
+    });
+
+    test.each([
+      ['Имя', 'Имя обязательно'],
+      ['Фамилия', 'Фамилия обязательна'],
+    ])('does not submit %s made of spaces', async (labelText, message) => {
+      const user = userEvent.setup();
+      const mockRegisterB2B = vi.mocked(authService.registerB2B);
+      render(<B2BRegisterForm />);
+
+      await fillValidB2BForm(user);
+      const field = screen.getByLabelText(labelText);
+      await user.clear(field);
+      await user.type(field, '   ');
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+      expect(await screen.findByText(message)).toBeInTheDocument();
+      expect(mockRegisterB2B).not.toHaveBeenCalled();
+    });
   });
 });

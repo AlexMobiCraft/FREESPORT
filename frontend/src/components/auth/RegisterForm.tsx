@@ -30,7 +30,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/utils/cn';
-import { Input } from '@/components/ui/Input/Input';
+import { Input, REQUIRED_MARK_CLASS_NAME } from '@/components/ui/Input/Input';
 import { PhoneInput } from '@/components/ui/Input/PhoneInput';
 import { Button } from '@/components/ui/Button/Button';
 import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
@@ -304,6 +304,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         </div>
       )}
 
+      {/* Все поля данных обязательны: пояснение стоит над первым полем, а не у кнопки */}
+      <p className="text-body-s text-text-secondary">Все поля обязательны для заполнения.</p>
+
       {/* Story 28.1 AC 6: Использование Input компонента */}
       {/* Story 28.1 AC 10: Label с htmlFor, aria-describedby */}
       <Input
@@ -314,6 +317,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         disabled={isSubmitting}
         autoComplete="given-name"
         placeholder="Иван"
+        requiredMark
       />
 
       <Input
@@ -323,11 +327,15 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         error={errors.email?.message}
         disabled={isSubmitting}
         autoComplete="email"
+        requiredMark
       />
 
       {/* Story 29.1 AC 1, 2, 5: Role Selector с accessibility */}
       <div className="space-y-2">
-        <label htmlFor="role-select" className="block text-body-s font-medium text-gray-700">
+        <label
+          htmlFor="role-select"
+          className={cn('block text-body-s font-medium text-gray-700', REQUIRED_MARK_CLASS_NAME)}
+        >
           Тип аккаунта
         </label>
         <select
@@ -335,6 +343,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           {...register('role')}
           disabled={isSubmitting}
           aria-label="Выберите тип аккаунта"
+          aria-required="true"
           aria-invalid={Boolean(errors.role?.message) || undefined}
           aria-describedby={errors.role?.message ? 'register-role-error' : undefined}
           className={cn(
@@ -387,7 +396,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           autoComplete="organization"
           placeholder="ООО «Ромашка»"
           helper="Как в регистрационных документах, а не торговая марка. Например, ИП Иванов Иван Иванович. Тренер без ИП указывает ФИО."
-          aria-required
+          requiredMark
         />
       )}
 
@@ -401,20 +410,24 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           disabled={isSubmitting}
           placeholder="1234567890 или 123456789012"
           helper={taxIdHelper}
-          aria-required
+          requiredMark
         />
       )}
 
       {/* Страна регистрации для B2B: определяет маршрутизацию заявки на менеджера */}
       {isB2BRole && (
         <div className="space-y-1">
-          <label htmlFor="register-country" className="block text-body-s font-medium text-gray-700">
+          <label
+            htmlFor="register-country"
+            className={cn('block text-body-s font-medium text-gray-700', REQUIRED_MARK_CLASS_NAME)}
+          >
             Страна
           </label>
           <select
             id="register-country"
             {...register('country', { onChange: handleCountryChange })}
             disabled={isSubmitting}
+            aria-required="true"
             aria-invalid={Boolean(errors.country?.message) || undefined}
             aria-describedby={errors.country?.message ? 'register-country-error' : undefined}
             className="w-full px-3 py-2 border border-gray-300 rounded-sm shadow-sm focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
@@ -444,6 +457,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           error={errors.phone?.message}
           disabled={isSubmitting}
           autoComplete="tel"
+          requiredMark
         />
       )}
 
@@ -456,6 +470,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         autoComplete="new-password"
         placeholder="••••••••"
         helper="Минимум 8 символов, 1 цифра и 1 заглавная буква"
+        requiredMark
       />
 
       <Input
@@ -466,6 +481,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         disabled={isSubmitting}
         autoComplete="new-password"
         placeholder="••••••••"
+        requiredMark
       />
 
       <div className="space-y-2">

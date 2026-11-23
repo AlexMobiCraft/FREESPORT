@@ -19,7 +19,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Input } from '@/components/ui/Input/Input';
+import { cn } from '@/utils/cn';
+import { Input, REQUIRED_MARK_CLASS_NAME } from '@/components/ui/Input/Input';
 import { PhoneInput } from '@/components/ui/Input/PhoneInput';
 import { phoneForCountryChange } from '@/utils/validators/phone';
 import { Button } from '@/components/ui/Button/Button';
@@ -358,6 +359,9 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
         </p>
       </div>
 
+      {/* Все поля данных обязательны: пояснение стоит над первым полем, а не у кнопки */}
+      <p className="text-body-s text-text-secondary">Все поля обязательны для заполнения.</p>
+
       {/* Контактное лицо */}
       <div className="space-y-4 pb-4 border-b border-gray-200">
         <h3 className="text-body-m font-semibold text-gray-900">Контактное лицо</h3>
@@ -370,6 +374,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           disabled={isSubmitting}
           autoComplete="given-name"
           placeholder="Иван"
+          requiredMark
         />
 
         <Input
@@ -380,6 +385,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           disabled={isSubmitting}
           autoComplete="family-name"
           placeholder="Петров"
+          requiredMark
         />
 
         <Input
@@ -389,13 +395,17 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           error={errors.email?.message}
           disabled={isSubmitting}
           autoComplete="email"
+          requiredMark
         />
 
         {/* Страна стоит выше телефона: формат номера зависит от выбранной страны */}
         <div className="space-y-1">
           <label
             htmlFor="b2b-register-country"
-            className="block text-body-s font-medium text-text-primary"
+            className={cn(
+              'block text-body-s font-medium text-text-primary',
+              REQUIRED_MARK_CLASS_NAME
+            )}
           >
             Страна
           </label>
@@ -403,6 +413,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
             id="b2b-register-country"
             {...register('country', { onChange: handleCountryChange })}
             disabled={isSubmitting}
+            aria-required="true"
             aria-invalid={Boolean(errors.country?.message) || undefined}
             aria-describedby={errors.country?.message ? 'b2b-register-country-error' : undefined}
             className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-body-m text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
@@ -429,6 +440,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           error={errors.phone?.message}
           disabled={isSubmitting}
           autoComplete="tel"
+          requiredMark
         />
       </div>
 
@@ -445,7 +457,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           autoComplete="organization"
           placeholder="ООО «Ромашка»"
           helper="Как в регистрационных документах, а не торговая марка. Например, ИП Иванов Иван Иванович."
-          aria-required
+          requiredMark
         />
 
         <Input
@@ -456,6 +468,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           disabled={isSubmitting}
           placeholder="1234567890"
           helper="10 цифр для юр. лица или 12 для ИП"
+          requiredMark
         />
 
         <Input
@@ -466,6 +479,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           disabled={isSubmitting}
           placeholder="1234567890123"
           helper="13 цифр для юр. лица или 15 для ОГРНИП"
+          requiredMark
         />
 
         <Input
@@ -475,6 +489,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           error={errors.legal_address?.message}
           disabled={isSubmitting}
           placeholder="г. Москва, ул. Примерная, д. 1"
+          requiredMark
         />
       </div>
 
@@ -491,6 +506,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           autoComplete="new-password"
           placeholder="••••••••"
           helper="Минимум 8 символов, 1 цифра и 1 заглавная буква"
+          requiredMark
         />
 
         <Input
@@ -501,6 +517,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           disabled={isSubmitting}
           autoComplete="new-password"
           placeholder="••••••••"
+          requiredMark
         />
 
         <div className="space-y-2">
