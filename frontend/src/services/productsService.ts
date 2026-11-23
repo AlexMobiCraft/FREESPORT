@@ -196,8 +196,10 @@ const ALL_PAGES_MAX_PAGES = 10;
  * (это абсолютный URL с хостом бэкенда, переходить по нему нельзя).
  * Сбой первой страницы пробрасывается; сбой следующих (включая 404 при
  * уменьшившемся `count`) останавливает сбор, и отдаётся уже загруженное.
- * Без второго ключа сортировки товар может попасть на две страницы — дубли
- * по `id` убираются с сохранением порядка.
+ * Сортировка должна заканчиваться уникальным ключом (`category_tree` — на `id`),
+ * иначе страницы пересекаются. Если выдача сдвинется между запросами страниц
+ * (смена флага, наличия или `sort_order` категории), товар может попасть на две
+ * страницы — дубли по `id` убираются с сохранением порядка — или выпасть на стыке.
  *
  * Функция уровня модуля, а не метод: обёртки не зависят от `this`.
  */
@@ -336,26 +338,26 @@ class ProductsService {
 
   /**
    * Все хиты продаж в наличии (все страницы выдачи) — для карусели главной
-   * GET /products?is_hit=true&ordering=-created_at&in_stock=true&page_size=100&page=N
+   * GET /products?is_hit=true&ordering=category_tree&in_stock=true&page_size=100&page=N
    */
   async getAllHits(): Promise<Product[]> {
-    return fetchAllPages({ is_hit: true, ordering: '-created_at', in_stock: true });
+    return fetchAllPages({ is_hit: true, ordering: 'category_tree', in_stock: true });
   }
 
   /**
    * Все новинки в наличии (все страницы выдачи) — для карусели главной
-   * GET /products?is_new=true&ordering=-created_at&in_stock=true&page_size=100&page=N
+   * GET /products?is_new=true&ordering=category_tree&in_stock=true&page_size=100&page=N
    */
   async getAllNew(): Promise<Product[]> {
-    return fetchAllPages({ is_new: true, ordering: '-created_at', in_stock: true });
+    return fetchAllPages({ is_new: true, ordering: 'category_tree', in_stock: true });
   }
 
   /**
    * Все акционные товары в наличии (все страницы выдачи) — для карусели главной
-   * GET /products?is_promo=true&ordering=-created_at&in_stock=true&page_size=100&page=N
+   * GET /products?is_promo=true&ordering=category_tree&in_stock=true&page_size=100&page=N
    */
   async getAllPromo(): Promise<Product[]> {
-    return fetchAllPages({ is_promo: true, ordering: '-created_at', in_stock: true });
+    return fetchAllPages({ is_promo: true, ordering: 'category_tree', in_stock: true });
   }
 
   /**

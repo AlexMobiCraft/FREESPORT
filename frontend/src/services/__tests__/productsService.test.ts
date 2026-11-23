@@ -296,7 +296,7 @@ describe('productsService', () => {
         expect(url.searchParams.get('page_size')).toBe('100');
         expect(url.searchParams.get('page')).toBe(String(index + 1));
         expect(url.searchParams.get('is_hit')).toBe('true');
-        expect(url.searchParams.get('ordering')).toBe('-created_at');
+        expect(url.searchParams.get('ordering')).toBe('category_tree');
         expect(url.searchParams.get('in_stock')).toBe('true');
       });
       expect(result).toHaveLength(130);
@@ -404,7 +404,7 @@ describe('productsService', () => {
       const params = requests[0].searchParams;
       expect(params.get(flag)).toBe('true');
       expect(params.get('in_stock')).toBe('true');
-      expect(params.get('ordering')).toBe('-created_at');
+      expect(params.get('ordering')).toBe('category_tree');
       expect(params.get('page_size')).toBe('100');
       expect(params.get('page')).toBe('1');
     });
