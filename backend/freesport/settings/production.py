@@ -97,6 +97,13 @@ LOGGING = {
             "handlers": ["console"],
             "level": "WARNING",
         },
+        # Обмен с 1С: итоги `[INFO MODE]`, `[BUS ORDERS]`, `[Task …]` пишутся INFO.
+        # propagate=False — без дубля через root (Celery с `-l info` вешает на root свой хендлер).
+        "apps.integrations": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }
 
