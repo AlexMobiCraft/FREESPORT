@@ -10,6 +10,7 @@ export type OrderStatus =
   | 'pending' // Ожидает обработки ("Новый" в UI)
   | 'confirmed' // Подтвержден
   | 'processing' // В обработке
+  | 'at_warehouse' // Передан на склад
   | 'shipped' // Отправлен
   | 'delivered' // Доставлен
   | 'cancelled' // Отменен

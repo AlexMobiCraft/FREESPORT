@@ -162,6 +162,15 @@ class Test1CInfoMode:
             assert f"<Ид>{status_name}</Ид>" in body, f"Missing status Ид: {status_name}"
             assert f"<Название>{status_name}</Название>" in body, f"Missing status Название: {status_name}"
 
+    def test_info_contains_at_warehouse_stage(self):
+        """«Загрузить с сайта» в БУС получает этап «Передан на склад» (runbook статусов из 1С)."""
+        self._checkauth()
+
+        response = self.client.get(self.url, data={"type": "sale", "mode": "info"})
+        body = self._decode(response)
+
+        assert "<Ид>Передан на склад</Ид>" in body
+
     def test_info_contains_default_export_status(self):
         """AC4: справочник содержит дефолтный статус экспорта (``Не согласован``).
 

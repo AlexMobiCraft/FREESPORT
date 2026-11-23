@@ -90,7 +90,7 @@ function toOrderApiError(
 export interface OrderFilters {
   page?: number;
   page_size?: number;
-  status?: string; // pending | processing | shipped | delivered | cancelled
+  status?: string; // pending | processing | at_warehouse | shipped | delivered | cancelled
 }
 
 /**

@@ -228,6 +228,13 @@ describe('OrderSuccessView', () => {
       expect(screen.getByText('Подтверждён')).toBeInTheDocument();
     });
 
+    it('должен отображать статус "Передан на склад" для at_warehouse', () => {
+      const atWarehouseOrder: Order = { ...mockOrder, status: 'at_warehouse' };
+      render(<OrderSuccessView order={atWarehouseOrder} />);
+
+      expect(screen.getByText('Передан на склад')).toBeInTheDocument();
+    });
+
     it('должен отображать статус "Отправлен" для shipped', () => {
       const shippedOrder: Order = { ...mockOrder, status: 'shipped' };
       render(<OrderSuccessView order={shippedOrder} />);

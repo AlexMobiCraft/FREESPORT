@@ -13,6 +13,7 @@ describe('OrderStatusBadge', () => {
     { status: 'pending', expectedLabel: 'Новый' },
     { status: 'confirmed', expectedLabel: 'Подтверждён' },
     { status: 'processing', expectedLabel: 'В обработке' },
+    { status: 'at_warehouse', expectedLabel: 'Передан на склад' },
     { status: 'shipped', expectedLabel: 'Отправлен' },
     { status: 'delivered', expectedLabel: 'Доставлен' },
     { status: 'cancelled', expectedLabel: 'Отменён' },

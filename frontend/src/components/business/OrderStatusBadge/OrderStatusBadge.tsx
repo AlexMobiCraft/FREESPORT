@@ -6,7 +6,16 @@
 
 import React from 'react';
 import { cn } from '@/utils/cn';
-import { Clock, CheckCircle2, Truck, Package, XCircle, RotateCcw, FileText } from 'lucide-react';
+import {
+  Clock,
+  CheckCircle2,
+  Truck,
+  Package,
+  Warehouse,
+  XCircle,
+  RotateCcw,
+  FileText,
+} from 'lucide-react';
 import type { OrderStatus } from '@/types/order';
 
 export interface OrderStatusBadgeProps {
@@ -43,6 +52,12 @@ const statusConfig: Record<
     text: 'text-secondary',
     label: 'В обработке',
     icon: <Package className="w-3 h-3" aria-hidden="true" />,
+  },
+  at_warehouse: {
+    bg: 'bg-[#E6F6F4]',
+    text: 'text-[#0F766E]',
+    label: 'Передан на склад',
+    icon: <Warehouse className="w-3 h-3" aria-hidden="true" />,
   },
   shipped: {
     bg: 'bg-[#F0E7FF]',

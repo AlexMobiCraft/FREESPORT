@@ -25,6 +25,7 @@ function parseStatusFilter(value: string | null): OrderStatus | 'all' {
     'pending',
     'confirmed',
     'processing',
+    'at_warehouse',
     'shipped',
     'delivered',
     'cancelled',

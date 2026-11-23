@@ -31,6 +31,7 @@ const statusLabels: Record<string, string> = {
   pending: 'Новый',
   confirmed: 'Подтверждён',
   processing: 'В обработке',
+  at_warehouse: 'Передан на склад',
   shipped: 'Отправлен',
   delivered: 'Доставлен',
   cancelled: 'Отменён',

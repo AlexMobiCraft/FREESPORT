@@ -32,6 +32,7 @@ const STATUS_TABS: { id: OrderStatus | 'all'; label: string }[] = [
   { id: 'all', label: 'Все' },
   { id: 'pending', label: 'Новые' },
   { id: 'processing', label: 'В обработке' },
+  { id: 'at_warehouse', label: 'На складе' },
   { id: 'shipped', label: 'Отправлены' },
   { id: 'delivered', label: 'Доставлены' },
   { id: 'cancelled', label: 'Отменены' },

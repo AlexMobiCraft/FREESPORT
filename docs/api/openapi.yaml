@@ -1714,6 +1714,7 @@ paths:
           type: string
           title: Статус заказа
           enum:
+          - at_warehouse
           - cancelled
           - confirmed
           - delivered
@@ -1725,6 +1726,7 @@ paths:
           * `pending` - Ожидает обработки
           * `confirmed` - Подтвержден
           * `processing` - В обработке
+          * `at_warehouse` - Передан на склад
           * `shipped` - Отправлен
           * `delivered` - Доставлен
           * `cancelled` - Отменен
@@ -5045,6 +5047,7 @@ components:
       - pending
       - confirmed
       - processing
+      - at_warehouse
       - shipped
       - delivered
       - cancelled
@@ -5054,6 +5057,7 @@ components:
         * `pending` - Ожидает обработки
         * `confirmed` - Подтвержден
         * `processing` - В обработке
+        * `at_warehouse` - Передан на склад
         * `shipped` - Отправлен
         * `delivered` - Доставлен
         * `cancelled` - Отменен
