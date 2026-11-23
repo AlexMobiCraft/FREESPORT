@@ -76,6 +76,7 @@ describe('OrdersList', () => {
     expect(screen.getByText('Все')).toBeInTheDocument();
     expect(screen.getByText('Новые')).toBeInTheDocument();
     expect(screen.getByText('В обработке')).toBeInTheDocument();
+    expect(screen.getByText('На складе')).toBeInTheDocument();
     expect(screen.getByText('Отправлены')).toBeInTheDocument();
     expect(screen.getByText('Доставлены')).toBeInTheDocument();
     expect(screen.getByText('Отменены')).toBeInTheDocument();

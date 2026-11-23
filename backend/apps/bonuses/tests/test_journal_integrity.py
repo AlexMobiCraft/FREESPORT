@@ -238,4 +238,4 @@ class TestAccrualStatusIsNotTerminal:
         assert field.choices is not None
         available = {value for value, _ in field.choices}
 
-        assert available == {"pending", "confirmed", "processing", "shipped", "delivered"}
+        assert available == {"pending", "confirmed", "processing", "at_warehouse", "shipped", "delivered"}

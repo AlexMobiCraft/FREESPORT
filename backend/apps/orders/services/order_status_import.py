@@ -41,6 +41,30 @@ logger = logging.getLogger(__name__)
 # [AI-Review][Low] Regex вынесен на уровень модуля для оптимизации
 REQUISITE_NAME_WHITESPACE_RE = re.compile(r"\s+")
 
+# Нормализованные имена реквизитов (без пробелов, в нижнем регистре).
+# «Статуса заказа ИД» — так реквизит называет выгрузка заказов БУС
+# (`БУС_ВыгрузкаСервер.СформироватьЗаказ`), «СтатусЗаказа» — прежний формат.
+REQ_STATUS_BUS = "статусазаказаид"
+REQ_STATUS = "статусзаказа"
+REQ_CANCELLED = "отменен"
+
+ORDER_OPERATION = "заказ товара"
+"""`<ХозОперация>` документа заказа (в нижнем регистре). Оплаты и отгрузки БУС
+кладёт в тот же `<Контейнер>` со своей хозоперацией — заказами они не являются."""
+
+DELIVERY_LINE_ID = "ORDER_DELIVERY"
+"""`<Ид>` строки доставки в `<Товары>` — товаром не считается."""
+
+BUS_CANCELLED_STATUS_1C = "Отменен"
+"""Что пишется в `status_1c` при подтверждённой отмене в 1С (ключ `STATUS_MAPPING`)."""
+
+
+def _strip_namespace(root: Element) -> None:
+    """Снять namespace с тегов: БУС пишет `xmlns="urn:1C.ru:commerceml_3"`."""
+    for elem in root.iter():
+        if isinstance(elem.tag, str) and "}" in elem.tag:
+            elem.tag = elem.tag.split("}", 1)[1]
+
 
 # =============================================================================
 # Data Classes
@@ -61,6 +85,9 @@ class OrderUpdateData:
     shipped_at_present: bool = False  # True если тег <ДатаОтгрузки> присутствует в XML
     # [AI-Review][Medium] Observability: ошибки парсинга дат для ImportResult.errors
     parse_warnings: list[str] = field(default_factory=list)
+    # Выгрузка БУС: `Отменен`=true при живых строках («Выгружать отменённые
+    # товары» включена). Отмене не верим и в финальный статус не переводим.
+    final_status_blocked: bool = False
 
 
 @dataclass
@@ -79,6 +106,8 @@ class ImportResult:
     skipped_master_regression: int = 0  # Блокировка регрессии master.status
     aggregated_master_count: int = 0  # Сколько мастеров реально обновлено
     not_found: int = 0  # Заказ не найден в БД
+    skipped_non_order: int = 0  # Документ не заказ (`ХозОперация` ≠ «Заказ товара»)
+    skipped_no_status: int = 0  # Выгрузка БУС: у документа нет статуса
     errors: list[str] = field(default_factory=list)  # Ошибки парсинга/обработки
 
     @property
@@ -98,11 +127,25 @@ class ImportResult:
             + self.skipped_invalid
             + self.skipped_master_unexpected
             + self.skipped_master_regression
+            + self.skipped_non_order
+            + self.skipped_no_status
         )
 
 
 class DocumentParseError(Exception):
     """Ошибка парсинга одного документа orders.xml."""
+
+
+class DocumentSkipped(Exception):
+    """Документ штатно пропущен — не ошибка, а отдельный счётчик.
+
+    Attributes:
+        counter: имя поля `ImportResult`, которое нужно увеличить.
+    """
+
+    def __init__(self, counter: str, message: str):
+        super().__init__(message)
+        self.counter = counter
 
 
 # =============================================================================
@@ -132,7 +175,21 @@ class OrderStatusImportService:
             f"Skipped unknown status: {result.skipped_unknown_status}, "
             f"Skipped invalid: {result.skipped_invalid}"
         )
+
+    В обоих режимах: namespace тегов снимается, документ с `<ХозОперация>`,
+    отличной от «Заказ товара», пропускается (`skipped_non_order`, не ошибка),
+    статус берётся из реквизита «Статуса заказа ИД», а без него — из «СтатусЗаказа».
+
+    Только `bus_format=True` — выгрузка заказов расширения БУС
+    (`type=sale&mode=import&filename=orders_*.xml`): документ без статуса
+    пропускается без ошибки (`skipped_no_status`), даты оплаты и отгрузки не
+    читаются, а реквизит `Отменен` разбирается по правилу `_build_bus_update`.
+    Без флага (прежний путь `filename=orders.xml`) документ без статуса — ошибка
+    разбора, даты оплаты и отгрузки применяются, `Отменен` не читается.
     """
+
+    def __init__(self, bus_format: bool = False):
+        self.bus_format = bus_format
 
     def process(self, xml_data: str | bytes) -> ImportResult:
         """
@@ -147,8 +204,9 @@ class OrderStatusImportService:
         result = ImportResult()
 
         # PARSE: извлечь данные из XML
+        skips: dict[str, int] = {}
         try:
-            order_updates, total_documents, parse_errors = self._parse_orders_xml(xml_data)
+            order_updates, total_documents, parse_errors = self._parse_orders_xml(xml_data, skips=skips)
         except DefusedXmlException as e:
             logger.error(f"XML security error: {e}")
             result.errors.append(f"XML security error: {e}")
@@ -160,6 +218,9 @@ class OrderStatusImportService:
 
         # [AI-Review][Low] Учитываем все найденные <Документ>, включая некорректные
         result.processed = total_documents
+
+        for counter, count in skips.items():
+            setattr(result, counter, getattr(result, counter) + count)
 
         if parse_errors:
             result.skipped_invalid = len(parse_errors)
@@ -298,7 +359,9 @@ class OrderStatusImportService:
     # Parser Methods
     # =========================================================================
 
-    def _parse_orders_xml(self, xml_data: str | bytes) -> tuple[list[OrderUpdateData], int, list[str]]:
+    def _parse_orders_xml(
+        self, xml_data: str | bytes, skips: dict[str, int] | None = None
+    ) -> tuple[list[OrderUpdateData], int, list[str]]:
         """
         Парсинг XML orders.xml в формате CommerceML 3.1.
 
@@ -322,6 +385,8 @@ class OrderStatusImportService:
 
         Args:
             xml_data: XML-строка или bytes.
+            skips: куда сложить счётчики штатных пропусков
+                ({имя поля ImportResult: количество}); None — не собирать.
 
         Returns:
             tuple: (список OrderUpdateData, общее число найденных <Документ>,
@@ -333,6 +398,7 @@ class OrderStatusImportService:
         # defusedxml.ElementTree handles encoding automatically
 
         root = ET.fromstring(xml_data)
+        _strip_namespace(root)
         order_updates: list[OrderUpdateData] = []
         parse_errors: list[str] = []
 
@@ -347,6 +413,10 @@ class OrderStatusImportService:
                 order_data = self._parse_document(document)
             except DocumentParseError as exc:
                 parse_errors.append(str(exc))
+                continue
+            except DocumentSkipped as skip:
+                if skips is not None:
+                    skips[skip.counter] = skips.get(skip.counter, 0) + 1
                 continue
 
             order_updates.append(order_data)
@@ -375,12 +445,24 @@ class OrderStatusImportService:
         if not order_id and not order_number:
             raise DocumentParseError("Document without <Ид> and <Номер>, skipping")
 
+        # Оплаты и отгрузки БУС кладёт в тот же контейнер отдельными документами.
+        operation = (document.findtext("ХозОперация") or "").strip()
+        if operation and operation.lower() != ORDER_OPERATION:
+            message = f"Document {order_id or order_number}: ХозОперация '{operation}' is not an order, skipping"
+            logger.debug(message)
+            raise DocumentSkipped("skipped_non_order", message)
+
         # [AI-Review][Low] Оптимизация: собрать все реквизиты в dict один раз
         # [AI-Review][High] Нормализация имен: поддержка "Статус Заказа" и "СтатусЗаказа"
         requisites = self._extract_all_requisites(document)
 
-        # Извлечь статус из реквизитов (нормализация уже в _extract_all_requisites)
-        status_1c = requisites.get("статусзаказа")
+        # Извлечь статус из реквизитов (нормализация уже в _extract_all_requisites).
+        # БУС пишет «Статуса заказа ИД», прежний формат — «СтатусЗаказа».
+        status_1c = (requisites.get(REQ_STATUS_BUS) or "").strip() or requisites.get(REQ_STATUS)
+
+        if self.bus_format:
+            return self._build_bus_update(document, order_id or "", order_number or "", status_1c, requisites)
+
         if not status_1c:
             error_msg = f"Document {order_id or order_number}: no СтатусЗаказа requisite"
             logger.warning(error_msg)
@@ -416,6 +498,71 @@ class OrderStatusImportService:
             shipped_at_present=shipped_at_present,
             parse_warnings=parse_warnings,
         )
+
+    def _build_bus_update(
+        self,
+        document: Element,
+        order_id: str,
+        order_number: str,
+        status_1c: str | None,
+        requisites: dict[str, str],
+    ) -> OrderUpdateData:
+        """Документ выгрузки БУС → OrderUpdateData.
+
+        Даты оплаты и отгрузки не читаются: оплату из 1С сайт не принимает.
+
+        Raises:
+            DocumentSkipped: у документа нет статуса (`skipped_no_status`).
+        """
+        order_ref = order_number or order_id
+        parse_warnings: list[str] = []
+        final_status_blocked = False
+
+        if (requisites.get(REQ_CANCELLED) or "").strip().lower() == "true":
+            if self._is_bus_document_cancelled(document):
+                status_1c = BUS_CANCELLED_STATUS_1C
+            else:
+                # Галка БУС «Выгружать отменённые товары» ставит `Отменен`=true
+                # заказу, где отменена хоть одна строка. Финальный статус по такому
+                # документу не ставится: «Закрыт» бывает и у отменённого заказа,
+                # а `delivered` начислил бы бонус за отмену.
+                final_status_blocked = True
+                warning = (
+                    f"Order {order_ref}: Отменен=true, но в документе есть строки товаров "
+                    f"без пометки удаления — отмена проигнорирована, финальный статус не ставится "
+                    f"(проверьте, что галка БУС «Выгружать отменённые товары» выключена)"
+                )
+                logger.warning(warning)
+                parse_warnings.append(warning)
+
+        if not status_1c:
+            message = f"Document {order_ref}: no status requisite, skipping"
+            logger.info(message)
+            raise DocumentSkipped("skipped_no_status", message)
+
+        return OrderUpdateData(
+            order_id=order_id,
+            order_number=order_number,
+            status_1c=status_1c,
+            parse_warnings=parse_warnings,
+            final_status_blocked=final_status_blocked,
+        )
+
+    @staticmethod
+    def _is_bus_document_cancelled(document: Element) -> bool:
+        """Подтверждена ли отмена документа БУС.
+
+        Отмена настоящая, если документ помечен на удаление или в нём не
+        осталось строк товаров (строка доставки `ORDER_DELIVERY` не в счёт):
+        при выключенной галке «Выгружать отменённые товары» БУС отменённые
+        строки не выгружает.
+        """
+        if (document.findtext("ПометкаУдаления") or "").strip().lower() == "true":
+            return True
+        for line in document.findall("Товары/Товар"):
+            if (line.findtext("Ид") or "").strip() != DELIVERY_LINE_ID:
+                return False
+        return True
 
     def _extract_all_requisites(self, document: Element) -> dict[str, str]:
         """
@@ -679,7 +826,12 @@ class OrderStatusImportService:
 
         if order is None:
             error_msg = f"Order not found: number='{order_data.order_number}', " f"id='{order_data.order_id}'"
-            logger.error(error_msg)
+            # БУС выгружает и заказы, заведённые в самой 1С: пары на сайте у них
+            # нет, и это штатно — уровень ниже, чтобы не засорять лог ошибками.
+            if self.bus_format:
+                logger.warning(error_msg)
+            else:
+                logger.error(error_msg)
             return ProcessingStatus.NOT_FOUND, error_msg
 
         # [Story 34-4] Master-guard: XML должен адресовать субзаказ, не мастер
@@ -704,6 +856,17 @@ class OrderStatusImportService:
             error_msg = f"Order {order.order_number}: unknown 1C status " f"'{order_data.status_1c}', skipping update"
             logger.warning(error_msg)
             return ProcessingStatus.SKIPPED_UNKNOWN_STATUS, error_msg
+
+        # Выгрузка БУС с `Отменен`=true при живых строках: в финальный статус не
+        # переводим, но фактический статус 1С сохраняем.
+        if order_data.final_status_blocked and new_status in FINAL_STATUSES:
+            error_msg = (
+                f"Order {order.order_number}: final status '{new_status}' blocked — "
+                f"document has Отменен=true with live lines"
+            )
+            logger.warning(error_msg)
+            self._record_blocked_status_1c(order, order_data)
+            return ProcessingStatus.SKIPPED_STATUS_REGRESSION, error_msg
 
         # [Story 5.2, AC8] Status regression protection
         # 1. Block ALL transitions FROM final statuses (except same→same)

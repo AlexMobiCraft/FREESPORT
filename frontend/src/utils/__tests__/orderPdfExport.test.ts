@@ -216,6 +216,13 @@ describe('generateOrderPdf — delivery_method локализация', () => {
     expect(allText).not.toContain('payment_on_delivery');
   });
 
+  it('выводит локализованный статус заказа at_warehouse', async () => {
+    await generateOrderPdf({ ...baseOrder, status: 'at_warehouse' });
+    const allText = getTextArgs().join(' ');
+    expect(allText).toContain('Передан на склад');
+    expect(allText).not.toContain('at_warehouse');
+  });
+
   it('выводит локализованный статус оплаты refunded (Story 34-2 regression)', async () => {
     await generateOrderPdf({ ...baseOrder, payment_status: 'refunded' });
     const allText = getTextArgs().join(' ');

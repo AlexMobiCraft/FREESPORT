@@ -1394,3 +1394,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-register-all-fields-required.md`
   summary: Поправить процедуру слоя ревью graph-impact в `.windsurf/rules/gitnexus.md` для `bmad-build`: незакоммиченный diff всегда даёт `stale`, и слой останавливается, ничего не проверив.
   evidence: шаг 1 слоя требует остановиться на любом `stale` с заполненным `Current commit`, а `bmad-build` ревьюирует рабочее дерево до коммита (`Index content: 4 changed` — ровно файлы diff); нужен режим «stale только из-за файлов diff» или переиндексация перед слоем.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-order-statuses-import.md`
+  summary: Сбой БД при `save()` отдельного заказа в `OrderStatusImportService.process` не доходит до ответа обмена — маршрут БУС (и старый `orders.xml`) отвечает `success`, а пакет, вероятно, откатывается целиком.
+  evidence: не проверено (medium). `order_status_import.py:297` ловит любое исключение строки как «Error processing order…»; Django `save_base` через `mark_for_rollback_on_error` помечает атомарный блок пакета на откат; маршрут БУС отдаёт `failure` только на «Database error…» (bulk fetch). Решит интеграционный тест: `OperationalError` из `Order.save` на втором заказе пакета → проверить статус первого и ответ. Фикс — пробрасывать `OperationalError` из цикла строк в `process()`, что меняет и старый путь.

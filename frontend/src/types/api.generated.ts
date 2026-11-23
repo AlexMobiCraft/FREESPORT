@@ -2875,6 +2875,7 @@ export interface components {
      * @description * `pending` - Ожидает обработки
      *     * `confirmed` - Подтвержден
      *     * `processing` - В обработке
+     *     * `at_warehouse` - Передан на склад
      *     * `shipped` - Отправлен
      *     * `delivered` - Доставлен
      *     * `cancelled` - Отменен
@@ -2885,6 +2886,7 @@ export interface components {
       | 'pending'
       | 'confirmed'
       | 'processing'
+      | 'at_warehouse'
       | 'shipped'
       | 'delivered'
       | 'cancelled'
@@ -4770,12 +4772,14 @@ export interface operations {
          * @description * `pending` - Ожидает обработки
          *     * `confirmed` - Подтвержден
          *     * `processing` - В обработке
+         *     * `at_warehouse` - Передан на склад
          *     * `shipped` - Отправлен
          *     * `delivered` - Доставлен
          *     * `cancelled` - Отменен
          *     * `refunded` - Возвращен
          */
         status?:
+          | 'at_warehouse'
           | 'cancelled'
           | 'confirmed'
           | 'delivered'

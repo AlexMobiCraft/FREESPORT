@@ -31,6 +31,8 @@ STATUS_MAPPING: dict[str, str] = {
     # Исторические ключи (обратная совместимость)
     "ОжидаетОбработки": "processing",
     "Подтвержден": "confirmed",
+    # «Отгружен» — и Ид статуса из runbook'а БУС для состояний «Ожидается оплата» и
+    # «Готов к закрытию» (docs/integrations/1c/order-statuses-from-1c-setup.md).
     "Отгружен": "shipped",
     "Доставлен": "delivered",
     "Отменен": "cancelled",
@@ -39,6 +41,9 @@ STATUS_MAPPING: dict[str, str] = {
     "Не согласован": "pending",
     "На согласовании": "pending",
     "К выполнению": "processing",
+    # Этап «товар собран и ждёт отгрузки»: в БУС его отдают состояния заказа
+    # «Готов к отгрузке» и «В процессе отгрузки» (runbook order-statuses-from-1c-setup.md).
+    "Передан на склад": "at_warehouse",
     "Закрыт": "delivered",
 }
 
@@ -50,6 +55,7 @@ ORDER_STATUSES = [
     ("pending", "Ожидает обработки"),
     ("confirmed", "Подтвержден"),
     ("processing", "В обработке"),
+    ("at_warehouse", "Передан на склад"),
     ("shipped", "Отправлен"),
     ("delivered", "Доставлен"),
     ("cancelled", "Отменен"),
@@ -64,7 +70,7 @@ ALL_ORDER_STATUSES: set[str] = {status for status, _ in ORDER_STATUSES}
 _FINAL_STATUS_CODES = {"delivered", "cancelled", "refunded"}
 FINAL_STATUSES: set[str] = {s for s in ALL_ORDER_STATUSES if s in _FINAL_STATUS_CODES}
 
-_ACTIVE_STATUS_CODES = {"pending", "confirmed", "processing", "shipped"}
+_ACTIVE_STATUS_CODES = {"pending", "confirmed", "processing", "at_warehouse", "shipped"}
 ACTIVE_STATUSES: set[str] = {s for s in ALL_ORDER_STATUSES if s in _ACTIVE_STATUS_CODES}
 
 # Priority-based regression check (Story 5.2, AC8)
@@ -73,8 +79,9 @@ STATUS_PRIORITY: dict[str, int] = {
     "pending": 1,
     "confirmed": 2,
     "processing": 3,
-    "shipped": 4,
-    "delivered": 5,
+    "at_warehouse": 4,
+    "shipped": 5,
+    "delivered": 6,
     "cancelled": 0,  # Особый случай: всегда разрешён
     "refunded": 0,  # Особый случай: всегда разрешён
 }
@@ -124,6 +131,10 @@ ALLOWED_ORDER_FIELDS: set[str] = {"Номер", "Ид", "ЗначенияРек�
 ALLOWED_REQUISITES: set[str] = {
     "СтатусЗаказа",
     "Статус Заказа",
+    # Выгрузка заказов БУС (`БУС_ВыгрузкаСервер.СформироватьЗаказ`): Ид статуса
+    # из таблицы соответствий и признак отмены документа.
+    "Статуса заказа ИД",
+    "Отменен",
     "ДатаОплаты",
     "Дата Оплаты",
     "ДатаОтгрузки",

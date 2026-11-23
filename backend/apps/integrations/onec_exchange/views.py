@@ -9,6 +9,7 @@ from typing import Any
 from xml.etree.ElementTree import ParseError as ETParseError
 from xml.sax.saxutils import escape as xml_escape
 
+import defusedxml.ElementTree as defused_ET
 from defusedxml.common import DefusedXmlException
 from django.conf import settings
 from django.contrib.auth import get_backends, login
@@ -21,7 +22,7 @@ from rest_framework.views import APIView
 from apps.orders.models import Order
 from apps.orders.services.order_export import OrderExportService
 from apps.orders.services.order_export_status import promote_exported_sub_orders
-from apps.orders.services.order_status_import import OrderStatusImportService
+from apps.orders.services.order_status_import import ImportResult, OrderStatusImportService
 from apps.orders.signals import orders_bulk_updated
 
 from .authentication import Basic1CAuthentication, CsrfExemptSessionAuthentication
@@ -29,7 +30,7 @@ from .file_service import FileLockError, FileStreamService
 from .import_orchestrator import ImportOrchestratorService
 from .permissions import Is1CExchangeUser
 from .renderers import PlainTextRenderer
-from .routing_service import FileRoutingService, validate_session_segment
+from .routing_service import FileRoutingService, session_import_dir, validate_session_segment
 from .throttling import OneCAuthThrottle, OneCExchangeThrottle
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,10 @@ ORDERS_XML_MAX_SIZE = 5 * 1024 * 1024  # 5MB (ADR-004)
 MAX_DOCUMENTS_PER_FILE = 1000  # FM4.5: Guard against oversized XML
 ORDERS_IMPORT_MAX_RETRIES = 3  # FM5.1/FM5.2: DB retry attempts
 XML_TIMESTAMP_SCAN_BYTES = 2048  # Review follow-up: avoid missing timestamp
+
+# Выгрузка заказов БУС: `orders_1_<uuid>.xml`, приходит через `mode=import`.
+BUS_ORDERS_PREFIX = "orders"
+BUS_ORDERS_SUBDIR = "orders"  # куда оркестратор раскладывает orders*.xml из архива
 
 # Simple regex to count <Документ> tags without full XML parsing
 _DOCUMENT_TAG_RE = re.compile(rb"<\xd0\x94\xd0\xbe\xd0\xba\xd1\x83\xd0\xbc\xd0\xb5\xd0\xbd\xd1\x82[\s>/]")
@@ -113,6 +118,31 @@ def _reencode_xml_if_needed(xml_data: bytes) -> bytes:
     except (UnicodeDecodeError, LookupError) as exc:
         logger.warning(f"[ORDERS IMPORT] Failed to re-encode from {declared}: {exc}")
         return xml_data
+
+
+def _is_bus_orders_xml(name: str) -> bool:
+    """`orders*.xml` без учёта регистра (имя файла или члена архива)."""
+    lower = Path(name.replace("\\", "/")).name.lower()
+    return lower.startswith(BUS_ORDERS_PREFIX) and lower.endswith(".xml")
+
+
+def _run_orders_status_import(service: OrderStatusImportService, xml_data: bytes) -> ImportResult:
+    """`service.process` с повторами на временных ошибках БД (FM5.1/FM5.2).
+
+    Общий для прежнего пути `filename=orders.xml` и маршрута выгрузки БУС.
+    `OperationalError` последней попытки пробрасывается наверх.
+    """
+    last_db_error = None
+    for attempt in range(ORDERS_IMPORT_MAX_RETRIES):
+        try:
+            return service.process(xml_data)
+        except OperationalError as e:
+            last_db_error = e
+            if attempt == ORDERS_IMPORT_MAX_RETRIES - 1:
+                raise
+            logger.warning(f"[ORDERS IMPORT] DB error, retry {attempt + 1}: {e}")
+            time.sleep(0.5 * (attempt + 1))
+    raise RuntimeError(f"Service returned no result: {last_db_error}")
 
 
 def _get_exchange_log_dir() -> Path:
@@ -269,6 +299,15 @@ class ICExchangeView(APIView):
         if not sessid:
             logger.warning("[IMPORT] Request rejected: No identifier found.")
             return HttpResponse("failure\nMissing sessid", content_type="text/plain; charset=utf-8")
+
+        # Выгрузка заказов БУС — статусы, а не каталог. Ровно `orders.xml` идёт
+        # прежним путём (он обрабатывается ещё на `mode=file`).
+        if (
+            request.query_params.get("type") == "sale"
+            and _is_bus_orders_xml(filename)
+            and Path(filename).name.lower() != ORDERS_XML_FILENAME
+        ):
+            return self._handle_bus_orders_import(sessid)
 
         orchestrator = ImportOrchestratorService(sessid, filename)
         success, message = orchestrator.execute()
@@ -908,22 +947,7 @@ class ICExchangeView(APIView):
                 )
 
             # FM5.1/FM5.2: Retry on transient DB errors
-            service = OrderStatusImportService()
-            last_db_error = None
-            result = None
-            for attempt in range(ORDERS_IMPORT_MAX_RETRIES):
-                try:
-                    result = service.process(xml_data)
-                    break
-                except OperationalError as e:
-                    last_db_error = e
-                    if attempt == ORDERS_IMPORT_MAX_RETRIES - 1:
-                        raise
-                    logger.warning(f"[ORDERS IMPORT] DB error, retry {attempt + 1}: {e}")
-                    time.sleep(0.5 * (attempt + 1))
-
-            if result is None:
-                raise RuntimeError(f"Service returned no result: {last_db_error}")
+            result = _run_orders_status_import(OrderStatusImportService(), xml_data)
 
             parse_error = next(
                 (err for err in result.errors if "xml parse error" in err.lower()),
@@ -991,6 +1015,142 @@ class ICExchangeView(APIView):
                 "failure\nInternal error",
                 content_type="text/plain; charset=utf-8",
             )
+
+    def _collect_bus_orders_sources(self, sessid: str) -> tuple[list[tuple[str, bytes]], list[Path]]:
+        """Все `orders*.xml` сессии и файлы, которые после разбора нужно удалить.
+
+        Источники:
+        - временный каталог сессии: открытые `orders*.xml` и члены `*.zip`
+          (читаются по имени, без распаковки на диск). Архив удаляется, только
+          если в нём нет ничего, кроме `orders*.xml`: `contragents_*.xml` того же
+          пакета заберёт свой `mode=import`;
+        - `IMPORT_DIR/<sessid>/orders/` — туда оркестратор раскладывает
+          `orders*.xml`, если раньше в этой сессии прошёл `mode=import` другого
+          файла и архив уже распакован.
+
+        Raises:
+            ValueError: член архива больше `FILE_LIMIT_BYTES`.
+        """
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        max_member_size = exchange_cfg.get("FILE_LIMIT_BYTES", 100 * 1024 * 1024)
+
+        sources: list[tuple[str, bytes]] = []
+        consumed: list[Path] = []
+
+        session_dir = FileStreamService(sessid).session_dir
+        if session_dir.is_dir():
+            for path in sorted(session_dir.iterdir()):
+                if not path.is_file():
+                    continue
+                if _is_bus_orders_xml(path.name):
+                    sources.append((path.name, path.read_bytes()))
+                    consumed.append(path)
+                elif path.suffix.lower() == ".zip":
+                    try:
+                        with zipfile.ZipFile(path) as archive:
+                            members = [info for info in archive.infolist() if not info.is_dir()]
+                            orders_members = [info for info in members if _is_bus_orders_xml(info.filename)]
+                            for info in orders_members:
+                                if info.file_size > max_member_size:
+                                    raise ValueError(
+                                        f"{path.name}:{info.filename} is too large ({info.file_size} bytes)"
+                                    )
+                                sources.append((Path(info.filename).name, archive.read(info.filename)))
+                    except zipfile.BadZipFile as exc:
+                        logger.warning(f"[BUS ORDERS] Skipping unreadable archive {path.name}: {exc}")
+                        continue
+                    if orders_members and len(orders_members) == len(members):
+                        consumed.append(path)
+
+        orders_dir = session_import_dir(sessid) / BUS_ORDERS_SUBDIR
+        if orders_dir.is_dir():
+            for path in sorted(orders_dir.iterdir()):
+                if path.is_file() and _is_bus_orders_xml(path.name):
+                    sources.append((path.name, path.read_bytes()))
+                    consumed.append(path)
+
+        return sources, consumed
+
+    @staticmethod
+    def _remove_consumed_files(paths: list[Path]) -> None:
+        for path in paths:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError as exc:
+                logger.warning(f"[BUS ORDERS] Failed to delete {path.name}: {exc}")
+
+    def _handle_bus_orders_import(self, sessid: str) -> HttpResponse:
+        """Статусы заказов из выгрузки БУС (`type=sale&mode=import&filename=orders_*.xml`).
+
+        Разбирает все `orders*.xml` сессии в `OrderStatusImportService(bus_format=True)`.
+        Импорт каталога не запускается, `ImportSession` не создаётся.
+
+        `failure` — только когда XML нет, он битый или устаревший, либо при
+        внутреннем сбое (БД недоступна после повторов, неожиданное исключение).
+        Всё остальное — `success`: на `failure` БУС оставляет пакет в
+        `БУС_ПакетыВыгрузки` и пересылает его при каждом запуске.
+        """
+        text_plain = "text/plain; charset=utf-8"
+        try:
+            validate_session_segment(sessid)
+        except ValueError:
+            logger.error(f"[BUS ORDERS] Rejected: unsafe sessid {sessid!r}.")
+            return HttpResponse("failure\nInvalid session", content_type=text_plain)
+
+        consumed: list[Path] = []
+        try:
+            try:
+                sources, consumed = self._collect_bus_orders_sources(sessid)
+            except ValueError as exc:
+                logger.warning(f"[BUS ORDERS] Rejected: {exc}")
+                return HttpResponse("failure\nOrders XML too large", content_type=text_plain)
+
+            if not sources:
+                logger.error(f"[BUS ORDERS] No orders*.xml found for sessid={sessid}")
+                return HttpResponse("failure\nOrders XML not found", content_type=text_plain)
+
+            prepared: list[tuple[str, bytes]] = []
+            for name, raw in sources:
+                # ADR-005: копия каждого файла до разбора.
+                _save_exchange_log(name, raw, is_binary=True)
+                xml_data = _reencode_xml_if_needed(raw)
+                if not _validate_xml_timestamp(xml_data):
+                    logger.warning(f"[SECURITY] Stale BUS orders XML rejected: {name}")
+                    self._remove_consumed_files(consumed)
+                    return HttpResponse("failure\nXML timestamp too old", content_type=text_plain)
+                try:
+                    defused_ET.fromstring(xml_data)
+                except (ETParseError, DefusedXmlException) as exc:
+                    logger.error(f"[BUS ORDERS] Malformed XML {name}: {exc}")
+                    self._remove_consumed_files(consumed)
+                    if isinstance(exc, DefusedXmlException):
+                        return HttpResponse("failure\nXML security violation", content_type=text_plain)
+                    return HttpResponse("failure\nMalformed XML", content_type=text_plain)
+                prepared.append((name, xml_data))
+
+            for name, xml_data in prepared:
+                result = _run_orders_status_import(OrderStatusImportService(bus_format=True), xml_data)
+                logger.info(
+                    f"[BUS ORDERS] {name}: processed={result.processed}, updated={result.updated}, "
+                    f"skipped={result.skipped} (non_order={result.skipped_non_order}, "
+                    f"no_status={result.skipped_no_status}, regression={result.skipped_status_regression}), "
+                    f"aggregated_masters={result.aggregated_master_count}, "
+                    f"not_found={result.not_found}, errors={len(result.errors)}"
+                )
+                if result.errors:
+                    logger.warning(f"[BUS ORDERS] {name} errors: {result.errors[:5]}")
+                # `process` гасит `OperationalError` пакета и пишет его в `errors`:
+                # без `failure` БУС сочтёт пакет принятым, и статусы пропадут.
+                if any(err.startswith("Database error") for err in result.errors):
+                    logger.error(f"[BUS ORDERS] {name}: database unavailable, package will be resent")
+                    return HttpResponse("failure\nInternal error", content_type=text_plain)
+
+            self._remove_consumed_files(consumed)
+            return HttpResponse("success", content_type=text_plain)
+
+        except Exception as e:
+            logger.exception(f"[BUS ORDERS] Failed: {e}")
+            return HttpResponse("failure\nInternal error", content_type=text_plain)
 
     def handle_file_upload(self, request):
         """

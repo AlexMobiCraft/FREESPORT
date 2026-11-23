@@ -2791,3 +2791,297 @@ class TestModernSubOrderImportUnit:
         # иначе расхождение с 1С было бы видно только в счётчике импорта
         assert mock_sub.status_1c == "Подтвержден"
         mock_sub.save.assert_called_once_with(update_fields=["status_1c", "sent_to_1c_at", "updated_at"])
+
+
+# =============================================================================
+# Выгрузка заказов БУС (bus_format=True), спека spec-1c-order-statuses-import
+# =============================================================================
+
+BUS_NS = "urn:1C.ru:commerceml_3"
+
+
+def build_bus_document(
+    order_id: str = "order-123",
+    order_number: str = "FS-BUS-001",
+    status: str | None = "Передан на склад",
+    cancelled: bool = False,
+    deletion_mark: bool = False,
+    lines: tuple[str, ...] = ("goods-guid-1",),
+    operation: str = "Заказ товара",
+    extra_requisites: dict[str, str] | None = None,
+) -> str:
+    """Документ в раскладке `БУС_ВыгрузкаСервер.СформироватьЗаказ` (Module.bsl:7981)."""
+    requisites = {"Проведен": "true", "Отменен": "true" if cancelled else "false"}
+    if status is not None:
+        requisites["Статуса заказа ИД"] = status
+    requisites.update(extra_requisites or {})
+    requisites_xml = "".join(
+        f"<ЗначениеРеквизита><Наименование>{name}</Наименование><Значение>{value}</Значение></ЗначениеРеквизита>"
+        for name, value in requisites.items()
+    )
+    lines_xml = "".join(f"<Товар><Ид>{line_id}</Ид><Количество>1</Количество></Товар>" for line_id in lines)
+    return (
+        f"<Документ><Ид>{order_id}</Ид><Номер>{order_number}</Номер>"
+        f"<ПометкаУдаления>{'true' if deletion_mark else 'false'}</ПометкаУдаления>"
+        f"<Дата>2026-11-23</Дата><ХозОперация>{operation}</ХозОперация>"
+        f"<Товары>{lines_xml}</Товары>"
+        f"<ЗначенияРеквизитов>{requisites_xml}</ЗначенияРеквизитов></Документ>"
+    )
+
+
+def build_bus_xml(*documents: str) -> str:
+    """Контейнер выгрузки БУС с namespace CommerceML 3."""
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f'<КоммерческаяИнформация xmlns="{BUS_NS}" ВерсияСхемы="3.1" ДатаФормирования="2026-11-23T12:00:00">'
+        f"<Контейнер>{''.join(documents)}</Контейнер></КоммерческаяИнформация>"
+    )
+
+
+@pytest.mark.unit
+class TestBusFormatParsing:
+    """Разбор документа БУС: namespace, ХозОперация, источник статуса, отмена."""
+
+    def test_namespace_is_stripped_and_bus_status_requisite_read(self):
+        service = OrderStatusImportService(bus_format=True)
+
+        updates, total, errors = service._parse_orders_xml(build_bus_xml(build_bus_document()))
+
+        assert total == 1
+        assert errors == []
+        assert len(updates) == 1
+        assert updates[0].status_1c == "Передан на склад"
+        assert updates[0].order_id == "order-123"
+        assert updates[0].final_status_blocked is False
+
+    def test_legacy_mode_also_reads_bus_status_requisite(self):
+        """«Статуса заказа ИД» читается в обоих режимах, namespace снимается в обоих."""
+        service = OrderStatusImportService()
+
+        updates, _, errors = service._parse_orders_xml(build_bus_xml(build_bus_document(status="К выполнению")))
+
+        assert errors == []
+        assert updates[0].status_1c == "К выполнению"
+
+    def test_bus_status_requisite_wins_over_legacy_requisite(self):
+        service = OrderStatusImportService(bus_format=True)
+        xml = build_bus_xml(build_bus_document(status="Закрыт", extra_requisites={"СтатусЗаказа": "К выполнению"}))
+
+        updates, _, _ = service._parse_orders_xml(xml)
+
+        assert updates[0].status_1c == "Закрыт"
+
+    @pytest.mark.parametrize("bus_format", [False, True])
+    def test_non_order_document_is_skipped_without_error(self, bus_format):
+        service = OrderStatusImportService(bus_format=bus_format)
+        skips: dict[str, int] = {}
+        xml = build_bus_xml(build_bus_document(operation="Выплата безналичных денег"), build_bus_document())
+
+        updates, total, errors = service._parse_orders_xml(xml, skips=skips)
+
+        assert total == 2
+        assert errors == []
+        assert len(updates) == 1
+        assert skips == {"skipped_non_order": 1}
+
+    def test_no_status_is_counted_not_error_in_bus_mode(self):
+        service = OrderStatusImportService(bus_format=True)
+
+        with patch.object(service, "_bulk_fetch_orders", return_value={}):
+            result = service.process(build_bus_xml(build_bus_document(status=None)))
+
+        assert result.skipped_no_status == 1
+        assert result.skipped_invalid == 0
+        assert result.errors == []
+        assert result.skipped == 1
+
+    def test_no_status_is_still_invalid_in_legacy_mode(self):
+        service = OrderStatusImportService()
+
+        with patch.object(service, "_bulk_fetch_orders", return_value={}):
+            result = service.process(build_bus_xml(build_bus_document(status=None)))
+
+        assert result.skipped_invalid == 1
+        assert result.skipped_no_status == 0
+        assert len(result.errors) == 1
+
+    def test_payment_and_shipment_dates_are_ignored_in_bus_mode(self):
+        service = OrderStatusImportService(bus_format=True)
+        xml = build_bus_xml(
+            build_bus_document(extra_requisites={"ДатаОплаты": "2026-11-20", "ДатаОтгрузки": "2026-11-21"})
+        )
+
+        updates, _, _ = service._parse_orders_xml(xml)
+
+        assert updates[0].paid_at is None
+        assert updates[0].paid_at_present is False
+        assert updates[0].shipped_at_present is False
+
+    def test_cancel_without_lines_becomes_cancelled_status(self):
+        service = OrderStatusImportService(bus_format=True)
+        xml = build_bus_xml(build_bus_document(status="К выполнению", cancelled=True, lines=()))
+
+        updates, _, _ = service._parse_orders_xml(xml)
+
+        assert updates[0].status_1c == "Отменен"
+        assert STATUS_MAPPING[updates[0].status_1c] == "cancelled"
+        assert updates[0].final_status_blocked is False
+
+    def test_cancel_with_only_delivery_line_is_real(self):
+        service = OrderStatusImportService(bus_format=True)
+        xml = build_bus_xml(build_bus_document(status=None, cancelled=True, lines=("ORDER_DELIVERY",)))
+
+        updates, _, _ = service._parse_orders_xml(xml)
+
+        assert updates[0].status_1c == "Отменен"
+
+    def test_cancel_with_deletion_mark_is_real_even_with_lines(self):
+        service = OrderStatusImportService(bus_format=True)
+        xml = build_bus_xml(build_bus_document(cancelled=True, deletion_mark=True))
+
+        updates, _, _ = service._parse_orders_xml(xml)
+
+        assert updates[0].status_1c == "Отменен"
+
+    def test_false_cancel_keeps_mapped_status_and_blocks_final(self, caplog):
+        service = OrderStatusImportService(bus_format=True)
+        xml = build_bus_xml(build_bus_document(status="Передан на склад", cancelled=True))
+
+        with caplog.at_level(logging.WARNING):
+            updates, _, _ = service._parse_orders_xml(xml)
+
+        assert updates[0].status_1c == "Передан на склад"
+        assert updates[0].final_status_blocked is True
+        assert updates[0].parse_warnings
+        assert "Выгружать отменённые товары" in caplog.text
+
+    def test_legacy_mode_ignores_cancel_requisite(self):
+        service = OrderStatusImportService()
+        xml = build_bus_xml(build_bus_document(status="К выполнению", cancelled=True, lines=()))
+
+        updates, _, _ = service._parse_orders_xml(xml)
+
+        assert updates[0].status_1c == "К выполнению"
+        assert updates[0].final_status_blocked is False
+
+
+@pytest.mark.unit
+class TestBusFormatProcessing:
+    """Матрица I/O спеки в режиме bus_format (заказы — моки, без БД)."""
+
+    def _run(self, xml: str, order) -> ImportResult:
+        service = OrderStatusImportService(bus_format=True)
+        cache = {f"num:{order.order_number}": order, f"pk:{order.pk}": order}
+        with patch.object(service, "_bulk_fetch_orders", return_value=cache):
+            return service.process(xml)
+
+    def _order(self, status: str, status_1c: str = "", number: str = "FS-BUS-001"):
+        order = _make_mock_order(status=status, status_1c=status_1c, sent_to_1c=True)
+        order.pk = 123
+        order.order_number = number
+        return order
+
+    def test_stage_at_warehouse_from_processing(self):
+        order = self._order("processing", "К выполнению")
+
+        result = self._run(build_bus_xml(build_bus_document(status="Передан на склад")), order)
+
+        assert result.updated == 1
+        assert order.status == "at_warehouse"
+        assert order.status_1c == "Передан на склад"
+
+    def test_shipped_does_not_regress_to_at_warehouse(self):
+        order = self._order("shipped", "Отгружен")
+
+        result = self._run(build_bus_xml(build_bus_document(status="Передан на склад")), order)
+
+        assert result.skipped_status_regression == 1
+        assert order.status == "shipped"
+        assert order.status_1c == "Передан на склад"
+
+    def test_real_cancel_sets_cancelled_and_status_1c(self):
+        order = self._order("at_warehouse", "Передан на склад")
+
+        result = self._run(build_bus_xml(build_bus_document(status=None, cancelled=True, lines=())), order)
+
+        assert result.updated == 1
+        assert order.status == "cancelled"
+        assert order.status_1c == "Отменен"
+
+    def test_false_cancel_with_non_final_status_is_applied(self):
+        order = self._order("processing", "К выполнению")
+
+        result = self._run(build_bus_xml(build_bus_document(status="Передан на склад", cancelled=True)), order)
+
+        assert result.updated == 1
+        assert order.status == "at_warehouse"
+
+    def test_false_cancel_with_final_status_keeps_status_and_writes_status_1c(self):
+        """«Закрыт» при `Отменен`=true и живых строках: `delivered` начислил бы бонус за отмену."""
+        order = self._order("shipped", "Отгружен")
+
+        result = self._run(build_bus_xml(build_bus_document(status="Закрыт", cancelled=True)), order)
+
+        assert result.updated == 0
+        assert result.skipped_status_regression == 1
+        assert order.status == "shipped"
+        assert order.status_1c == "Закрыт"
+        order.save.assert_called_once_with(update_fields=["status_1c", "sent_to_1c_at", "updated_at"])
+
+    def test_closed_without_cancel_becomes_delivered(self):
+        order = self._order("shipped", "Отгружен")
+
+        result = self._run(build_bus_xml(build_bus_document(status="Закрыт")), order)
+
+        assert result.updated == 1
+        assert order.status == "delivered"
+
+    def test_foreign_order_is_not_found(self):
+        service = OrderStatusImportService(bus_format=True)
+
+        with patch.object(service, "_bulk_fetch_orders", return_value={}):
+            result = service.process(build_bus_xml(build_bus_document(order_id="7d1c-guid", order_number="УТ-42")))
+
+        assert result.not_found == 1
+        assert result.updated == 0
+
+    def test_payment_date_does_not_mark_order_paid(self):
+        order = self._order("processing", "К выполнению")
+        order.payment_status = "pending"
+        xml = build_bus_xml(build_bus_document(status="К выполнению", extra_requisites={"ДатаОплаты": "2026-11-20"}))
+
+        self._run(xml, order)
+
+        assert order.payment_status == "pending"
+        assert order.paid_at is None
+
+
+@pytest.mark.unit
+class TestAtWarehousePriority:
+    """`at_warehouse` встаёт между `processing` и `shipped`, логика регрессий прежняя."""
+
+    def test_priority_order(self):
+        from apps.orders.constants import ACTIVE_STATUSES, STATUS_PRIORITY
+
+        assert STATUS_PRIORITY["processing"] < STATUS_PRIORITY["at_warehouse"] < STATUS_PRIORITY["shipped"]
+        assert STATUS_PRIORITY == {
+            "pending": 1,
+            "confirmed": 2,
+            "processing": 3,
+            "at_warehouse": 4,
+            "shipped": 5,
+            "delivered": 6,
+            "cancelled": 0,
+            "refunded": 0,
+        }
+        assert "at_warehouse" in ACTIVE_STATUSES
+
+    def test_master_aggregates_to_slowest_sub_order(self):
+        service = OrderStatusImportService()
+        master = MagicMock()
+        master.status = "processing"
+        master.sub_orders.values_list.return_value = ["at_warehouse", "shipped"]
+
+        new_status, blocked = service._aggregate_master_status(master)
+
+        assert (new_status, blocked) == ("at_warehouse", False)
