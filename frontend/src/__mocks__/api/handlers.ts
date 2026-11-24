@@ -458,7 +458,12 @@ export const authHandlers = [
 
   // Successful registration
   http.post(`${API_BASE_URL}/auth/register/`, async ({ request }) => {
-    const body = (await request.json()) as { email: string; password: string; first_name: string };
+    const body = (await request.json()) as {
+      email: string;
+      password: string;
+      first_name: string;
+      last_name: string;
+    };
 
     // Simulate 409 conflict for existing email
     if (body.email === 'existing@example.com') {
@@ -478,7 +483,7 @@ export const authHandlers = [
           id: 2,
           email: body.email,
           first_name: body.first_name,
-          last_name: '',
+          last_name: body.last_name,
           phone: '',
           role: 'retail' as const,
           is_verified: false,

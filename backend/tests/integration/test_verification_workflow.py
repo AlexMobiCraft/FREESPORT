@@ -135,6 +135,7 @@ class TestLoginVerificationBlocking:
                 "password_confirm": "SecurePass123!",
                 "phone": "+79991234567",
                 "first_name": "Workflow",
+                "last_name": "Тестов",
                 "role": "trainer",
                 "company_name": "Workflow Gym",
                 "tax_id": "7703456789",

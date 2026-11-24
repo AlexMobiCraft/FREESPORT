@@ -5401,10 +5401,12 @@ components:
           minLength: 1
         first_name:
           type: string
+          minLength: 1
           title: Имя
           maxLength: 150
         last_name:
           type: string
+          minLength: 1
           title: Фамилия
           maxLength: 150
         phone:
@@ -5457,6 +5459,7 @@ components:
       required:
       - email
       - first_name
+      - last_name
       - password
       - password_confirm
       - pdp_consent

@@ -3079,7 +3079,7 @@ export interface components {
       /** Имя */
       first_name: string;
       /** Фамилия */
-      last_name?: string;
+      last_name: string;
       /**
        * Номер телефона
        * @description Россия и Казахстан: +7 и 10 цифр; Беларусь: +375 и 9 цифр. Формат выбирается по полю country.

@@ -67,6 +67,7 @@ const REGISTER_FIELD_ERROR_MAP = {
   password: 'password',
   password_confirm: 'confirmPassword',
   first_name: 'first_name',
+  last_name: 'last_name',
   phone: 'phone',
   role: 'role',
   company_name: 'company_name',
@@ -126,9 +127,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         password: data.password,
         password_confirm: data.confirmPassword,
         first_name: data.first_name,
-        // Фамилию эта форма не собирает — её запрашивает строгая B2B-форма
-        // /b2b-register (см. deferred-work.md)
-        last_name: '',
+        last_name: data.last_name,
         phone: data.phone,
         role: data.role, // Story 29.1 AC 4: Используем выбранную роль
         // Story 29.1 AC 8: B2B-поля обязательны для всех доступных ролей
@@ -317,6 +316,17 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         disabled={isSubmitting}
         autoComplete="given-name"
         placeholder="Иван"
+        requiredMark
+      />
+
+      <Input
+        label="Фамилия"
+        type="text"
+        {...register('last_name')}
+        error={errors.last_name?.message}
+        disabled={isSubmitting}
+        autoComplete="family-name"
+        placeholder="Петров"
         requiredMark
       />
 
