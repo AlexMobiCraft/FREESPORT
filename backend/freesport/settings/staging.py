@@ -70,9 +70,21 @@ SECURE_HSTS_PRELOAD = False
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "timestamped": {
+            "format": "[{asctime}] {levelname} {name} {message}",
+            "style": "{",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
+        },
+        # У `console` форматтера нет: строки обмена с 1С нужны со временем и уровнем.
+        "integrations_console": {
+            "class": "logging.StreamHandler",
+            "formatter": "timestamped",
         },
     },
     "root": {
@@ -86,6 +98,13 @@ LOGGING = {
         "freesport": {
             "handlers": ["console"],
             "level": "DEBUG",
+        },
+        # Обмен с 1С: итоги `[INFO MODE]`, `[BUS ORDERS]`, `[Task …]` пишутся INFO.
+        # propagate=False — без дубля через root (Celery с `-l info` вешает на root свой хендлер).
+        "apps.integrations": {
+            "handlers": ["integrations_console"],
+            "level": "INFO",
+            "propagate": False,
         },
     },
 }

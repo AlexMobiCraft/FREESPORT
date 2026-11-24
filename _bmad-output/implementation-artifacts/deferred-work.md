@@ -1397,3 +1397,12 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1c-order-statuses-import.md`
   summary: Сбой БД при `save()` отдельного заказа в `OrderStatusImportService.process` не доходит до ответа обмена — маршрут БУС (и старый `orders.xml`) отвечает `success`, а пакет, вероятно, откатывается целиком.
   evidence: не проверено (medium). `order_status_import.py:297` ловит любое исключение строки как «Error processing order…»; Django `save_base` через `mark_for_rollback_on_error` помечает атомарный блок пакета на откат; маршрут БУС отдаёт `failure` только на «Database error…» (bulk fetch). Решит интеграционный тест: `OperationalError` из `Order.save` на втором заказе пакета → проверить статус первого и ответ. Фикс — пробрасывать `OperationalError` из цикла строк в `process()`, что меняет и старый путь.
+
+## Отложено из spec-1c-order-statuses-followup.md (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-order-statuses-followup.md`
+  summary: Логгер `apps.orders.services.order_status_import` не настроен: на проде его WARNING (ложная отмена, регрессия статуса, ошибки разбора) идёт через `logging.lastResort` — без времени, уровня и имени логгера, а INFO отбрасываются.
+  evidence: в `freesport/settings/production.py` (`LOGGING`) нет ни `root`, ни логгера `apps.orders`; спека настроила только `apps.integrations`. Исправление — логгер `apps.orders` (или `root`) с хендлером `console`/`verbose` во всех модулях настроек и тест в `tests/unit/test_logging_settings.py`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-order-statuses-followup.md`
+  summary: `sessid` обмена с 1С — это ключ Django-сессии. Он целиком уходит в query-строку запросов 1С и в access-лог nginx, а с INFO-логгером `apps.integrations` — ещё и в лог backend.
+  evidence: `views.py:196–211` (`_get_exchange_identity` берёт `sessid` из query, иначе — `request.session.session_key`); строки лога с `sessid` — `views.py:330, 481–484, 486, 499`, `import_orchestrator.py:112, 417, 463, 515`, `file_service.py:293, 299` (путь каталога сессии и полный `session_id` — на каждом `init`). Маскировать в backend бесполезно: тот же ключ уже лежит в access-логе nginx. Нужен отдельный `sessid` обмена, не равный ключу сессии.

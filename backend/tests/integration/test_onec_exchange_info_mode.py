@@ -171,6 +171,33 @@ class Test1CInfoMode:
 
         assert "<Ид>Передан на склад</Ид>" in body
 
+    def test_info_lists_ut11_states_first_without_duplicates(self):
+        """Первые 10 ``<Ид>`` — состояния «Заказа клиента» УТ 11 по жизненному циклу.
+
+        Форма БУС строит таблицу соответствий по строке на Ид в порядке ответа, а выгрузка
+        заказа берёт первую строку с нужным состоянием (spec-1c-order-statuses-followup).
+        """
+        import re
+
+        self._checkauth()
+
+        response = self.client.get(self.url, data={"type": "sale", "mode": "info"})
+        ids = re.findall(r"<Ид>(.*?)</Ид>", self._decode(response))
+
+        assert ids[:10] == [
+            "Ожидается согласование",
+            "Ожидается оплата до обеспечения",
+            "Готов к обеспечению",
+            "Ожидается оплата до отгрузки",
+            "Ожидается обеспечение",
+            "Готов к отгрузке",
+            "В процессе отгрузки",
+            "Ожидается оплата",
+            "Готов к закрытию",
+            "Закрыт",
+        ]
+        assert len(ids) == len(set(ids)), "Ид статусов в справочнике повторяются"
+
     def test_info_contains_default_export_status(self):
         """AC4: справочник содержит дефолтный статус экспорта (``Не согласован``).
 

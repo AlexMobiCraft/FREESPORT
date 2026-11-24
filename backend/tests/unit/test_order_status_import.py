@@ -3056,6 +3056,127 @@ class TestBusFormatProcessing:
         assert order.paid_at is None
 
 
+# Состояния «Заказа клиента» УТ 11 по жизненному циклу — у каждого свой Ид статуса
+# (spec-1c-order-statuses-followup: таблица 1:1 в форме БУС).
+UT11_ORDER_STATES: tuple[tuple[str, str], ...] = (
+    ("Ожидается согласование", "pending"),
+    ("Ожидается оплата до обеспечения", "processing"),
+    ("Готов к обеспечению", "processing"),
+    ("Ожидается оплата до отгрузки", "processing"),
+    ("Ожидается обеспечение", "processing"),
+    ("Готов к отгрузке", "at_warehouse"),
+    ("В процессе отгрузки", "at_warehouse"),
+    ("Ожидается оплата", "shipped"),
+    ("Готов к закрытию", "shipped"),
+    ("Закрыт", "delivered"),
+)
+
+# Прежние ключи: на них держатся настроенные базы и реальная выгрузка orders_1_89b0ff0d-….xml
+LEGACY_STATUS_KEYS: dict[str, str] = {
+    "ОжидаетОбработки": "processing",
+    "Подтвержден": "confirmed",
+    "Отгружен": "shipped",
+    "Доставлен": "delivered",
+    "Отменен": "cancelled",
+    "Возвращен": "refunded",
+    "Не согласован": "pending",
+    "На согласовании": "pending",
+    "К выполнению": "processing",
+    "Передан на склад": "at_warehouse",
+    "Закрыт": "delivered",
+}
+
+
+@pytest.mark.unit
+class TestUT11StatesOneToOne:
+    """Каждому состоянию УТ — свой одноимённый Ид статуса, порядок ключей — по жизненному циклу.
+
+    Форма БУС собирает таблицу соответствий по строке на Ид в порядке `mode=info`,
+    а выгрузка заказа берёт первую строку с нужным состоянием (`БУС_ВыгрузкаСервер:8179`).
+    """
+
+    @pytest.mark.parametrize(("state", "expected"), UT11_ORDER_STATES)
+    def test_ut11_state_is_mapped(self, state, expected):
+        assert STATUS_MAPPING[state] == expected
+        assert STATUS_MAPPING_LOWER[state.lower()] == expected
+
+    def test_first_ten_keys_are_ut11_states_in_lifecycle_order(self):
+        assert list(STATUS_MAPPING)[: len(UT11_ORDER_STATES)] == [state for state, _ in UT11_ORDER_STATES]
+
+    @pytest.mark.parametrize(("key", "expected"), LEGACY_STATUS_KEYS.items())
+    def test_legacy_key_is_preserved(self, key, expected):
+        assert STATUS_MAPPING[key] == expected
+
+    def _order(self, status: str, status_1c: str = ""):
+        order = _make_mock_order(status=status, status_1c=status_1c, sent_to_1c=True)
+        order.pk = 123
+        order.order_number = "FS-BUS-001"
+        return order
+
+    def _run(self, xml: str, order, bus_format: bool = True) -> ImportResult:
+        service = OrderStatusImportService(bus_format=bus_format)
+        cache = {f"num:{order.order_number}": order, f"pk:{order.pk}": order}
+        with patch.object(service, "_bulk_fetch_orders", return_value=cache):
+            return service.process(xml)
+
+    def test_new_status_id_moves_processing_to_at_warehouse(self):
+        order = self._order("processing", "Ожидается обеспечение")
+
+        result = self._run(build_bus_xml(build_bus_document(status="В процессе отгрузки")), order)
+
+        assert result.updated == 1
+        assert order.status == "at_warehouse"
+        assert order.status_1c == "В процессе отгрузки"
+
+    def test_old_status_id_works_as_before(self):
+        order = self._order("processing", "К выполнению")
+
+        result = self._run(build_bus_xml(build_bus_document(status="Передан на склад")), order)
+
+        assert result.updated == 1
+        assert order.status == "at_warehouse"
+        assert order.status_1c == "Передан на склад"
+
+    def test_cancel_on_new_status_id_becomes_cancelled(self):
+        order = self._order("processing", "Ожидается обеспечение")
+
+        result = self._run(
+            build_bus_xml(build_bus_document(status="Готов к закрытию", cancelled=True, lines=())),
+            order,
+        )
+
+        assert result.updated == 1
+        assert order.status == "cancelled"
+        assert order.status_1c == "Отменен"
+
+    def test_false_cancel_on_new_status_id_applies_mapped_status_with_warning(self, caplog):
+        order = self._order("processing", "Ожидается обеспечение")
+
+        with caplog.at_level(logging.WARNING):
+            result = self._run(
+                build_bus_xml(build_bus_document(status="Готов к закрытию", cancelled=True)),
+                order,
+            )
+
+        assert result.updated == 1
+        assert order.status == "shipped"
+        assert order.status_1c == "Готов к закрытию"
+        assert "Выгружать отменённые товары" in caplog.text
+
+    def test_legacy_path_recognises_new_status_names(self):
+        order = self._order("processing", "К выполнению")
+
+        result = self._run(
+            build_test_xml(order_id="order-123", order_number="FS-BUS-001", status="Готов к отгрузке"),
+            order,
+            bus_format=False,
+        )
+
+        assert result.updated == 1
+        assert order.status == "at_warehouse"
+        assert order.status_1c == "Готов к отгрузке"
+
+
 @pytest.mark.unit
 class TestAtWarehousePriority:
     """`at_warehouse` встаёт между `processing` и `shipped`, логика регрессий прежняя."""
