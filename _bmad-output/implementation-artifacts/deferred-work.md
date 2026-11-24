@@ -1407,3 +1407,12 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-register-last-name-required.md`
   summary: PATCH профиля (`UserProfileSerializer`) позволяет стереть имя и фамилию сразу после регистрации, хотя регистрация теперь требует их непустыми.
   evidence: `backend/apps/users/serializers.py:650-651` — `first_name`/`last_name` записываемые, модель `blank=True`, `allow_blank=False` нет. Спека запрещала трогать профиль; решить, нужно ли требовать ФИО и в профиле (у записей из 1С фамилии может не быть).
+
+## Отложено из spec-1c-order-statuses-followup.md (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-order-statuses-followup.md`
+  summary: Логгер `apps.orders.services.order_status_import` не настроен: на проде его WARNING (ложная отмена, регрессия статуса, ошибки разбора) идёт через `logging.lastResort` — без времени, уровня и имени логгера, а INFO отбрасываются.
+  evidence: в `freesport/settings/production.py` (`LOGGING`) нет ни `root`, ни логгера `apps.orders`; спека настроила только `apps.integrations`. Исправление — логгер `apps.orders` (или `root`) с хендлером `console`/`verbose` во всех модулях настроек и тест в `tests/unit/test_logging_settings.py`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-order-statuses-followup.md`
+  summary: `sessid` обмена с 1С — это ключ Django-сессии. Он целиком уходит в query-строку запросов 1С и в access-лог nginx, а с INFO-логгером `apps.integrations` — ещё и в лог backend.
+  evidence: `views.py:196–211` (`_get_exchange_identity` берёт `sessid` из query, иначе — `request.session.session_key`); строки лога с `sessid` — `views.py:330, 481–484, 486, 499`, `import_orchestrator.py:112, 417, 463, 515`, `file_service.py:293, 299` (путь каталога сессии и полный `session_id` — на каждом `init`). Маскировать в backend бесполезно: тот же ключ уже лежит в access-логе nginx. Нужен отдельный `sessid` обмена, не равный ключу сессии.
