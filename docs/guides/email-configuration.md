@@ -19,9 +19,9 @@ OPTISPORT использует email для:
 | --------------------- | ------------------------------ | --------------------------------------------- |
 | `EMAIL_BACKEND`       | Django email backend           | `django.core.mail.backends.smtp.EmailBackend` |
 | `EMAIL_HOST`          | SMTP сервер                    | `smtp.yandex.ru`                              |
-| `EMAIL_PORT`          | Порт SMTP                      | `587`                                         |
-| `EMAIL_USE_TLS`       | Использовать TLS               | `True`                                        |
-| `EMAIL_USE_SSL`       | Использовать SSL               | `False`                                       |
+| `EMAIL_PORT`          | Порт SMTP                      | `465`                                         |
+| `EMAIL_USE_TLS`       | STARTTLS (порт 587)            | `False`                                       |
+| `EMAIL_USE_SSL`       | Implicit SSL (порт 465)        | `True`                                        |
 | `EMAIL_HOST_USER`     | Логин SMTP                     | `noreply@optisport.ru`                        |
 | `EMAIL_HOST_PASSWORD` | Пароль SMTP                    | `your-app-password`                           |
 | `DEFAULT_FROM_EMAIL`  | Адрес отправителя              | `noreply@optisport.ru`                        |
@@ -51,42 +51,79 @@ EMAIL_USE_TLS=False
 
 ### Production окружение
 
-#### 1. Yandex.Connect (Яндекс 360 для бизнеса)
+#### 1. Яндекс 360 для бизнеса — используется на проде
 
-**Рекомендуется для домена optisport.ru**
+С 24.11.2026 почта домена `optisport.ru` и отправка писем сайта работают через Яндекс 360.
+До этого сайт слал через хостинг reg.ru (`mail.hosting.reg.ru`); история — в
+[`docs/deploy/domain-migration-optisport.md`](../deploy/domain-migration-optisport.md), п. 1.5 и 4.
 
-**Шаг 1: Подключение домена**
+**Текущее состояние (проверено 24.11.2026)**
 
-1. Перейдите в [Яндекс 360 для бизнеса](https://360.yandex.ru/business/) и войдите/зарегистрируйтесь.
-2. Добавьте домен (например, `optisport.ru`).
-3. **Подтверждение владения:** Добавьте TXT-запись в DNS регистратора (значение выдаст Яндекс).
-4. **MX-записи:** Удалите старые MX и добавьте новую:
-   - Host: `@`
-   - Value: `mx.yandex.net.`
-   - Priority: `10`
-5. **SPF и DKIM (Важно для анти-спама):**
-   - SPF (TXT): `v=spf1 include:_spf.yandex.net ~all`
-   - DKIM: В админке 360 -> Почта -> DKIM, скопируйте ключ и добавьте TXT-запись `mail._domainkey`.
+| Что | Значение |
+| --- | --- |
+| SMTP | `smtp.yandex.ru`, порт `465`, implicit SSL |
+| Ящик-отправитель | `noreply@optisport.ru`, вход по паролю приложения |
+| MX | `mx.yandex.net` (10) |
+| SPF | `v=spf1 redirect=_spf.yandex.net` |
+| DKIM | селектор `mail` (`mail._domainkey.optisport.ru`), подпись `d=optisport.ru` |
+| DMARC | `p=none`, отчёты на `dmarc@optisport.ru` — **этого ящика в Яндекс 360 пока нет**, отчёты не доходят |
+| DNS-зона | по-прежнему у reg.ru (NS `ns1/ns2.hosting.reg.ru`), записи правятся в панели хостинга reg.ru |
 
-**Шаг 2: Создание ящика и пароля**
+Тестовые письма из контейнеров `backend` и `celery` приходят в Gmail с `SPF: PASS` и
+`DKIM: PASS` для домена `optisport.ru`.
 
-1. Создайте сотрудника с логином `noreply` (итоговый адрес `noreply@optisport.ru`).
-2. Войдите под этим аккаунтом в Яндекс ID.
-3. Перейдите в **Управление аккаунтом -> Безопасность -> Пароли приложений**.
-4. Создайте новый пароль "Django Backend". **Скопируйте 16-значный код.**
+**Настройка `.env.prod`**
 
-**Шаг 3: Конфигурация `.env.prod`**
-
-```bash
+```dotenv
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 EMAIL_HOST=smtp.yandex.ru
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
+EMAIL_PORT=465
+EMAIL_USE_TLS=False
+EMAIL_USE_SSL=True
 EMAIL_HOST_USER=noreply@optisport.ru
-EMAIL_HOST_PASSWORD=ваш_16_значный_пароль_приложения
-DEFAULT_FROM_EMAIL=OPTISPORT <noreply@optisport.ru>
-ADMIN_EMAILS=admin@optisport.ru
+EMAIL_HOST_PASSWORD=пароль_приложения_яндекса
+DEFAULT_FROM_EMAIL=noreply@optisport.ru
+SERVER_EMAIL=noreply@optisport.ru
 ```
+
+- Порт `465` — implicit SSL: `EMAIL_USE_SSL=True` и обязательно `EMAIL_USE_TLS=False`, обе
+  сразу Django не принимает.
+- Адрес в `DEFAULT_FROM_EMAIL` должен совпадать с `EMAIL_HOST_USER`: Яндекс не отправляет
+  письма с чужим адресом в `From`.
+- `EMAIL_HOST_PASSWORD` — пароль приложения, созданный в Яндекс ID под `noreply@optisport.ru`,
+  а не пароль ящика.
+- Письма о заказах уходят из `celery`, остальные — из `backend`. Обе службы и `celery-beat`
+  берут настройки из одного `.env.prod`.
+
+**Смена пароля или почтового сервера на проде**
+
+`.env.prod` не хранится в репозитории и правится на сервере. Переменные окружения читаются
+только при создании контейнера, поэтому одного `restart` мало: контейнеры нужно пересоздать.
+
+```bash
+ssh root@5.35.124.149
+cd /home/freesport/freesport
+cp -p .env.prod .env.prod.bak-mail-$(date +%Y%m%d-%H%M%S)
+nano .env.prod   # EMAIL_HOST_PASSWORD (и EMAIL_HOST, если меняется сервер)
+
+DC="docker compose --env-file .env.prod -f docker/docker-compose.prod.yml"
+$DC up -d --no-deps --force-recreate backend celery celery-beat
+$DC ps backend                      # дождаться (healthy)
+$DC restart nginx                   # иначе nginx держит старый IP backend и отдаёт 502
+
+$DC exec backend python manage.py test_email --to <адрес> --verbose
+```
+
+`.env.prod` на сервере со смешанными концами строк (CRLF/LF). Значения переменных это не
+ломает, но при разборе файла скриптом (`grep`, `cut`) символ `\r` нужно срезать.
+
+**Подключение домена (выполнено, для справки)**
+
+1. В Яндекс 360 для бизнеса добавить домен и подтвердить его TXT-записью `yandex-verification`.
+2. Заменить MX на `mx.yandex.net` (приоритет 10).
+3. SPF: `v=spf1 redirect=_spf.yandex.net`.
+4. DKIM: включить подпись в админке Яндекс 360 и опубликовать выданный ключ TXT-записью `mail._domainkey`.
+5. Создать ящик `noreply` и под ним пароль приложения для почты.
 
 #### 2. Google Workspace (Свой домен) или Gmail
 
@@ -179,7 +216,16 @@ docker exec -it freesport-backend python manage.py shell
 
 - Проверьте правильность `EMAIL_HOST_USER` и `EMAIL_HOST_PASSWORD`
 - Для Gmail: убедитесь, что используете App Password, а не обычный пароль
-- Для Yandex: проверьте, что почтовый ящик существует и активен
+- Для Яндекса (`535 5.7.8 Error: authentication failed: Invalid user or password!`):
+  - ящик существует и активен;
+  - в `EMAIL_HOST_PASSWORD` пароль приложения, а не пароль ящика;
+  - для ящика разрешён доступ почтовым программам (настройки Почты, раздел «Почтовые программы»)
+- Пароль можно проверить до правки `.env.prod`, не трогая работающие контейнеры:
+
+  ```bash
+  docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python -c \
+    "import smtplib,getpass; s=smtplib.SMTP_SSL('smtp.yandex.ru',465,timeout=20); s.login('noreply@optisport.ru', getpass.getpass()); print('OK')"
+  ```
 
 ### Ошибка подключения (Connection refused)
 
@@ -190,10 +236,19 @@ docker exec -it freesport-backend python manage.py shell
 ### Письма не доставляются
 
 - Проверьте spam/junk папку получателя
-- Убедитесь, что `DEFAULT_FROM_EMAIL` соответствует домену
-- Проверьте SPF/DKIM записи домена
+- Убедитесь, что `DEFAULT_FROM_EMAIL` совпадает с `EMAIL_HOST_USER`
+- Проверьте SPF/DKIM записи домена: откройте письмо в Gmail через «Показать оригинал»,
+  там должны быть `SPF: PASS` и `DKIM: PASS` для `optisport.ru`. `FAIL` при отправке через
+  `smtp.yandex.ru` означает, что в DNS сменились записи из таблицы «Текущее состояние»
+
+### 502 на сайте после пересоздания backend
+
+nginx запоминает IP контейнера `backend` при старте. После `up -d --force-recreate backend`
+выполните `docker compose ... restart nginx`.
 
 ## См. также
 
-- [Story 29.4: Email Notification System](../stories/epic-29/29.4.email-notification-system.md)
+- [Story 29.4: Email Notification System](../archive/v4/stories/epic-29/29.4.email-notification-system.md)
+- [Доступы и оплата услуг](../deploy/accounts-and-billing.md) — где живут домен, DNS и почта
+- [Переезд на optisport.ru](../deploy/domain-migration-optisport.md) — история DNS и почты на reg.ru
 - [Django Email Documentation](https://docs.djangoproject.com/en/4.2/topics/email/)
