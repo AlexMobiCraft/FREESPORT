@@ -5,13 +5,16 @@ Django Admin конфигурация для моделей приложения
 from __future__ import annotations
 
 import csv
+import logging
 from datetime import timedelta
 from typing import Any
 
-from django.contrib import admin
-from django.db.models import QuerySet
+from django.contrib import admin, messages
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+from django.db.models import Count, Q, QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
+from django.template.response import TemplateResponse
 from django.utils import timezone
 
 from apps.users.staff_roles import limit_manager_field
@@ -32,6 +35,20 @@ from .models import (
 from .regions import region_name, unassigned_regions
 from .rich_editor import RichContentAdminMixin
 from .services import CustomerSyncMonitor
+from .services.newsletter_campaign import (
+    CAP_REACHED_MESSAGE,
+    NOT_PUBLISHED_MESSAGE,
+    NewsletterCampaignError,
+    article_label,
+    is_published,
+    log_campaign_start,
+    recipients_to_send,
+    remaining_daily_quota,
+    send_test,
+    start_campaign,
+)
+
+logger = logging.getLogger(__name__)
 
 
 @admin.register(AuditLog)
@@ -349,8 +366,132 @@ class UserConsentAdmin(admin.ModelAdmin):
         return False
 
 
+ONE_ARTICLE_MESSAGE = "Выберите один материал."
+ALREADY_SENT_MESSAGE = "Материал уже отправлен всем активным подписчикам."
+QUEUE_DOWN_MESSAGE = "Рассылка не запущена: очередь задач недоступна, повторите позже."
+TEST_FAILED_MESSAGE = "Тестовое письмо не отправлено: ошибка почтового сервера."
+
+
+class NewsletterMailingAdminMixin(admin.ModelAdmin):
+    """
+    Рассылка новости или статьи подписчикам из списка материалов.
+
+    «Разослать подписчикам» — через страницу подтверждения «Отправить N
+    подписчикам?», «Отправить тест мне» — сразу на email сотрудника. Оба
+    действия требуют права на изменение материала. Колонка «Рассылка» —
+    счётчики доставок, посчитанные в `get_queryset` одним запросом.
+    """
+
+    actions = ["send_newsletter", "send_newsletter_test"]
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Any]:
+        deliveries = "newsletter_campaign__deliveries"
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(
+                newsletter_total=Count(deliveries),
+                newsletter_sent=Count(deliveries, filter=Q(**{f"{deliveries}__status": "sent"})),
+                newsletter_failed=Count(deliveries, filter=Q(**{f"{deliveries}__status": "failed"})),
+                newsletter_queued=Count(deliveries, filter=Q(**{f"{deliveries}__status__in": ["pending", "sending"]})),
+            )
+        )
+
+    @admin.display(description="Рассылка")
+    def newsletter_status(self, obj: Any) -> str:
+        if not getattr(obj, "newsletter_total", 0):
+            return "—"
+        return f"отправлено {obj.newsletter_sent} · ошибок {obj.newsletter_failed} · в очереди {obj.newsletter_queued}"
+
+    def _single_article(self, request: HttpRequest, queryset: QuerySet[Any]) -> Any | None:
+        pks = list(queryset.values_list("pk", flat=True)[:2])
+        if len(pks) != 1:
+            self.message_user(request, ONE_ARTICLE_MESSAGE, level=messages.ERROR)
+            return None
+        # Без аннотаций списка: материал перечитан как есть.
+        return self.model._default_manager.get(pk=pks[0])
+
+    @admin.action(description="Разослать подписчикам", permissions=["change"])
+    def send_newsletter(self, request: HttpRequest, queryset: QuerySet[Any]) -> TemplateResponse | None:
+        article = self._single_article(request, queryset)
+        if article is None:
+            return None
+        if not is_published(article):
+            self.message_user(request, NOT_PUBLISHED_MESSAGE, level=messages.ERROR)
+            return None
+        if request.POST.get("post") == "yes":
+            self._start_newsletter(request, article)
+            return None
+
+        quota = remaining_daily_quota()
+        if quota <= 0:
+            self.message_user(request, CAP_REACHED_MESSAGE, level=messages.ERROR)
+            return None
+        recipients = recipients_to_send(article)
+        if recipients == 0:
+            self.message_user(request, ALREADY_SENT_MESSAGE, level=messages.INFO)
+            return None
+        # Как у delete_selected: reverse() и {% url 'admin:…' %} — в текущий раздел.
+        request.current_app = self.admin_site.name
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Рассылка подписчикам",
+            "opts": self.model._meta,
+            "article": article,
+            "article_label": article_label(article),
+            "recipients": recipients,
+            "daily_quota": quota,
+            "action_checkbox_name": ACTION_CHECKBOX_NAME,
+        }
+        return TemplateResponse(request, "admin/common/newsletter_send_confirmation.html", context)
+
+    def _start_newsletter(self, request: HttpRequest, article: Any) -> None:
+        # Импорт здесь: модуль задач тянет Celery и сервис рассылки, admin грузится раньше.
+        from .tasks import send_newsletter_campaign
+
+        quota = remaining_daily_quota()
+        try:
+            started = start_campaign(article, request.user)
+        except NewsletterCampaignError as error:
+            self.message_user(request, str(error), level=messages.ERROR)
+            return
+        if started.queued == 0:
+            self.message_user(request, ALREADY_SENT_MESSAGE, level=messages.INFO)
+            return
+        # Постановка — после коммита start_campaign, явно и в try: сбой брокера
+        # оставляет строки в pending до повторного запуска.
+        try:
+            send_newsletter_campaign.delay(started.campaign.pk)
+        except Exception:  # noqa: BLE001 — любой сбой брокера даёт одно сообщение
+            logger.exception("Рассылка campaign_id=%s не поставлена в очередь", started.campaign.pk)
+            self.message_user(request, QUEUE_DOWN_MESSAGE, level=messages.ERROR)
+            return
+        # Журнал — только о реально поставленной рассылке.
+        log_campaign_start(article, request.user, started.queued)
+        text = f"Рассылка запущена: {article_label(article)}, получателей — {started.queued}."
+        if started.queued > quota:
+            text += f" За сутки уйдёт не больше {quota} писем, остаток досылается повторным запуском" " через сутки."
+        self.message_user(request, text, level=messages.SUCCESS)
+
+    @admin.action(description="Отправить тест мне", permissions=["change"])
+    def send_newsletter_test(self, request: HttpRequest, queryset: QuerySet[Any]) -> None:
+        article = self._single_article(request, queryset)
+        if article is None:
+            return
+        try:
+            result = send_test(article, request.user)
+        except NewsletterCampaignError as error:
+            self.message_user(request, str(error), level=messages.ERROR)
+            return
+        if result.status != "sent":
+            logger.error("Тестовое письмо рассылки не отправлено: %s", result.error)
+            self.message_user(request, TEST_FAILED_MESSAGE, level=messages.ERROR)
+            return
+        self.message_user(request, f"Тестовое письмо отправлено на {request.user.email}.", level=messages.SUCCESS)
+
+
 @admin.register(News)
-class NewsAdmin(RichContentAdminMixin, admin.ModelAdmin):
+class NewsAdmin(NewsletterMailingAdminMixin, RichContentAdminMixin, admin.ModelAdmin):
     """Admin интерфейс для новостей."""
 
     list_display = [
@@ -358,6 +499,7 @@ class NewsAdmin(RichContentAdminMixin, admin.ModelAdmin):
         "category",
         "is_published",
         "published_at",
+        "newsletter_status",
         "created_at",
     ]
     list_filter = [
@@ -433,7 +575,7 @@ class NewsAdmin(RichContentAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(BlogPost)
-class BlogPostAdmin(RichContentAdminMixin, admin.ModelAdmin):
+class BlogPostAdmin(NewsletterMailingAdminMixin, RichContentAdminMixin, admin.ModelAdmin):
     """Admin интерфейс для статей блога."""
 
     list_display = [
@@ -441,6 +583,7 @@ class BlogPostAdmin(RichContentAdminMixin, admin.ModelAdmin):
         "category",
         "is_published",
         "published_at",
+        "newsletter_status",
         "created_at",
     ]
     list_filter = [

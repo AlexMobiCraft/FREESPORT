@@ -55,6 +55,7 @@ def test_staff_actions_are_exactly_the_list():
         "block_staff",
         "unblock_staff",
         "change_staff_group",
+        "newsletter_send",
     }
 
 
@@ -229,6 +230,17 @@ def test_page_constants():
             "change_staff_group",
             {"old": "Менеджеры", "new": "Маркетинг"},
             ("Смена группы сотрудника", "Менеджеры → Маркетинг"),
+        ),
+        pytest.param(
+            "newsletter_send",
+            {"kind": "news", "title": "Открытие склада", "recipients": 47},
+            ("Рассылка подписчикам", "получателей: 47"),
+        ),
+        pytest.param(
+            "newsletter_send",
+            {"recipients": True},
+            ("Рассылка подписчикам", "—"),
+            id="newsletter_send-broken",
         ),
     ],
 )

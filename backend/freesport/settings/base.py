@@ -574,6 +574,13 @@ EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@optisport.ru")
 SERVER_EMAIL = config("SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 
+# Рассылка новостей и статей блога подписчикам (Newsletter) через тот же SMTP.
+# Яндекс 360 по SMTP пропускает 300 получателей в сутки на ящик и при превышении
+# блокирует отправку на 24 часа; на ту же квоту noreply@ живут письма о заказах.
+# Потолок — число доставок `sent` за последние 24 часа по всем рассылкам.
+NEWSLETTER_SEND_INTERVAL_SECONDS = config("NEWSLETTER_SEND_INTERVAL_SECONDS", default=2, cast=float)
+NEWSLETTER_DAILY_CAP = config("NEWSLETTER_DAILY_CAP", default=150, cast=int)
+
 # Парсинг списка администраторов из ADMIN_EMAILS
 # Формат: "Admin Name <admin@example.com>,Another Admin <admin2@example.com>"
 # или просто: "admin@example.com,admin2@example.com"

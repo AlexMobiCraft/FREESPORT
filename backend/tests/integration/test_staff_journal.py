@@ -36,7 +36,7 @@ from django.test import Client, RequestFactory
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from apps.common.models import AuditLog, ManagerRoutingRule
+from apps.common.models import AuditLog, BlogPost, ManagerRoutingRule, News, Newsletter
 from apps.orders.models import Order
 from apps.users.models import User
 from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP
@@ -575,6 +575,31 @@ def do_staff_password(ctx: SimpleNamespace) -> Expected:
     return with_code(staff_row(ctx.supervisor, member, "Сброс пароля", "—"), "change_password")
 
 
+def do_newsletter_send(ctx: SimpleNamespace) -> Expected:
+    news = News.objects.create(
+        title=f"Новость {get_unique_suffix()}",
+        slug=f"journal-news-{get_unique_suffix()}",
+        content="<p>Текст</p>",
+        is_published=True,
+        published_at=datetime.now(UTC) - timedelta(hours=1),
+    )
+    Newsletter.objects.create(email=f"reader_{get_unique_suffix()}@example.com")
+    with patch("apps.common.tasks.send_newsletter_campaign.delay"):
+        response = ctx.as_supervisor.post(
+            "/marketing/common/news/",
+            {"action": "send_newsletter", "_selected_action": [str(news.pk)], "post": "yes"},
+        )
+    assert response.status_code == 302
+    return Expected(
+        ctx.supervisor,
+        "newsletter_send",
+        "News",
+        news.pk,
+        (label(ctx.supervisor), "Рассылка подписчикам", f"Новость «{news.title}»", "получателей: 1"),
+        f"/marketing/common/news/{news.pk}/change/",
+    )
+
+
 # Перечень действий section-contents.md: русское название → сценарий настоящим запросом.
 STAFF_ACTION_SCENARIOS: list[tuple[str, Callable[[SimpleNamespace], Expected]]] = [
     ("Верификация на странице подтверждения со сменой роли", do_verify_page),
@@ -599,6 +624,7 @@ STAFF_ACTION_SCENARIOS: list[tuple[str, Callable[[SimpleNamespace], Expected]]] 
     ("Разблокировка сотрудника", do_staff_unblock),
     ("Смена группы сотрудника", do_staff_group),
     ("Сброс пароля сотруднику", do_staff_password),
+    ("Рассылка подписчикам", do_newsletter_send),
 ]
 
 
@@ -1245,7 +1271,8 @@ class TestPages:
 
 class TestQueryCount:
     SPREAD = 4
-    KINDS = 6
+    # Шесть прежних видов и `newsletter_send` по новости и по статье блога.
+    KINDS = 8
 
     @pytest.fixture
     def objects(self, manager) -> SimpleNamespace:
@@ -1261,12 +1288,25 @@ class TestQueryCount:
             orders=[make_master(make_client(manager), subs=0) for _ in range(self.SPREAD)],
             rules=[rule(str(23 + number), manager) for number in range(self.SPREAD)],
             ghosts=ghosts,
+            news=self._articles(News),
+            posts=self._articles(BlogPost),
         )
+
+    def _articles(self, model: type[News] | type[BlogPost]) -> list[SimpleNamespace]:
+        """Материалы рассылок; нечётные удалены — у их строк ленты нет ссылки."""
+        articles = []
+        for number in range(self.SPREAD):
+            suffix = get_unique_suffix()
+            article = model.objects.create(title=f"Материал {suffix}", slug=f"journal-qc-{suffix}", content="<p>x</p>")
+            articles.append(SimpleNamespace(pk=article.pk, title=article.title))
+            if number % 2:
+                article.delete()
+        return articles
 
     @staticmethod
     def add(objects: SimpleNamespace, authors: list[User], count: int, spread: int) -> None:
         """
-        Записи шести видов по кругу. Объектов каждого вида — `spread`: число запросов
+        Записи восьми видов по кругу. Объектов каждого вида — `spread`: число запросов
         не должно расти и с числом строк, и с числом различных клиентов, заказов и правил.
         """
         for index in range(count):
@@ -1301,6 +1341,15 @@ class TestQueryCount:
                 )
             elif kind == 4:
                 log(author, "unblock_user", objects.ghosts[variant], resource_type="User")
+            elif kind in (6, 7):
+                article = (objects.news if kind == 6 else objects.posts)[variant]
+                log(
+                    author,
+                    "newsletter_send",
+                    article,
+                    {"kind": "news" if kind == 6 else "blog", "title": article.title, "recipients": 47},
+                    resource_type="News" if kind == 6 else "BlogPost",
+                )
             else:
                 # Прежний и новый менеджер — разные учётные записи на каждой строке;
                 # у нечётных вариантов прежней почты в базе нет.
@@ -1465,6 +1514,7 @@ ALL_CODES = [
     "block_staff",
     "unblock_staff",
     "change_staff_group",
+    "newsletter_send",
 ]
 
 

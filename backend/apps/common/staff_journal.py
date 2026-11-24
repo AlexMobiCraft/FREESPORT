@@ -19,8 +19,9 @@
 Ссылка на объект ведёт туда, где руководитель его видит: клиент — в карточку
 `/manager/`, если клиент виден в разделе (`scope_clients`); сотрудник — в
 карточку `/supervisor/`; заказ — в карточку `/manager/` (`scope_orders`);
-правило — в карточку `/supervisor/`, если оно не удалено. Остальное — подпись
-без ссылки. Число запросов страницы постоянное: по одному запросу на вид
+правило — в карточку `/supervisor/`, если оно не удалено; новость и статья
+блога рассылки — в карточку `/marketing/`, если материал не удалён. Остальное —
+подпись без ссылки. Число запросов страницы постоянное: по одному запросу на вид
 объекта, а не на строку.
 
 Модуль ничего не регистрирует и импортируется только из
@@ -42,7 +43,7 @@ from django.http import HttpRequest, QueryDict
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.common.models import AuditLog, ManagerRoutingRule
+from apps.common.models import AuditLog, BlogPost, ManagerRoutingRule, News
 from apps.common.staff_actions import STAFF_ACTIONS
 from apps.common.supervisor_admin import LOGGED_RULE_FIELDS
 from apps.orders.manager_admin import EDITABLE_FIELDS, scope_orders
@@ -73,6 +74,11 @@ RULE_FIELD_LABELS = {
     "is_active": "активно",
     "manager_id": "менеджер",
     "manager_email": "email менеджера",
+}
+# Материал рассылки (`newsletter_send`): подпись и карточка в разделе маркетинга.
+ARTICLE_LABELS = {
+    "News": ("Новость", "marketing:common_news_change"),
+    "BlogPost": ("Статья блога", "marketing:common_blogpost_change"),
 }
 ROLE_LABELS = dict(User.ROLE_CHOICES)
 MATCH_TYPE_LABELS = dict(ManagerRoutingRule.MATCH_TYPE_CHOICES)
@@ -356,6 +362,10 @@ def describe(record: AuditLog, users: KnownUsers) -> tuple[str, str]:
             parts = [f"группа: {changes['group']}"]
     elif action == "change_staff_group":
         parts = [_change(_text(changes.get("old")), _text(changes.get("new")))]
+    elif action == "newsletter_send":
+        recipients = changes.get("recipients")
+        if isinstance(recipients, int) and not isinstance(recipients, bool):
+            parts = [f"получателей: {recipients}"]
 
     return label, "; ".join(parts) or EMPTY
 
@@ -388,7 +398,13 @@ def build_rows(request: HttpRequest, records: Iterable[AuditLog]) -> list[dict[s
     правил и назначений.
     """
     records = list(records)
-    object_ids: dict[str, set[int]] = {"User": set(), "Order": set(), "ManagerRoutingRule": set()}
+    object_ids: dict[str, set[int]] = {
+        "User": set(),
+        "Order": set(),
+        "ManagerRoutingRule": set(),
+        "News": set(),
+        "BlogPost": set(),
+    }
     label_ids: set[int] = set()
     emails: set[str] = set()
     for record in records:
@@ -422,11 +438,20 @@ def build_rows(request: HttpRequest, records: Iterable[AuditLog]) -> list[dict[s
             ManagerRoutingRule.objects.filter(pk__in=object_ids["ManagerRoutingRule"]).values_list("pk", flat=True)
         )
 
+    existing_articles: dict[str, set[int]] = {}
+    for resource_type, model in (("News", News), ("BlogPost", BlogPost)):
+        if object_ids[resource_type]:
+            existing_articles[resource_type] = set(
+                model.objects.filter(pk__in=object_ids[resource_type]).values_list("pk", flat=True)
+            )
+
     rows = []
     for record in records:
         pk = _int_id(record.resource_id)
         changes = _changes(record)
-        object_label, object_url = _object(record, pk, changes, users, visible_clients, visible_orders, existing_rules)
+        object_label, object_url = _object(
+            record, pk, changes, users, visible_clients, visible_orders, existing_rules, existing_articles
+        )
         action, details = describe(record, users)
         rows.append(
             {
@@ -450,6 +475,7 @@ def _object(
     visible_clients: set[int],
     visible_orders: set[int],
     existing_rules: set[int],
+    existing_articles: dict[str, set[int]],
 ) -> tuple[str, str]:
     """Подпись объекта и ссылка на него; ссылки нет — пустая строка."""
     if record.resource_type == "User":
@@ -472,6 +498,12 @@ def _object(
         label = str(changes.get("rule") or f"ID {record.resource_id}")
         url = reverse("supervisor:common_managerroutingrule_change", args=[pk]) if pk in existing_rules else ""
         return label, url
+    if record.resource_type in ARTICLE_LABELS:
+        kind, url_name = ARTICLE_LABELS[record.resource_type]
+        title = changes.get("title")
+        label = f"{kind} «{title}»" if title else f"{kind} ID {record.resource_id}"
+        exists = pk in existing_articles.get(record.resource_type, set())
+        return label, reverse(url_name, args=[pk]) if exists else ""
     return f"ID {record.resource_id}", ""
 
 

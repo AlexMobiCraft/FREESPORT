@@ -116,6 +116,8 @@ EXCHANGE_LOG_DIR = _TEST_FILES_ROOT / "1c_exchange" / "logs"
 # Отключаем email-отправку, заменяя её на "заглушку",
 # которая хранит письма в памяти.
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+# Пауза между письмами рассылки в тестах не нужна.
+NEWSLETTER_SEND_INTERVAL_SECONDS = 0
 
 # Значения по умолчанию для email уведомлений в тестовой среде
 CONFLICT_NOTIFICATION_EMAIL = os.environ.get(

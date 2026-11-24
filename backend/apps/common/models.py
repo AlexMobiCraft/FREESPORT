@@ -973,6 +973,133 @@ class BlogPost(models.Model):
         return reverse("blog-detail", kwargs={"slug": self.slug})
 
 
+class NewsletterCampaign(models.Model):
+    """
+    Рассылка одного материала — новости или статьи блога — подписчикам `Newsletter`.
+
+    Ровно один из `news`/`blog_post` задан, на материал — одна кампания: повторный
+    запуск досылает в ту же кампанию, а `NewsletterDelivery` не даёт отправить
+    статью одному адресу дважды. Удаление материала каскадом стирает кампанию,
+    а её строки доставки остаются с `campaign=NULL`: отправленные письма
+    продолжают считаться в суточном потолке рассылки.
+    """
+
+    news = models.OneToOneField(
+        News,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="newsletter_campaign",
+        verbose_name="Новость",
+    )
+    blog_post = models.OneToOneField(
+        BlogPost,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="newsletter_campaign",
+        verbose_name="Статья блога",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Запустил",
+    )
+    created_at = models.DateTimeField("Создана", auto_now_add=True)
+    last_run_at = models.DateTimeField("Последний запуск", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Рассылка материала"
+        verbose_name_plural = "Рассылки материалов"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(news__isnull=False, blog_post__isnull=True) | Q(news__isnull=True, blog_post__isnull=False)
+                ),
+                name="newslettercampaign_exactly_one_article",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Рассылка: {self.article}"
+
+    @property
+    def article(self) -> News | BlogPost | None:
+        return self.news if self.news_id else self.blog_post
+
+
+class NewsletterDelivery(models.Model):
+    """
+    Доставка материала одному подписчику: одна строка на пару «кампания + подписка».
+
+    Строки не удаляются вместе с кампанией (материалом) или подпиской —
+    `SET_NULL`: строки `sent` за последние сутки — это учёт суточного потолка
+    `NEWSLETTER_DAILY_CAP`, и удаление разосланного материала или подписки не
+    должно его освобождать (лимит Яндекса считает уже ушедшие письма).
+    """
+
+    STATUS_PENDING = "pending"
+    STATUS_SENDING = "sending"
+    STATUS_SENT = "sent"
+    STATUS_SUPPRESSED = "suppressed"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "В очереди"),
+        (STATUS_SENDING, "Отправляется"),
+        (STATUS_SENT, "Отправлено"),
+        (STATUS_SUPPRESSED, "Подавлено (подписка неактивна)"),
+        (STATUS_FAILED, "Ошибка"),
+    ]
+
+    campaign = models.ForeignKey(
+        NewsletterCampaign,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deliveries",
+        verbose_name="Рассылка",
+    )
+    newsletter = models.ForeignKey(
+        Newsletter,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deliveries",
+        verbose_name="Подписка",
+    )
+    status = models.CharField(
+        "Статус",
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
+    error = models.TextField("Ошибка", blank=True)
+    claimed_at = models.DateTimeField("Взята в отправку", null=True, blank=True)
+    sent_at = models.DateTimeField("Отправлено", null=True, blank=True)
+    created_at = models.DateTimeField("Создана", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Доставка рассылки"
+        verbose_name_plural = "Доставки рассылки"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["campaign", "newsletter"],
+                name="newsletterdelivery_one_per_subscription",
+            ),
+        ]
+        indexes = [
+            # Суточный потолок: число `sent` за последние 24 часа по всем кампаниям.
+            models.Index(fields=["status", "sent_at"], name="common_nld_status_sent_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.campaign_id} → {self.newsletter_id}: {self.status}"
+
+
 class NotificationRecipient(TimeStampedModel):
     """
     Получатель email-уведомлений системы.
