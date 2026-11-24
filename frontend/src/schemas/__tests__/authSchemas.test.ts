@@ -127,6 +127,7 @@ describe('registerSchema', () => {
   // название юрлица и ИНН. Базовый валидный набор для всех кейсов ниже.
   const validRegisterBase = {
     first_name: 'Иван',
+    last_name: 'Петров',
     email: 'ivan@example.com',
     phone: '+79001234567',
     password: 'SecurePass123',
@@ -155,6 +156,7 @@ describe('registerSchema', () => {
   test('should use backend contract message for missing pdp consent', () => {
     const result = registerSchema.safeParse({
       first_name: 'Иван',
+      last_name: 'Петров',
       email: 'ivan.pdp-message@example.com',
       password: 'SecurePass123',
       confirmPassword: 'SecurePass123',
@@ -211,6 +213,58 @@ describe('registerSchema', () => {
       });
 
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('last_name', () => {
+    test.each(['', '   '])('should reject last name %j', lastName => {
+      const result = registerSchema.safeParse({ ...validRegisterBase, last_name: lastName });
+      const messages = result.success
+        ? []
+        : result.error.issues
+            .filter(issue => issue.path[0] === 'last_name')
+            .map(issue => issue.message);
+
+      expect(messages).toEqual(['Фамилия обязательна']);
+    });
+
+    test('should reject missing last name', () => {
+      const withoutLastName: Record<string, unknown> = { ...validRegisterBase };
+      delete withoutLastName.last_name;
+      const result = registerSchema.safeParse(withoutLastName);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues.map(issue => issue.path[0])).toEqual(['last_name']);
+      }
+    });
+
+    test('should keep last name as entered', () => {
+      const result = registerSchema.safeParse({ ...validRegisterBase, last_name: ' Петров ' });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.last_name).toBe(' Петров ');
+      }
+    });
+
+    test('should limit last name to 150 characters', () => {
+      const atLimit = registerSchema.safeParse({ ...validRegisterBase, last_name: 'П'.repeat(150) });
+      const overLimit = registerSchema.safeParse({
+        ...validRegisterBase,
+        last_name: 'П'.repeat(151),
+      });
+
+      expect(atLimit.success).toBe(true);
+      expect(overLimit.success).toBe(false);
+      if (!overLimit.success) {
+        expect(overLimit.error.issues).toEqual([
+          expect.objectContaining({
+            path: ['last_name'],
+            message: 'Фамилия не должна превышать 150 символов',
+          }),
+        ]);
+      }
     });
   });
 
@@ -338,6 +392,7 @@ describe('registerSchema', () => {
   describe('tax_id для B2B ролей', () => {
     const b2bBase = {
       first_name: 'Тренер',
+      last_name: 'Петров',
       email: 'trainer@example.com',
       phone: '+79001234567',
       password: 'SecurePass123',

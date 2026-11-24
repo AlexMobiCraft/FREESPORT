@@ -77,11 +77,22 @@ describe('RegisterForm', () => {
     }
   };
 
+  /** Имя и фамилия обязательны: общий шаг ввода для тестов, которые доходят до отправки */
+  const fillNameFields = async (
+    user: ReturnType<typeof userEvent.setup>,
+    firstName: string,
+    lastName = 'Петров'
+  ) => {
+    await user.type(screen.getByLabelText('Имя'), firstName);
+    await user.type(screen.getByLabelText('Фамилия'), lastName);
+  };
+
   describe('Rendering', () => {
     test('should render all form fields', () => {
       render(<RegisterForm />);
 
       expect(screen.getByLabelText(/имя/i)).toBeInTheDocument();
+      expect(screen.getByLabelText('Фамилия')).toBeInTheDocument();
       expect(screen.getByLabelText(/электронная почта/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^пароль$/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/подтверждение пароля/i)).toBeInTheDocument();
@@ -187,6 +198,7 @@ describe('RegisterForm', () => {
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
 
       expect(nameInput).toHaveAttribute('autocomplete', 'given-name');
+      expect(screen.getByLabelText('Фамилия')).toHaveAttribute('autocomplete', 'family-name');
       expect(emailInput).toHaveAttribute('autocomplete', 'email');
       expect(passwordInput).toHaveAttribute('autocomplete', 'new-password');
       expect(confirmInput).toHaveAttribute('autocomplete', 'new-password');
@@ -218,7 +230,6 @@ describe('RegisterForm', () => {
       const mockRegister = vi.mocked(authService.register);
       render(<RegisterForm />);
 
-      const nameInput = screen.getByLabelText(/имя/i);
       const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
@@ -226,7 +237,7 @@ describe('RegisterForm', () => {
 
       // Browser type="email" blocks 'invalid-email' format from submitting
       // We verify the form doesn't submit (authService not called) when email is invalid
-      await user.type(nameInput, 'Иван');
+      await fillNameFields(user, 'Иван');
       await user.type(emailInput, 'invalid-email');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
@@ -242,13 +253,12 @@ describe('RegisterForm', () => {
       const user = userEvent.setup();
       render(<RegisterForm />);
 
-      const nameInput = screen.getByLabelText(/имя/i);
       const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
 
-      await user.type(nameInput, 'Иван');
+      await fillNameFields(user, 'Иван');
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'DifferentPass456');
@@ -265,13 +275,12 @@ describe('RegisterForm', () => {
       const user = userEvent.setup();
       render(<RegisterForm />);
 
-      const nameInput = screen.getByLabelText(/имя/i);
       const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
 
-      await user.type(nameInput, 'Иван');
+      await fillNameFields(user, 'Иван');
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'NoDigitsHere');
       await user.type(confirmInput, 'NoDigitsHere');
@@ -285,13 +294,12 @@ describe('RegisterForm', () => {
       const user = userEvent.setup();
       render(<RegisterForm />);
 
-      const nameInput = screen.getByLabelText(/имя/i);
       const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
 
-      await user.type(nameInput, 'Иван');
+      await fillNameFields(user, 'Иван');
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'nouppercase123');
       await user.type(confirmInput, 'nouppercase123');
@@ -306,7 +314,7 @@ describe('RegisterForm', () => {
       const mockRegister = vi.mocked(authService.register);
       render(<RegisterForm />);
 
-      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await fillNameFields(user, 'Иван');
       await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
@@ -335,7 +343,7 @@ describe('RegisterForm', () => {
           id: 2,
           email: 'newuser@example.com',
           first_name: 'Новый',
-          last_name: '',
+          last_name: 'Петров',
           phone: '',
           role: 'trainer',
           is_verified: false,
@@ -344,13 +352,12 @@ describe('RegisterForm', () => {
 
       render(<RegisterForm />);
 
-      const nameInput = screen.getByLabelText(/имя/i);
       const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
 
-      await user.type(nameInput, 'Новый');
+      await fillNameFields(user, 'Новый');
       await user.type(emailInput, 'newuser@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
@@ -364,7 +371,7 @@ describe('RegisterForm', () => {
           password: 'SecurePass123',
           password_confirm: 'SecurePass123',
           first_name: 'Новый',
-          last_name: '',
+          last_name: 'Петров',
           phone: '+79001234567',
           role: 'trainer',
           company_name: 'Клуб Тест',
@@ -395,7 +402,7 @@ describe('RegisterForm', () => {
           id: 2,
           email: 'newuser@example.com',
           first_name: 'Новый',
-          last_name: '',
+          last_name: 'Петров',
           phone: '',
           role: 'trainer',
           is_verified: false,
@@ -404,13 +411,12 @@ describe('RegisterForm', () => {
 
       render(<RegisterForm onSuccess={mockOnSuccess} />);
 
-      const nameInput = screen.getByLabelText(/имя/i);
       const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
 
-      await user.type(nameInput, 'Новый');
+      await fillNameFields(user, 'Новый');
       await user.type(emailInput, 'newuser@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
@@ -438,14 +444,14 @@ describe('RegisterForm', () => {
           first_name: 'Test',
           role: 'trainer',
           is_verified: true,
-          last_name: '',
+          last_name: 'Петров',
           phone: '',
         },
       });
 
       render(<RegisterForm redirectUrl="/custom/path" />);
 
-      await user.type(screen.getByLabelText(/имя/i), 'Test');
+      await fillNameFields(user, 'Test');
       await user.type(screen.getByLabelText(/электронная почта/i), 'test@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
@@ -468,7 +474,7 @@ describe('RegisterForm', () => {
           id: 2,
           email: 'marketing-false@example.com',
           first_name: 'Marketing',
-          last_name: '',
+          last_name: 'Петров',
           phone: '',
           role: 'trainer',
           is_verified: true,
@@ -477,7 +483,7 @@ describe('RegisterForm', () => {
 
       render(<RegisterForm />);
 
-      await user.type(screen.getByLabelText(/имя/i), 'Marketing');
+      await fillNameFields(user, 'Marketing');
       await user.type(screen.getByLabelText(/электронная почта/i), 'marketing-false@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
@@ -505,7 +511,7 @@ describe('RegisterForm', () => {
           id: 2,
           email: 'marketing-true@example.com',
           first_name: 'Marketing',
-          last_name: '',
+          last_name: 'Петров',
           phone: '',
           role: 'trainer',
           is_verified: true,
@@ -514,7 +520,7 @@ describe('RegisterForm', () => {
 
       render(<RegisterForm />);
 
-      await user.type(screen.getByLabelText(/имя/i), 'Marketing');
+      await fillNameFields(user, 'Marketing');
       await user.type(screen.getByLabelText(/электронная почта/i), 'marketing-true@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
@@ -548,13 +554,12 @@ describe('RegisterForm', () => {
 
       render(<RegisterForm />);
 
-      const nameInput = screen.getByLabelText(/имя/i);
       const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
 
-      await user.type(nameInput, 'Существующий');
+      await fillNameFields(user, 'Существующий');
       await user.type(emailInput, 'existing@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
@@ -585,13 +590,12 @@ describe('RegisterForm', () => {
 
       render(<RegisterForm />);
 
-      const nameInput = screen.getByLabelText(/имя/i);
       const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
 
-      await user.type(nameInput, 'Иван');
+      await fillNameFields(user, 'Иван');
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'WeakPass1');
       await user.type(confirmInput, 'WeakPass1');
@@ -625,7 +629,7 @@ describe('RegisterForm', () => {
 
       render(<RegisterForm />);
 
-      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await fillNameFields(user, 'Иван');
       await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
@@ -648,7 +652,7 @@ describe('RegisterForm', () => {
 
       render(<RegisterForm />);
 
-      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await fillNameFields(user, 'Иван');
       await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
@@ -681,7 +685,7 @@ describe('RegisterForm', () => {
 
       render(<RegisterForm />);
 
-      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await fillNameFields(user, 'Иван');
       await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
@@ -714,7 +718,7 @@ describe('RegisterForm', () => {
 
       render(<RegisterForm />);
 
-      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await fillNameFields(user, 'Иван');
       await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
@@ -737,13 +741,12 @@ describe('RegisterForm', () => {
 
       render(<RegisterForm />);
 
-      const nameInput = screen.getByLabelText(/имя/i);
       const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
 
-      await user.type(nameInput, 'Иван');
+      await fillNameFields(user, 'Иван');
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
@@ -772,7 +775,7 @@ describe('RegisterForm', () => {
                     id: 2,
                     email: 'test@example.com',
                     first_name: 'Test',
-                    last_name: '',
+                    last_name: 'Петров',
                     phone: '',
                     role: 'trainer',
                     is_verified: false,
@@ -785,13 +788,12 @@ describe('RegisterForm', () => {
 
       render(<RegisterForm />);
 
-      const nameInput = screen.getByLabelText(/имя/i);
       const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
 
-      await user.type(nameInput, 'Test');
+      await fillNameFields(user, 'Test');
       await user.type(emailInput, 'test@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
@@ -824,7 +826,7 @@ describe('RegisterForm', () => {
                     id: 2,
                     email: 'test@example.com',
                     first_name: 'Test',
-                    last_name: '',
+                    last_name: 'Петров',
                     phone: '',
                     role: 'trainer',
                     is_verified: false,
@@ -843,7 +845,7 @@ describe('RegisterForm', () => {
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i) as HTMLInputElement;
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
 
-      await user.type(nameInput, 'Test');
+      await fillNameFields(user, 'Test');
       await user.type(emailInput, 'test@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
@@ -890,13 +892,12 @@ describe('RegisterForm', () => {
 
       render(<RegisterForm />);
 
-      const nameInput = screen.getByLabelText(/имя/i);
       const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
 
-      await user.type(nameInput, 'Test');
+      await fillNameFields(user, 'Test');
       await user.type(emailInput, 'existing@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
@@ -941,6 +942,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       expectRequiredField(screen.getByLabelText('Имя'), 'Имя');
+      expectRequiredField(screen.getByLabelText('Фамилия'), 'Фамилия');
       expectRequiredField(screen.getByLabelText('Электронная почта'), 'Электронная почта');
       expectRequiredField(screen.getByLabelText('Пароль'), 'Пароль');
       expectRequiredField(screen.getByLabelText('Подтверждение пароля'), 'Подтверждение пароля');
@@ -983,7 +985,7 @@ describe('RegisterForm', () => {
       const mockRegister = vi.mocked(authService.register);
       render(<RegisterForm />);
 
-      await user.type(screen.getByLabelText('Имя'), '   ');
+      await fillNameFields(user, '   ');
       await user.type(screen.getByLabelText('Электронная почта'), 'ivan@example.com');
       await user.type(screen.getByLabelText('Пароль'), 'SecurePass123');
       await user.type(screen.getByLabelText('Подтверждение пароля'), 'SecurePass123');
@@ -993,6 +995,97 @@ describe('RegisterForm', () => {
 
       expect(await screen.findByText('Имя обязательно')).toBeInTheDocument();
       expect(mockRegister).not.toHaveBeenCalled();
+    });
+
+    test('places the last name field right after the first name', () => {
+      render(<RegisterForm />);
+
+      const firstName = screen.getByLabelText('Имя');
+      const lastName = screen.getByLabelText('Фамилия');
+      const fields = Array.from(
+        firstName.closest('form')!.querySelectorAll('input, select, textarea')
+      );
+      expect(fields.indexOf(lastName)).toBe(fields.indexOf(firstName) + 1);
+      expect(lastName).toHaveAttribute('placeholder', 'Петров');
+    });
+
+    test.each(['', '   '])('does not submit last name %j', async lastName => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      render(<RegisterForm />);
+
+      await user.type(screen.getByLabelText('Имя'), 'Иван');
+      if (lastName) {
+        await user.type(screen.getByLabelText('Фамилия'), lastName);
+      }
+      await user.type(screen.getByLabelText('Электронная почта'), 'ivan@example.com');
+      await user.type(screen.getByLabelText('Пароль'), 'SecurePass123');
+      await user.type(screen.getByLabelText('Подтверждение пароля'), 'SecurePass123');
+      await fillB2BFields(user);
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      expect(await screen.findByText('Фамилия обязательна')).toBeInTheDocument();
+      expect(screen.getByLabelText('Фамилия')).toHaveAccessibleDescription('Фамилия обязательна');
+      expect(mockRegister).not.toHaveBeenCalled();
+    });
+
+    test('sends the last name as entered', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      mockRegister.mockResolvedValue({
+        message: 'Пользователь успешно зарегистрирован',
+        user: {
+          id: 5,
+          email: 'ivan@example.com',
+          first_name: 'Иван',
+          last_name: 'Петров',
+          phone: '',
+          role: 'trainer',
+          is_verified: false,
+        },
+      });
+      render(<RegisterForm />);
+
+      await fillNameFields(user, 'Иван', ' Петров ');
+      await user.type(screen.getByLabelText('Электронная почта'), 'ivan@example.com');
+      await user.type(screen.getByLabelText('Пароль'), 'SecurePass123');
+      await user.type(screen.getByLabelText('Подтверждение пароля'), 'SecurePass123');
+      await fillB2BFields(user);
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      await waitFor(() => {
+        expect(mockRegister).toHaveBeenCalledWith(
+          expect.objectContaining({ first_name: 'Иван', last_name: ' Петров ' })
+        );
+      });
+    });
+
+    test('shows the backend last name error under the field', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      mockRegister.mockRejectedValue({
+        response: {
+          status: 400,
+          data: { last_name: ['Фамилия обязательна.'] },
+        },
+      });
+      render(<RegisterForm />);
+
+      await fillNameFields(user, 'Иван');
+      await user.type(screen.getByLabelText('Электронная почта'), 'ivan@example.com');
+      await user.type(screen.getByLabelText('Пароль'), 'SecurePass123');
+      await user.type(screen.getByLabelText('Подтверждение пароля'), 'SecurePass123');
+      await fillB2BFields(user);
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      const lastNameInput = screen.getByLabelText('Фамилия');
+      await waitFor(() => {
+        expect(lastNameInput).toHaveAccessibleDescription('Фамилия обязательна.');
+      });
+      expect(lastNameInput).toHaveAttribute('aria-invalid', 'true');
     });
   });
 
@@ -1039,7 +1132,7 @@ describe('RegisterForm', () => {
       const mockRegister = vi.mocked(authService.register);
       render(<RegisterForm />);
 
-      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await fillNameFields(user, 'Иван');
       await user.type(screen.getByLabelText(/электронная почта/i), 'no-role@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
@@ -1156,7 +1249,7 @@ describe('RegisterForm', () => {
           id: 3,
           email: 'opt@example.com',
           first_name: 'Опт',
-          last_name: '',
+          last_name: 'Петров',
           phone: '',
           role: 'wholesale_level1',
           company_name: 'ООО Опт',
@@ -1175,7 +1268,7 @@ describe('RegisterForm', () => {
       // Под белорусской страной поле подставляет «+375» и ждёт 9 цифр
       await user.type(screen.getByLabelText(/телефон/i), '291234567');
 
-      await user.type(screen.getByLabelText(/имя/i), 'Опт');
+      await fillNameFields(user, 'Опт');
       await user.type(screen.getByLabelText(/электронная почта/i), 'opt@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
@@ -1204,7 +1297,7 @@ describe('RegisterForm', () => {
           id: 2,
           email: 'trainer@example.com',
           first_name: 'Тренер',
-          last_name: '',
+          last_name: 'Петров',
           phone: '',
           role: 'trainer',
           company_name: 'Спортклуб',
@@ -1215,7 +1308,6 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const roleSelect = screen.getByLabelText(/тип аккаунта/i);
-      const nameInput = screen.getByLabelText(/имя/i);
       const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
@@ -1229,7 +1321,7 @@ describe('RegisterForm', () => {
       await user.type(screen.getByLabelText(/инн/i), '123456789012');
       await user.type(screen.getByLabelText(/телефон/i), '9001234567');
 
-      await user.type(nameInput, 'Тренер');
+      await fillNameFields(user, 'Тренер');
       await user.type(emailInput, 'trainer@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
@@ -1257,7 +1349,6 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const roleSelect = screen.getByLabelText(/тип аккаунта/i);
-      const nameInput = screen.getByLabelText(/имя/i);
       const emailInput = screen.getByLabelText(/электронная почта/i);
       const passwordInput = screen.getByLabelText(/^пароль$/i);
       const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
@@ -1269,7 +1360,7 @@ describe('RegisterForm', () => {
       const companyInput = await screen.findByLabelText(/юридическое лицо или ип/i);
       await user.type(companyInput, 'Спортклуб');
 
-      await user.type(nameInput, 'Тренер');
+      await fillNameFields(user, 'Тренер');
       await user.type(emailInput, 'trainer2@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
@@ -1303,7 +1394,7 @@ describe('RegisterForm', () => {
       await user.selectOptions(roleSelect, '');
       expect(screen.queryByLabelText(/^инн$/i)).not.toBeInTheDocument();
 
-      await user.type(screen.getByLabelText(/имя/i), 'Без роли');
+      await fillNameFields(user, 'Без роли');
       await user.type(screen.getByLabelText(/электронная почта/i), 'no-role-switch@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
@@ -1326,7 +1417,7 @@ describe('RegisterForm', () => {
       const COMPANY_TOO_LONG = 'Название не должно превышать 200 символов';
 
       const fillPersonalFields = async (user: ReturnType<typeof userEvent.setup>) => {
-        await user.type(screen.getByLabelText(/имя/i), 'Тренер');
+        await fillNameFields(user, 'Тренер');
         await user.type(screen.getByLabelText(/электронная почта/i), 'legal@example.com');
         await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
         await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
@@ -1424,7 +1515,7 @@ describe('RegisterForm', () => {
             id: 4,
             email: 'legal@example.com',
             first_name: 'Тренер',
-            last_name: '',
+            last_name: 'Петров',
             phone: '',
             role: 'trainer',
             company_name: 'Иванов Иван Иванович',
@@ -1456,6 +1547,7 @@ describe('RegisterForm', () => {
 
       // Focus on select
       await user.tab(); // Skip to first input (name)
+      await user.tab(); // Skip to last name
       await user.tab(); // Skip to email
       await user.tab(); // Skip to role select
       expect(roleSelect).toHaveFocus();
@@ -1468,7 +1560,7 @@ describe('RegisterForm', () => {
 
   describe('Телефон: формат по стране', () => {
     const fillCommonFields = async (user: ReturnType<typeof userEvent.setup>) => {
-      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await fillNameFields(user, 'Иван');
       await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');

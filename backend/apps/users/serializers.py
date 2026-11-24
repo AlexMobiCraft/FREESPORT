@@ -40,6 +40,8 @@ PORTAL_LINK_CONFIRM_SALT = "portal-link-confirm"
 PDP_CONSENT_REQUIRED_MESSAGE = "Необходимо согласие на обработку персональных данных."
 EMAIL_ALREADY_REGISTERED_MESSAGE = "Пользователь с таким email уже существует."
 PHONE_REQUIRED_MESSAGE = "Укажите номер телефона."
+FIRST_NAME_REQUIRED_MESSAGE = "Имя обязательно."
+LAST_NAME_REQUIRED_MESSAGE = "Фамилия обязательна."
 
 INVALID_SELF_SERVICE_ROLE_MESSAGE = "Недопустимая роль для регистрации."
 
@@ -160,7 +162,29 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             # единым для портальных аккаунтов и импортированных записей 1С.
             # Автогенерируемый UniqueValidator сработал бы раньше validate().
             "email": {"required": True, "validators": []},
-            "first_name": {"required": True},
+            # Имя и фамилия обязательны и непусты: менеджер получает заявку с
+            # ФИО. Модель оставляет их blank=True ради записей из 1С (у юрлиц
+            # фамилии нет), поэтому требование живёт только в регистрации.
+            # Строку из пробелов trim_whitespace превращает в "", дальше —
+            # ошибка blank.
+            "first_name": {
+                "required": True,
+                "allow_blank": False,
+                "error_messages": {
+                    "required": FIRST_NAME_REQUIRED_MESSAGE,
+                    "blank": FIRST_NAME_REQUIRED_MESSAGE,
+                    "null": FIRST_NAME_REQUIRED_MESSAGE,
+                },
+            },
+            "last_name": {
+                "required": True,
+                "allow_blank": False,
+                "error_messages": {
+                    "required": LAST_NAME_REQUIRED_MESSAGE,
+                    "blank": LAST_NAME_REQUIRED_MESSAGE,
+                    "null": LAST_NAME_REQUIRED_MESSAGE,
+                },
+            },
             # Модельный валидатор допускает номера всех стран разом, а при
             # регистрации формат зависит от выбранной страны — его проверяет
             # validate_phone(), поэтому автогенерируемые валидаторы снимаем.

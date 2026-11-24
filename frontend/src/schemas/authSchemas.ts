@@ -66,6 +66,11 @@ export const registerSchema = z
       .string()
       .refine(value => value.trim() !== '', 'Имя обязательно')
       .max(150, 'Имя не должно превышать 150 символов'),
+    // Фамилия обязательна, как в b2bRegisterSchema: менеджер получает заявку с ФИО
+    last_name: z
+      .string()
+      .refine(value => value.trim() !== '', 'Фамилия обязательна')
+      .max(150, 'Фамилия не должна превышать 150 символов'),
     email: z.string().min(1, 'Укажите электронную почту').email('Неверный формат email'),
     phone: phoneField,
     password: z

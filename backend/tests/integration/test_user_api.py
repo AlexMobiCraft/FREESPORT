@@ -109,11 +109,60 @@ def test_user_registration(api_client):
     response = api_client.post(url, data, format="json")
     assert response.status_code == 201
     assert User.objects.filter(email="newuser@example.com").exists()
+    assert User.objects.get(email="newuser@example.com").last_name == "User"
 
     # Повторная регистрация с тем же email должна быть отклонена
     response = api_client.post(url, data, format="json")
     assert response.status_code == 400
     assert "email" in response.json()
+
+
+def _register_names_payload(**overrides):
+    data = {
+        "email": "names@example.com",
+        "password": TEST_USER_PASSWORD,
+        "password_confirm": TEST_USER_PASSWORD,
+        "phone": "+79991234567",
+        "first_name": "Иван",
+        "last_name": "Петров",
+        "role": "trainer",
+        "company_name": "Клуб ФИО",
+        "tax_id": unique_tax_id(),
+        "pdp_consent": True,
+        "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
+    }
+    data.update(overrides)
+    return data
+
+
+def test_registration_without_last_name_returns_400(api_client):
+    """POST /auth/register/ без фамилии — 400 с ошибкой по полю last_name."""
+    data = _register_names_payload()
+    del data["last_name"]
+
+    response = api_client.post(reverse("users:register"), data, format="json")
+
+    assert response.status_code == 400
+    assert response.json() == {"last_name": ["Фамилия обязательна."]}
+    assert not User.objects.filter(email="names@example.com").exists()
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("last_name", "", "Фамилия обязательна."),
+        ("last_name", "   ", "Фамилия обязательна."),
+        ("first_name", "", "Имя обязательно."),
+        ("first_name", "   ", "Имя обязательно."),
+    ],
+)
+def test_registration_with_blank_name_returns_400(api_client, field, value, message):
+    """Имя или фамилия из пробелов отклоняются API, а не только формой."""
+    response = api_client.post(reverse("users:register"), _register_names_payload(**{field: value}), format="json")
+
+    assert response.status_code == 400
+    assert response.json() == {field: [message]}
+    assert not User.objects.filter(email="names@example.com").exists()
 
 
 def test_user_login(api_client, create_user_and_get_token):

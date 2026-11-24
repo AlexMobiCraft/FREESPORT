@@ -210,6 +210,7 @@ class TestUserRegistrationSerializer:
         assert user.email == "b2b@test.com"
         assert user.role == "wholesale_level1"
         assert user.company_name == "Тест Компания"
+        assert user.last_name == "Пользователь"
 
     def test_password_mismatch(self, user_factory):
         """Тест несовпадения паролей"""
@@ -676,6 +677,7 @@ def _registration_payload(**overrides):
         "password": "TestPass123!",
         "password_confirm": "TestPass123!",
         "first_name": "Телефон",
+        "last_name": "Тестов",
         "role": "wholesale_level1",
         "company_name": "Тест Компания",
         "tax_id": "1234567890",
@@ -793,3 +795,49 @@ class TestUserRegistrationPhone:
 
         with pytest.raises(ValidationError):
             User._meta.get_field("phone").run_validators(phone)
+
+
+@pytest.mark.django_db
+class TestUserRegistrationNames:
+    """Имя и фамилия обязательны и непусты: менеджер получает заявку с ФИО."""
+
+    def test_missing_last_name_is_rejected(self):
+        data = _registration_payload()
+        del data["last_name"]
+
+        serializer = UserRegistrationSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert serializer.errors["last_name"] == ["Фамилия обязательна."]
+
+    @pytest.mark.parametrize("value", ["", "   ", None])
+    def test_blank_last_name_is_rejected(self, value):
+        serializer = UserRegistrationSerializer(data=_registration_payload(last_name=value))
+
+        assert not serializer.is_valid()
+        assert serializer.errors["last_name"] == ["Фамилия обязательна."]
+
+    def test_missing_first_name_is_rejected(self):
+        data = _registration_payload()
+        del data["first_name"]
+
+        serializer = UserRegistrationSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert serializer.errors["first_name"] == ["Имя обязательно."]
+
+    @pytest.mark.parametrize("value", ["", "   ", None])
+    def test_blank_first_name_is_rejected(self, value):
+        serializer = UserRegistrationSerializer(data=_registration_payload(first_name=value))
+
+        assert not serializer.is_valid()
+        assert serializer.errors["first_name"] == ["Имя обязательно."]
+
+    def test_last_name_is_saved_trimmed(self):
+        serializer = UserRegistrationSerializer(data=_registration_payload(last_name=" Петров "))
+
+        assert serializer.is_valid(), serializer.errors
+        user = serializer.save()
+
+        user.refresh_from_db()
+        assert user.last_name == "Петров"
