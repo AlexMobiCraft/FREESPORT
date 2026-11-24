@@ -32,4 +32,5 @@ STAFF_ACTIONS: dict[str, str] = {
     "block_staff": "Блокировка сотрудника",
     "unblock_staff": "Разблокировка сотрудника",
     "change_staff_group": "Смена группы сотрудника",
+    "newsletter_send": "Рассылка подписчикам",
 }
