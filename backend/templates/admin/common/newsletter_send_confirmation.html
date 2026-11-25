@@ -25,14 +25,16 @@
 <p><strong>За сутки уйдёт не больше {{ daily_quota }}.</strong>{% if recipients > daily_quota %}
   Остаток останется в очереди: запустите рассылку повторно через сутки.{% endif %}</p>
 
-<form action="" method="post">
+<form action="{{ form_action }}" method="post">
   {% csrf_token %}
+  {% if from_list %}
   <input type="hidden" name="{{ action_checkbox_name }}" value="{{ article.pk }}" />
   <input type="hidden" name="action" value="send_newsletter" />
   <input type="hidden" name="post" value="yes" />
+  {% endif %}
   <div class="submit-row">
     <input type="submit" class="default" value="Да, отправить" />
-    <a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">Отмена</a>
+    <a href="{{ cancel_url }}" class="button cancel-link">Отмена</a>
   </div>
 </form>
 {% endblock %}

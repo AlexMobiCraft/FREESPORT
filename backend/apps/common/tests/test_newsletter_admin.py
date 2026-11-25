@@ -6,6 +6,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 from unittest.mock import patch
 
@@ -15,6 +18,7 @@ from django.core import mail
 from django.db import connection
 from django.test import Client
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
 from apps.common import tasks
 from apps.common.admin import ALREADY_SENT_MESSAGE, ONE_ARTICLE_MESSAGE, QUEUE_DOWN_MESSAGE, TEST_FAILED_MESSAGE
@@ -25,7 +29,7 @@ from apps.common.services.marketing_email import (
     SmtpMarketingTransport,
     TransportResult,
 )
-from apps.common.services.newsletter_campaign import CAP_REACHED_MESSAGE, NOT_PUBLISHED_MESSAGE
+from apps.common.services.newsletter_campaign import CAP_REACHED_MESSAGE, NO_EMAIL_MESSAGE, NOT_PUBLISHED_MESSAGE
 from apps.common.tests.test_newsletter_campaign import (  # noqa: F401 — autouse-фикстура настроек
     make_news,
     make_post,
@@ -399,3 +403,527 @@ class TestJournal:
 
         assert f"Новость «{title}»" in html
         assert f"{NEWS_URL}{pk}/change/" not in html
+
+
+# --------------------------------------------------------------------------
+# Кнопки на форме материала
+# --------------------------------------------------------------------------
+
+SEND_BUTTON = "_newsletter_send"
+TEST_BUTTON = "_newsletter_test"
+FILTERS = "is_published__exact%3D1"  # `_changelist_filters` из списка с фильтром
+
+
+@dataclass
+class Section:
+    """Форма материала в разделе: кто работает, какой каталог и чем создавать материал."""
+
+    browser: Client
+    user: User
+    base: str
+    make: Callable[..., Any]
+    model: type
+
+    def change_url(self, article: Any, query: str = "") -> str:
+        return f"{self.base}{article.pk}/change/{query}"
+
+    def confirm_url(self, article: Any, query: str = "") -> str:
+        return f"{self.base}{article.pk}/newsletter/confirm/{query}"
+
+
+@pytest.fixture(params=["marketing-news", "marketing-blog", "admin-news", "admin-blog"])
+def section(request) -> Section:
+    site, kind = request.param.split("-")
+    if site == "marketing":
+        user = make_staff_member(MARKETING_GROUP)
+    else:
+        user = User.objects.create_superuser(email=f"su_{get_unique_suffix()}@example.com", password=PASSWORD)
+    if kind == "news":
+        base, make, model = ("/marketing/common/news/" if site == "marketing" else ADMIN_NEWS_URL), make_news, News
+    else:
+        base, make, model = (
+            ("/marketing/common/blogpost/" if site == "marketing" else "/admin/common/blogpost/"),
+            make_post,
+            BlogPost,
+        )
+    return Section(browser=logged_in(user), user=user, base=base, make=make, model=model)
+
+
+def form_data(slug: str | None = None, **overrides: Any) -> dict[str, Any]:
+    """Поля формы новости/статьи; `None` в overrides убирает поле (снятая галочка)."""
+    published = timezone.localtime(timezone.now() - timedelta(days=1))
+    data: dict[str, Any] = {
+        "title": "Заголовок формы",
+        "slug": slug or f"form-{get_unique_suffix()}",
+        "subtitle": "",
+        "author": "",
+        "excerpt": "Анонс формы",
+        "content": "<p>Текст формы</p>",
+        "is_published": "on",
+        "published_at_0": published.strftime("%Y-%m-%d"),
+        "published_at_1": published.strftime("%H:%M:%S"),
+    }
+    data.update(overrides)
+    return {key: value for key, value in data.items() if value is not None}
+
+
+def location(response) -> str:
+    return response["Location"]
+
+
+class TestButtonsOnForm:
+    @pytest.mark.parametrize("form", ["add", "change"])
+    def test_buttons_follow_the_save_button(self, section, form):
+        article = section.make()
+        url = f"{section.base}add/" if form == "add" else section.change_url(article)
+
+        html = section.browser.get(url).content.decode()
+
+        standard = html.index('class="submit-row"')
+        ours = html.index('class="submit-row newsletter-submit-row"')
+        assert standard < html.index('name="_save"') < ours
+        assert ours < html.index(f'name="{SEND_BUTTON}"')
+        assert ours < html.index(f'name="{TEST_BUTTON}"')
+        assert "Сохранить и сделать рассылку" in html
+        assert "Сохранить и отправить тестовое письмо на мой e-mail" in html
+
+    @pytest.mark.parametrize("group", [MARKETING_GROUP, SUPERVISORS_GROUP])
+    @pytest.mark.parametrize("base", [NEWS_URL, BLOG_URL])
+    def test_section_roles_see_buttons(self, group, base):
+        article = make_news() if base == NEWS_URL else make_post()
+
+        html = logged_in(make_staff_member(group)).get(f"{base}{article.pk}/change/").content.decode()
+
+        assert f'name="{SEND_BUTTON}"' in html and f'name="{TEST_BUTTON}"' in html
+
+    def test_view_only_has_no_buttons_and_cannot_post(self):
+        user = make_staff_member(MARKETING_GROUP)
+        Group.objects.get(name=MARKETING_GROUP).permissions.set(
+            Permission.objects.filter(codename__in=["view_news", "view_blogpost"])
+        )
+        news = make_news()
+        browser = logged_in(user)
+
+        html = browser.get(f"{NEWS_URL}{news.pk}/change/").content.decode()
+        response = browser.post(f"{NEWS_URL}{news.pk}/change/", form_data(news.slug, **{TEST_BUTTON: "1"}))
+
+        assert SEND_BUTTON not in html and TEST_BUTTON not in html
+        assert response.status_code == 403
+        assert mail.outbox == []
+
+    @pytest.mark.parametrize("button", [SEND_BUTTON, TEST_BUTTON])
+    def test_add_without_change_saves_but_does_nothing(self, button):
+        user = make_staff_member(MARKETING_GROUP)
+        Group.objects.get(name=MARKETING_GROUP).permissions.set(
+            Permission.objects.filter(codename__in=["add_news", "view_news"])
+        )
+        browser = logged_in(user)
+        subscribers(2)
+
+        html = browser.get(f"{NEWS_URL}add/").content.decode()
+        with patch(DELAY) as delay:
+            response = browser.post(f"{NEWS_URL}add/", form_data("no-change-role", **{button: "1"}))
+
+        assert SEND_BUTTON not in html and TEST_BUTTON not in html
+        assert response.status_code == 302
+        assert "/newsletter/confirm/" not in response["Location"]
+        assert News.objects.filter(slug="no-change-role").exists()
+        delay.assert_not_called()
+        assert mail.outbox == []
+        assert not NewsletterCampaign.objects.exists()
+
+    def test_plain_save_does_nothing(self, section):
+        subscribers(2)
+
+        with patch(DELAY) as delay:
+            response = section.browser.post(f"{section.base}add/", form_data(), follow=True)
+
+        assert response.status_code == 200
+        assert section.model.objects.count() == 1
+        delay.assert_not_called()
+        assert mail.outbox == [] and not NewsletterCampaign.objects.exists()
+
+    @pytest.mark.parametrize("button", [SEND_BUTTON, TEST_BUTTON])
+    def test_popup_save_does_nothing(self, button):
+        user = make_staff_member(MARKETING_GROUP)
+        browser = logged_in(user)
+        subscribers(2)
+
+        with patch(DELAY) as delay:
+            response = browser.post(f"{NEWS_URL}add/", form_data("popup-save", _popup="1", **{button: "1"}))
+
+        assert response.status_code == 200  # штатный ответ popup, без редиректа кнопки
+        assert News.objects.filter(slug="popup-save").exists()
+        delay.assert_not_called()
+        assert mail.outbox == []
+        assert not NewsletterCampaign.objects.exists()
+
+
+class TestTestButton:
+    def test_add_form_saves_and_sends_to_staff_only(self, section):
+        subscribers(3)
+
+        response = section.browser.post(f"{section.base}add/", form_data(**{TEST_BUTTON: "1"}), follow=True)
+
+        article = section.model.objects.get()
+        assert response.redirect_chain[-1][0] == section.change_url(article)
+        assert response.status_code == 200
+        shown = texts(response)
+        assert len(shown) == 2 and shown[0] != shown[1]  # штатное сообщение сохранения, затем тест
+        assert f"Тестовое письмо отправлено на {section.user.email}." in shown
+        assert [email.to for email in mail.outbox] == [[section.user.email]]
+        assert "List-Unsubscribe" not in mail.outbox[0].extra_headers
+        assert not NewsletterCampaign.objects.exists() and not NewsletterDelivery.objects.exists()
+
+    def test_change_form_saves_edit_and_sends_draft(self, section):
+        article = section.make(is_published=False, published_at=None)
+
+        response = section.browser.post(
+            section.change_url(article),
+            form_data(article.slug, title="Правка перед тестом", is_published=None, **{TEST_BUTTON: "1"}),
+            follow=True,
+        )
+
+        article.refresh_from_db()
+        assert article.title == "Правка перед тестом" and article.is_published is False
+        assert response.redirect_chain[-1][0] == section.change_url(article)
+        assert f"Тестовое письмо отправлено на {section.user.email}." in texts(response)
+        assert len(mail.outbox) == 1 and mail.outbox[0].subject == "Правка перед тестом"
+
+    def test_empty_staff_email_shows_own_message(self):
+        member = make_staff_member(MARKETING_GROUP)
+        User.objects.filter(pk=member.pk).update(email="")
+        news = make_news()
+
+        response = logged_in(member).post(
+            f"{NEWS_URL}{news.pk}/change/",
+            form_data(news.slug, title="Сохранено без email", **{TEST_BUTTON: "1"}),
+            follow=True,
+        )
+
+        news.refresh_from_db()
+        assert news.title == "Сохранено без email"
+        assert NO_EMAIL_MESSAGE in texts(response)
+        assert TEST_FAILED_MESSAGE not in texts(response)
+        assert mail.outbox == []
+
+    @pytest.mark.parametrize("status", ["failed", STATUS_MAILBOX_FAILED])
+    def test_transport_failure_keeps_saved_material(self, section, status):
+        failure = TransportResult(status=status, error="SMTPDataError: (554, b'5.7.1 rejected')")
+
+        with patch.object(SmtpMarketingTransport, "send", return_value=failure):
+            response = section.browser.post(f"{section.base}add/", form_data(**{TEST_BUTTON: "1"}), follow=True)
+
+        assert section.model.objects.count() == 1
+        assert TEST_FAILED_MESSAGE in texts(response)
+        assert mail.outbox == []
+
+    def test_value_error_keeps_saved_material(self, section, caplog):
+        with patch("apps.common.admin.send_test", side_effect=ValueError("boom")):
+            response = section.browser.post(f"{section.base}add/", form_data(**{TEST_BUTTON: "1"}), follow=True)
+
+        assert section.model.objects.count() == 1
+        assert TEST_FAILED_MESSAGE in texts(response)
+        assert any(
+            record.name == "apps.common.admin" and record.exc_info for record in caplog.records
+        )  # logger.exception
+
+    def test_database_error_does_not_poison_the_transaction(self, section):
+        def broken_query(article, user):
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT * FROM no_such_newsletter_table")
+
+        with patch("apps.common.admin.send_test", side_effect=broken_query):
+            response = section.browser.post(f"{section.base}add/", form_data(**{TEST_BUTTON: "1"}), follow=True)
+
+        # Без savepoint транзакция формы отравлена: сохранение потеряно, запросы падают.
+        assert section.model.objects.count() == 1
+        assert User.objects.filter(pk=section.user.pk).exists()
+        assert TEST_FAILED_MESSAGE in texts(response)
+
+    def test_validation_error_does_not_send(self, section):
+        response = section.browser.post(f"{section.base}add/", form_data(title="", **{TEST_BUTTON: "1"}))
+
+        assert response.status_code == 200
+        assert "errornote" in response.content.decode()
+        assert section.model.objects.count() == 0
+        assert mail.outbox == []
+
+
+class TestSendButton:
+    def test_redirects_to_confirmation_without_sending(self, section):
+        subscribers(3)
+
+        with patch(DELAY) as delay:
+            response = section.browser.post(f"{section.base}add/", form_data(**{SEND_BUTTON: "1"}))
+
+        article = section.model.objects.get()
+        assert response.status_code == 302
+        assert location(response) == section.confirm_url(article)
+        delay.assert_not_called()
+        assert not NewsletterCampaign.objects.exists() and mail.outbox == []
+
+    def test_confirmation_page_is_get_and_repeatable(self, section):
+        article = section.make()
+        subscribers(3)
+
+        first = section.browser.get(section.confirm_url(article))
+        second = section.browser.get(section.confirm_url(article))  # F5
+
+        assert first.status_code == second.status_code == 200
+        html = first.content.decode()
+        assert "Отправить 3 подписчикам?" in html
+        assert 'name="csrfmiddlewaretoken"' in html
+        assert 'name="post"' not in html and 'name="action"' not in html  # не форма действия списка
+        assert f'action="{section.confirm_url(article)}"' in html
+        assert f'href="{section.change_url(article)}"' in html  # «Отмена» — на форму материала
+        assert not NewsletterCampaign.objects.exists()
+
+    def test_yes_starts_campaign_and_goes_to_list(self, section):
+        article = section.make()
+        readers = subscribers(2)
+
+        with patch(DELAY, side_effect=lambda campaign_id: tasks.send_newsletter_campaign(campaign_id)) as delay:
+            response = section.browser.post(section.confirm_url(article), follow=True)
+
+        campaign = NewsletterCampaign.objects.get(**{"news" if section.model is News else "blog_post": article})
+        delay.assert_called_once_with(campaign.pk)
+        assert response.redirect_chain[-1][0] == section.base
+        assert any("Рассылка запущена" in text and "получателей — 2" in text for text in texts(response))
+        assert sorted(email.to[0] for email in mail.outbox) == sorted(r.email for r in readers)
+        entry = AuditLog.objects.get(action="newsletter_send")
+        assert (entry.user, entry.resource_type, entry.resource_id) == (
+            section.user,
+            section.model.__name__,
+            str(article.pk),
+        )
+
+    def test_full_path_from_form(self, section):
+        subscribers(2)
+
+        with patch(DELAY) as delay:
+            sent = section.browser.post(f"{section.base}add/", form_data(**{SEND_BUTTON: "1"}))
+            page = section.browser.get(location(sent))
+            confirmed = section.browser.post(location(sent), follow=True)
+
+        assert page.status_code == 200 and "Отправить 2 подписчикам?" in page.content.decode()
+        delay.assert_called_once()
+        assert any("Рассылка запущена" in text for text in texts(confirmed))
+
+    def test_cancel_sends_nothing(self, section):
+        article = section.make()
+        subscribers(2)
+        html = section.browser.get(section.confirm_url(article)).content.decode()
+
+        with patch(DELAY) as delay:
+            cancelled = section.browser.get(section.change_url(article))  # «Отмена» — ссылка на форму
+
+        assert f'href="{section.change_url(article)}"' in html
+        assert cancelled.status_code == 200
+        delay.assert_not_called()
+        assert not NewsletterCampaign.objects.exists() and mail.outbox == []
+
+    def test_draft_is_saved_but_not_sent(self, section):
+        subscribers(2)
+
+        with patch(DELAY) as delay:
+            response = section.browser.post(
+                f"{section.base}add/", form_data(is_published=None, **{SEND_BUTTON: "1"}), follow=True
+            )
+
+        article = section.model.objects.get()
+        assert response.redirect_chain[-1][0] == section.change_url(article)
+        assert NOT_PUBLISHED_MESSAGE in texts(response)
+        delay.assert_not_called()
+        assert not NewsletterCampaign.objects.exists()
+
+    def test_future_publication_date_is_refused(self, section):
+        article = section.make(published_at=timezone.now() + timedelta(days=2))
+        subscribers(1)
+
+        direct = section.browser.get(section.confirm_url(article), follow=True)
+
+        assert direct.redirect_chain[-1][0] == section.change_url(article)
+        assert NOT_PUBLISHED_MESSAGE in texts(direct)
+        assert not NewsletterCampaign.objects.exists()
+
+    def test_unpublished_after_confirmation_page_is_refused_on_yes(self, section):
+        article = section.make()
+        subscribers(1)
+        section.browser.get(section.confirm_url(article))
+        section.model.objects.filter(pk=article.pk).update(is_published=False)
+
+        with patch(DELAY) as delay:
+            response = section.browser.post(section.confirm_url(article), follow=True)
+
+        assert NOT_PUBLISHED_MESSAGE in texts(response)
+        delay.assert_not_called()
+        assert not NewsletterCampaign.objects.exists()
+
+    def test_cap_exhausted_returns_to_form(self, section, settings):
+        settings.NEWSLETTER_DAILY_CAP = 1
+        set_sent(1)
+        article = section.make()
+        subscribers(1)
+
+        with patch(DELAY) as delay:
+            page = section.browser.get(section.confirm_url(article), follow=True)
+            posted = section.browser.post(section.confirm_url(article), follow=True)
+
+        for response in (page, posted):
+            assert response.redirect_chain[-1][0] == section.change_url(article)
+            assert CAP_REACHED_MESSAGE in texts(response)
+        delay.assert_not_called()
+
+    def test_already_sent_returns_to_form(self, section):
+        article = section.make()
+        subscribers(1)
+        with patch(DELAY, side_effect=lambda campaign_id: tasks.send_newsletter_campaign(campaign_id)):
+            section.browser.post(section.confirm_url(article))
+        mail.outbox.clear()
+
+        with patch(DELAY) as delay:
+            page = section.browser.get(section.confirm_url(article), follow=True)
+            posted = section.browser.post(section.confirm_url(article), follow=True)
+
+        for response in (page, posted):
+            assert response.redirect_chain[-1][0] == section.change_url(article)
+            assert ALREADY_SENT_MESSAGE in texts(response)
+        delay.assert_not_called()
+        assert mail.outbox == []
+
+    def test_queue_down_returns_to_form(self, section):
+        article = section.make()
+        subscribers(2)
+
+        with patch(DELAY, side_effect=ConnectionError("redis down")):
+            response = section.browser.post(section.confirm_url(article), follow=True)
+
+        assert response.redirect_chain[-1][0] == section.change_url(article)
+        assert QUEUE_DOWN_MESSAGE in texts(response)
+        assert not AuditLog.objects.filter(action="newsletter_send").exists()
+
+    def test_validation_error_does_not_redirect(self, section):
+        subscribers(1)
+
+        with patch(DELAY) as delay:
+            response = section.browser.post(f"{section.base}add/", form_data(title="", **{SEND_BUTTON: "1"}))
+
+        assert response.status_code == 200
+        assert "errornote" in response.content.decode()
+        assert section.model.objects.count() == 0
+        delay.assert_not_called()
+
+
+class TestConfirmationAccess:
+    def test_unknown_pk_is_404(self, section):
+        assert section.browser.get(f"{section.base}999999/newsletter/confirm/").status_code == 404
+
+    def test_url_is_not_swallowed_by_catch_all(self, section):
+        article = section.make()
+        subscribers(1)
+
+        response = section.browser.get(section.confirm_url(article))
+
+        assert response.status_code == 200  # не редирект catch-all `<path:object_id>/`
+        assert "newsletter-confirmation" in response.content.decode()
+
+    @pytest.mark.parametrize("method", ["get", "post"])
+    def test_view_only_is_forbidden(self, method):
+        user = make_staff_member(MARKETING_GROUP)
+        Group.objects.get(name=MARKETING_GROUP).permissions.set(
+            Permission.objects.filter(codename__in=["view_news", "view_blogpost"])
+        )
+        news = make_news()
+        subscribers(1)
+
+        with patch(DELAY) as delay:
+            response = getattr(logged_in(user), method)(f"{NEWS_URL}{news.pk}/newsletter/confirm/")
+
+        assert response.status_code == 403
+        delay.assert_not_called()
+        assert not NewsletterCampaign.objects.exists()
+
+    def test_manager_has_no_access(self):
+        news = make_news()
+
+        response = logged_in(make_staff_member(MANAGERS_GROUP)).get(f"{NEWS_URL}{news.pk}/newsletter/confirm/")
+
+        assert response.status_code == 302 and "/marketing/login/" in response["Location"]
+
+    def test_anonymous_is_sent_to_login(self):
+        news = make_news()
+
+        response = Client().get(f"{NEWS_URL}{news.pk}/newsletter/confirm/")
+
+        assert response.status_code == 302 and "login" in response["Location"]
+
+    def test_other_methods_are_not_allowed(self, as_marketer):
+        news = make_news()
+
+        assert as_marketer.put(f"{NEWS_URL}{news.pk}/newsletter/confirm/").status_code == 405
+
+    def test_superuser_in_marketing_goes_to_login(self):
+        superuser = User.objects.create_superuser(email=f"su_{get_unique_suffix()}@example.com", password=PASSWORD)
+        news = make_news()
+
+        response = logged_in(superuser).get(f"{NEWS_URL}{news.pk}/change/")
+
+        assert response.status_code == 302 and "/marketing/login/" in response["Location"]
+
+
+class TestPreservedFilters:
+    def test_test_button_keeps_filters(self, section):
+        article = section.make()
+
+        response = section.browser.post(
+            section.change_url(article, f"?_changelist_filters={FILTERS}"),
+            form_data(article.slug, **{TEST_BUTTON: "1"}),
+        )
+
+        assert response.status_code == 302
+        assert location(response) == section.change_url(article, f"?_changelist_filters={FILTERS}")
+
+    def test_test_button_on_add_form_keeps_filters(self, section):
+        response = section.browser.post(
+            f"{section.base}add/?_changelist_filters={FILTERS}", form_data(**{TEST_BUTTON: "1"})
+        )
+
+        article = section.model.objects.get()
+        assert location(response) == section.change_url(article, f"?_changelist_filters={FILTERS}")
+
+    def test_filters_pass_form_confirmation_list_and_cancel(self, section):
+        article = section.make()
+        subscribers(2)
+        query = f"?_changelist_filters={FILTERS}"
+
+        sent = section.browser.post(section.change_url(article, query), form_data(article.slug, **{SEND_BUTTON: "1"}))
+        assert location(sent) == section.confirm_url(article, query)
+
+        page = section.browser.get(location(sent)).content.decode()
+        assert f'href="{section.change_url(article, query)}"'.replace("&", "&amp;") in page  # «Отмена» → форма
+        assert f'action="{section.confirm_url(article, query)}"'.replace("&", "&amp;") in page
+
+        with patch(DELAY):
+            yes = section.browser.post(section.confirm_url(article, query))
+        assert location(yes) == f"{section.base}?is_published__exact=1"  # «Да» → список с фильтром
+
+    def test_filters_survive_form_back_from_refusal(self, section):
+        article = section.make(is_published=False, published_at=None)
+        query = f"?_changelist_filters={FILTERS}"
+
+        response = section.browser.get(section.confirm_url(article, query))
+
+        assert location(response) == section.change_url(article, query)
+
+    def test_list_action_confirmation_is_unchanged(self, section):
+        article = section.make()
+        subscribers(2)
+
+        response = action(section.browser, section.base, "send_newsletter", article)
+
+        html = response.content.decode()
+        assert response.status_code == 200
+        assert 'name="post" value="yes"' in html and 'name="action" value="send_newsletter"' in html
+        assert f'name="_selected_action" value="{article.pk}"' in html
+        assert f'href="{section.base}"' in html  # «Отмена» — в список
