@@ -11,10 +11,16 @@ from typing import Any
 
 from django.contrib import admin, messages
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+from django.contrib.admin.options import IS_POPUP_VAR
+from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
+from django.contrib.admin.utils import unquote
+from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import Count, Q, QuerySet
-from django.http import HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
 from django.shortcuts import render
 from django.template.response import TemplateResponse
+from django.urls import URLPattern, path, reverse
 from django.utils import timezone
 
 from apps.users.staff_roles import limit_manager_field
@@ -374,15 +380,22 @@ TEST_FAILED_MESSAGE = "Тестовое письмо не отправлено: 
 
 class NewsletterMailingAdminMixin(admin.ModelAdmin):
     """
-    Рассылка новости или статьи подписчикам из списка материалов.
+    Рассылка новости или статьи подписчикам из списка материалов и с формы.
 
     «Разослать подписчикам» — через страницу подтверждения «Отправить N
-    подписчикам?», «Отправить тест мне» — сразу на email сотрудника. Оба
-    действия требуют права на изменение материала. Колонка «Рассылка» —
-    счётчики доставок, посчитанные в `get_queryset` одним запросом.
+    подписчикам?», «Отправить тест мне» — сразу на email сотрудника. Те же два
+    действия есть кнопками на форме материала («Сохранить и …»): тест уходит
+    сразу после сохранения, рассылка — через редирект на GET-страницу
+    подтверждения. Всё требует права на изменение материала. Колонка
+    «Рассылка» — счётчики доставок, посчитанные в `get_queryset` одним запросом.
     """
 
     actions = ["send_newsletter", "send_newsletter_test"]
+    change_form_template = "admin/common/newsletter_change_form.html"
+
+    # Имена кнопок формы в POST.
+    SEND_BUTTON = "_newsletter_send"
+    TEST_BUTTON = "_newsletter_test"
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[Any]:
         deliveries = "newsletter_campaign__deliveries"
@@ -403,6 +416,35 @@ class NewsletterMailingAdminMixin(admin.ModelAdmin):
             return "—"
         return f"отправлено {obj.newsletter_sent} · ошибок {obj.newsletter_failed} · в очереди {obj.newsletter_queued}"
 
+    # ------------------------------------------------------------------
+    # Адреса
+    # ------------------------------------------------------------------
+
+    def _admin_url(self, name: str, *args: Any) -> str:
+        opts = self.model._meta
+        return reverse(f"{self.admin_site.name}:{opts.app_label}_{opts.model_name}_{name}", args=args)
+
+    def _admin_url_with_filters(self, request: HttpRequest, name: str, *args: Any) -> str:
+        """Адрес раздела с `_changelist_filters` запроса (для списка — развёрнутыми)."""
+        context = {"preserved_filters": self.get_preserved_filters(request), "opts": self.model._meta}
+        return str(add_preserved_filters(context, self._admin_url(name, *args)))
+
+    def get_urls(self) -> list[URLPattern]:
+        opts = self.model._meta
+        # До родительских: иначе catch-all `<path:object_id>/` перехватит путь.
+        return [
+            path(
+                "<path:object_id>/newsletter/confirm/",
+                self.admin_site.admin_view(self.newsletter_confirm_view),
+                name=f"{opts.app_label}_{opts.model_name}_newsletter_confirm",
+            ),
+            *super().get_urls(),
+        ]
+
+    # ------------------------------------------------------------------
+    # Действия списка
+    # ------------------------------------------------------------------
+
     def _single_article(self, request: HttpRequest, queryset: QuerySet[Any]) -> Any | None:
         pks = list(queryset.values_list("pk", flat=True)[:2])
         if len(pks) != 1:
@@ -422,7 +464,14 @@ class NewsletterMailingAdminMixin(admin.ModelAdmin):
         if request.POST.get("post") == "yes":
             self._start_newsletter(request, article)
             return None
+        return self._confirmation_page(
+            request, article, form_action="", cancel_url=self._admin_url("changelist"), from_list=True
+        )
 
+    def _confirmation_page(
+        self, request: HttpRequest, article: Any, *, form_action: str, cancel_url: str, from_list: bool = False
+    ) -> TemplateResponse | None:
+        """Страница «Отправить N подписчикам?»; `None` — сообщение показано, спрашивать не о чем."""
         quota = remaining_daily_quota()
         if quota <= 0:
             self.message_user(request, CAP_REACHED_MESSAGE, level=messages.ERROR)
@@ -442,10 +491,14 @@ class NewsletterMailingAdminMixin(admin.ModelAdmin):
             "recipients": recipients,
             "daily_quota": quota,
             "action_checkbox_name": ACTION_CHECKBOX_NAME,
+            "form_action": form_action,
+            "cancel_url": cancel_url,
+            "from_list": from_list,
         }
         return TemplateResponse(request, "admin/common/newsletter_send_confirmation.html", context)
 
-    def _start_newsletter(self, request: HttpRequest, article: Any) -> None:
+    def _start_newsletter(self, request: HttpRequest, article: Any) -> bool:
+        """Запускает рассылку; `True` — задача поставлена, иначе сообщение уже показано."""
         # Импорт здесь: модуль задач тянет Celery и сервис рассылки, admin грузится раньше.
         from .tasks import send_newsletter_campaign
 
@@ -454,10 +507,10 @@ class NewsletterMailingAdminMixin(admin.ModelAdmin):
             started = start_campaign(article, request.user)
         except NewsletterCampaignError as error:
             self.message_user(request, str(error), level=messages.ERROR)
-            return
+            return False
         if started.queued == 0:
             self.message_user(request, ALREADY_SENT_MESSAGE, level=messages.INFO)
-            return
+            return False
         # Постановка — после коммита start_campaign, явно и в try: сбой брокера
         # оставляет строки в pending до повторного запуска.
         try:
@@ -465,29 +518,109 @@ class NewsletterMailingAdminMixin(admin.ModelAdmin):
         except Exception:  # noqa: BLE001 — любой сбой брокера даёт одно сообщение
             logger.exception("Рассылка campaign_id=%s не поставлена в очередь", started.campaign.pk)
             self.message_user(request, QUEUE_DOWN_MESSAGE, level=messages.ERROR)
-            return
+            return False
         # Журнал — только о реально поставленной рассылке.
         log_campaign_start(article, request.user, started.queued)
         text = f"Рассылка запущена: {article_label(article)}, получателей — {started.queued}."
         if started.queued > quota:
             text += f" За сутки уйдёт не больше {quota} писем, остаток досылается повторным запуском" " через сутки."
         self.message_user(request, text, level=messages.SUCCESS)
+        return True
 
     @admin.action(description="Отправить тест мне", permissions=["change"])
     def send_newsletter_test(self, request: HttpRequest, queryset: QuerySet[Any]) -> None:
         article = self._single_article(request, queryset)
         if article is None:
             return
+        self._send_test_letter(request, article)
+
+    def _send_test_letter(self, request: HttpRequest, article: Any, *, guard_errors: bool = False) -> None:
+        """
+        Тестовое письмо сотруднику.
+
+        `guard_errors` — вызов с формы: сохранение материала уже выполнено внутри
+        `atomic` формы, поэтому любое исключение транспорта гасится, а сам вызов
+        идёт в savepoint (ошибка БД без него отравила бы транзакцию и потеряла
+        сохранение).
+        """
         try:
-            result = send_test(article, request.user)
+            if guard_errors:
+                with transaction.atomic():
+                    result = send_test(article, request.user)
+            else:
+                result = send_test(article, request.user)
         except NewsletterCampaignError as error:
             self.message_user(request, str(error), level=messages.ERROR)
+            return
+        except Exception:  # noqa: BLE001 — с формы любой сбой не должен терять сохранённый материал
+            if not guard_errors:
+                raise
+            logger.exception("Тестовое письмо рассылки не отправлено: %s", article_label(article))
+            self.message_user(request, TEST_FAILED_MESSAGE, level=messages.ERROR)
             return
         if result.status != "sent":
             logger.error("Тестовое письмо рассылки не отправлено: %s", result.error)
             self.message_user(request, TEST_FAILED_MESSAGE, level=messages.ERROR)
             return
         self.message_user(request, f"Тестовое письмо отправлено на {request.user.email}.", level=messages.SUCCESS)
+
+    # ------------------------------------------------------------------
+    # Кнопки формы материала
+    # ------------------------------------------------------------------
+
+    def response_add(self, request: HttpRequest, obj: Any, post_url_continue: str | None = None) -> HttpResponse:
+        response = super().response_add(request, obj, post_url_continue)
+        return self._newsletter_button_response(request, obj, response)
+
+    def response_change(self, request: HttpRequest, obj: Any) -> HttpResponse:
+        response = super().response_change(request, obj)
+        return self._newsletter_button_response(request, obj, response)
+
+    def _newsletter_button_response(self, request: HttpRequest, obj: Any, response: HttpResponse) -> HttpResponse:
+        """После штатного сохранения выполняет действие нажатой кнопки рассылки."""
+        test = self.TEST_BUTTON in request.POST
+        if not (test or self.SEND_BUTTON in request.POST) or IS_POPUP_VAR in request.POST:
+            return response
+        # Право проверено и в шаблоне; здесь — на случай POST с именем кнопки от роли без `change`.
+        if not self.has_change_permission(request, obj):
+            return response
+        form_url = self._admin_url_with_filters(request, "change", obj.pk)
+        if test:
+            self._send_test_letter(request, obj, guard_errors=True)
+            return HttpResponseRedirect(form_url)
+        if not is_published(obj):
+            self.message_user(request, NOT_PUBLISHED_MESSAGE, level=messages.ERROR)
+            return HttpResponseRedirect(form_url)
+        # Подтверждение — отдельный GET: рассылка и `.delay()` идут вне `atomic` формы
+        # и после коммита сохранения, F5 ничего не дублирует.
+        return HttpResponseRedirect(self._admin_url_with_filters(request, "newsletter_confirm", obj.pk))
+
+    def newsletter_confirm_view(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        """GET — «Отправить N подписчикам?», POST «Да» — запуск и возврат в список."""
+        if request.method not in ("GET", "POST"):
+            return HttpResponseNotAllowed(["GET", "POST"])
+        article = self.get_object(request, unquote(object_id))
+        if article is None:
+            raise Http404
+        if not self.has_change_permission(request, article):
+            raise PermissionDenied
+        form_url = self._admin_url_with_filters(request, "change", article.pk)
+        if not is_published(article):
+            self.message_user(request, NOT_PUBLISHED_MESSAGE, level=messages.ERROR)
+            return HttpResponseRedirect(form_url)
+        if request.method == "POST":
+            if self._start_newsletter(request, article):
+                return HttpResponseRedirect(self._admin_url_with_filters(request, "changelist"))
+            return HttpResponseRedirect(form_url)
+        page = self._confirmation_page(
+            request,
+            article,
+            form_action=self._admin_url_with_filters(request, "newsletter_confirm", article.pk),
+            cancel_url=form_url,
+        )
+        if page is None:
+            return HttpResponseRedirect(form_url)
+        return page
 
 
 @admin.register(News)
