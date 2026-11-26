@@ -95,7 +95,7 @@ export const Toast: React.FC<ToastProps> = ({
       role="alert"
       aria-live="polite"
       className={cn(
-        'rounded-xl p-4 min-w-[320px] max-w-[420px]',
+        'rounded-xl p-4 min-w-[min(320px,calc(100vw-2rem))] max-w-[min(420px,calc(100vw-2rem))]',
         'shadow-[0_8px_24px_rgba(15,23,42,0.12)]',
         'border-l-4',
         'flex gap-3 items-start',

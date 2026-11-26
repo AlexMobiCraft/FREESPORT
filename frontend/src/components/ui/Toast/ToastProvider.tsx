@@ -36,8 +36,9 @@ interface ToastItem extends ToastOptions {
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 const POSITION_CLASSES: Record<ToastPosition, string> = {
-  'top-right': 'top-4 right-4',
-  'top-center': 'top-4 left-1/2 -translate-x-1/2',
+  // На телефоне тост открывается под шапкой (60px), чтобы не закрывать корзину и меню
+  'top-right': 'top-[72px] right-4 md:top-4',
+  'top-center': 'top-[72px] left-1/2 -translate-x-1/2 md:top-4',
   'bottom-right': 'bottom-4 right-4',
   'bottom-center': 'bottom-4 left-1/2 -translate-x-1/2',
 };
