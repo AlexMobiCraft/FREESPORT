@@ -74,6 +74,29 @@ describe('ToastProvider', () => {
     expect(screen.getByText('Methods available: yes')).toBeInTheDocument();
   });
 
+  describe('позиция на узком экране', () => {
+    it('контейнер top-right открывается под шапкой на мобильном и у верхнего края на десктопе', () => {
+      const TestComponent = () => {
+        const { success } = useToast();
+        return <button onClick={() => success('Товар добавлен')}>Show</button>;
+      };
+
+      render(
+        <ToastProvider>
+          <TestComponent />
+        </ToastProvider>
+      );
+      act(() => {
+        screen.getByText('Show').click();
+      });
+
+      const container = screen.getByText('Товар добавлен').closest('.fixed');
+      expect(container).toHaveClass('top-[72px]', 'right-4', 'md:top-4');
+      // Тост не шире экрана: на телефоне < 352px ширина ограничена 100vw - 2rem
+      expect(screen.getByRole('alert').className).toContain('max-w-[min(420px,calc(100vw-2rem))]');
+    });
+  });
+
   describe('success method', () => {
     it('displays success toast with message', () => {
       const TestComponent = () => {

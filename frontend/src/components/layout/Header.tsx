@@ -83,18 +83,18 @@ const Header: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-[60px]">
           {/* Логотип */}
-          <div className="flex-shrink-0">
+          <div className="min-w-0 flex-shrink">
             <Link href="/home" className="flex items-center gap-2">
               <Image
                 src="/LOGO_OPTIsport.png"
                 alt="OPTISPORT"
                 width={321}
                 height={32}
-                className="h-8 w-auto"
+                className="h-auto max-h-8 w-auto min-w-0"
                 priority
               />
               {isB2BUser && (
-                <span className="px-2 py-1 text-[10px] bg-accent-danger-bg text-accent-danger rounded-full font-bold">
+                <span className="flex-shrink-0 px-2 py-1 text-[10px] bg-accent-danger-bg text-accent-danger rounded-full font-bold">
                   B2B
                 </span>
               )}
@@ -119,7 +119,7 @@ const Header: React.FC = () => {
           </nav>
 
           {/* Правая часть - иконки действий и аутентификация */}
-          <div className="flex items-center gap-4 flex-shrink-0">
+          <div className="flex items-center gap-1 md:gap-4 flex-shrink-0">
             {/* Action Icons (desktop) */}
             <div className="hidden md:flex items-center gap-4">
               {/* Поиск */}
@@ -141,24 +141,24 @@ const Header: React.FC = () => {
               >
                 <Heart className="w-6 h-6" />
               </Link>
-
-              {/* Корзина с Badge */}
-              <Link
-                href="/cart"
-                aria-label={`Корзина (${cartItemsCount} товаров)`}
-                className="relative p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
-              >
-                <ShoppingCart className="w-6 h-6" />
-                {cartItemsCount > 0 && (
-                  <span
-                    data-testid="cart-count"
-                    className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full"
-                  >
-                    {cartItemsCount > 99 ? '99+' : cartItemsCount}
-                  </span>
-                )}
-              </Link>
             </div>
+
+            {/* Корзина с Badge — видна на всех ширинах, в том числе в строке мобильной шапки */}
+            <Link
+              href="/cart"
+              aria-label={`Корзина (${cartItemsCount} товаров)`}
+              className="relative p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
+            >
+              <ShoppingCart className="w-6 h-6" />
+              {cartItemsCount > 0 && (
+                <span
+                  data-testid="cart-count"
+                  className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full"
+                >
+                  {cartItemsCount > 99 ? '99+' : cartItemsCount}
+                </span>
+              )}
+            </Link>
 
             {/* Авторизация/Профиль (desktop) */}
             <div className="hidden md:flex items-center gap-2">
@@ -269,22 +269,6 @@ const Header: React.FC = () => {
                         <Heart className="w-6 h-6" />
                       </Link>
                       <Link
-                        href="/cart"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        aria-label="Корзина"
-                        className="relative p-2 text-text-primary hover:text-text-secondary transition-colors"
-                      >
-                        <ShoppingCart className="w-6 h-6" />
-                        {cartItemsCount > 0 && (
-                          <span
-                            data-testid="cart-count"
-                            className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full"
-                          >
-                            {cartItemsCount > 99 ? '99+' : cartItemsCount}
-                          </span>
-                        )}
-                      </Link>
-                      <Link
                         href="/profile"
                         prefetch={false}
                         onClick={() => setIsMobileMenuOpen(false)}
@@ -329,22 +313,6 @@ const Header: React.FC = () => {
                         className="p-2 text-text-primary hover:text-text-secondary transition-colors"
                       >
                         <Heart className="w-6 h-6" />
-                      </Link>
-                      <Link
-                        href="/cart"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        aria-label="Корзина"
-                        className="relative p-2 text-text-primary hover:text-text-secondary transition-colors"
-                      >
-                        <ShoppingCart className="w-6 h-6" />
-                        {cartItemsCount > 0 && (
-                          <span
-                            data-testid="cart-count"
-                            className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-accent-danger-bg text-accent-danger rounded-full"
-                          >
-                            {cartItemsCount > 99 ? '99+' : cartItemsCount}
-                          </span>
-                        )}
                       </Link>
                     </div>
                     {/* Кнопки авторизации — только после восстановления сессии */}

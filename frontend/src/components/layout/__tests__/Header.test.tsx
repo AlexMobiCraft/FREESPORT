@@ -228,7 +228,8 @@ describe('Header', () => {
       const registerLinks = screen.getAllByRole('link', { name: 'Регистрация' });
       expect(registerLinks).toHaveLength(1);
       expect(screen.getByTestId('auth-guest-actions')).toContainElement(registerLinks[0]);
-      expect(screen.getAllByRole('link', { name: /Корзина/i }).length).toBeGreaterThan(1);
+      // Корзина одна — в строке шапки, в выпадающее меню не дублируется
+      expect(screen.getAllByRole('link', { name: /Корзина/i })).toHaveLength(1);
     });
 
     it('после инициализации кнопки входа видимы', () => {
@@ -364,6 +365,20 @@ describe('Header', () => {
   });
 
   describe('Cart Badge', () => {
+    it('корзина в строке шапки с логотипом и меню, а не только в выпадающем меню', async () => {
+      const user = userEvent.setup();
+      render(<Header />);
+
+      const cartLink = screen.getByRole('link', { name: /Корзина/i });
+      const menuButton = screen.getByRole('button', { name: 'Открыть меню' });
+      // Ссылка на корзину и кнопка меню — в одном ряду правой части шапки
+      expect(cartLink.parentElement).toBe(menuButton.parentElement);
+      expect(cartLink.className).not.toContain('hidden');
+
+      await user.click(menuButton);
+      expect(screen.getAllByRole('link', { name: /Корзина/i })).toHaveLength(1);
+    });
+
     it('should NOT display cart badge when cart is empty', () => {
       vi.mocked(useCartStore).mockImplementation(selector => selector(createMockCartStore()));
 
